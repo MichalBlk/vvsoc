@@ -1,0 +1,3 @@
+riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -I../include -c -O3 start.S -o start.o
+riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -I../include -c -O3 main.c -o main.o
+riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -T linker.ld -O3 start.o main.o -o virtio
