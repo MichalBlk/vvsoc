@@ -1,0 +1,1 @@
+verilator --public -I../hw/include -y ../hw -y ../hw/common -y ../hw/app -y ../hw/app/app_core -y ../hw/app/app_core/mmu -y ../hw/virtio --cc top.sv -O3 -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT --exe tb.cpp --build
