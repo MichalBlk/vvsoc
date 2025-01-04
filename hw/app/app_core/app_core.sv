@@ -72,6 +72,7 @@ module app_core
   logic                    exc_pending, exc_pending_r;
   logic [XLEN - 1:0]       tval, tval_r;
 
+  logic                    iv_mul;
   logic                    iv_ecall;
   logic                    iv_ebreak;
   logic                    iv_mret;
@@ -157,6 +158,7 @@ module app_core
     .ac_funct5     (funct5),
     .ac_funct7     (funct7),
     .ac_funct12    (funct12),
+    .ac_mul        (iv_mul),
     .ac_ecall      (iv_ecall),
     .ac_ebreak     (iv_ebreak),
     .ac_mret       (iv_mret),
@@ -243,6 +245,7 @@ module app_core
   logic [XLEN - 1:0]      opalu_res;
   logic                   bralu_res;
   logic [XLEN - 1:0]      csralu_res;
+  logic [XLEN - 1:0]      mul_res;
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign load_amo_lr       = opcode == OPCODE_LOAD ||
@@ -277,6 +280,13 @@ module app_core
     .ac_res    (csralu_res)
   );
 
+  multiplier MULTIPLIER(
+    .ac_src1   (rs1_data_r),
+    .ac_src2   (rs2_data_r),
+    .ac_funct3 (funct3),
+    .ac_res    (mul_res)
+  );
+
   always_comb begin
     csr_wdata = csr_wdata_r;
     rd_data   = rd_data_r;
@@ -309,8 +319,14 @@ module app_core
         OPCODE_LOAD, OPCODE_STORE:
           mem_addr = rs1_data_r + imm_r;
 
-        OPCODE_OP, OPCODE_OP_IMM:
+        OPCODE_OP_IMM:
           rd_data = opalu_res;
+
+        OPCODE_OP:
+          if (iv_mul)
+            rd_data = mul_res;
+          else
+            rd_data = opalu_res;
 
         OPCODE_AMO: begin
           mem_addr = rs1_data_r;

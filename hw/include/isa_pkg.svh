@@ -78,6 +78,11 @@ package isa_pkg;
 	parameter FUNCT3_FENCE   = 0;
 	parameter FUNCT3_FENCEI  = 1;
 
+  parameter FUNCT3_MUL     = 0;
+  parameter FUNCT3_MULH    = 1;
+  parameter FUNCT3_MULHSU  = 2;
+  parameter FUNCT3_MULHU   = 3;
+
 	parameter FUNCT3_PRIV    = 0;
 	parameter FUNCT3_CSRRW   = 1;
 	parameter FUNCT3_CSRRS   = 2;
@@ -120,6 +125,8 @@ package isa_pkg;
   parameter FUNCT7_AND        = 'h00;
   parameter FUNCT7_SUB        = 'h20;
   parameter FUNCT7_SRA        = 'h20;
+
+  parameter FUNCT7_MULDIV     = 'h01;
 
   parameter FUNCT7_SFENCE_VMA = 'h09;
 
