@@ -146,6 +146,7 @@ module csr_reg_file
   logic [XLEN - 1:0]     trap_s_mstatus;
   logic [XLEN - 1:0]     mret_mstatus;
   logic [XLEN - 1:0]     sret_mstatus;
+  logic [XLEN - 1:0]     _csr_m_mstatus;
   logic [XLEN - 1:0]     csr_m_mstatus;
 
   assign pending_intrs = mip_r & mie_r;
@@ -182,15 +183,17 @@ module csr_reg_file
       intr_code = STI;
   end
 
-  assign intr_deleg = priv_r != PRIV_M && ((mideleg_r >> intr_code) & 1);
-  assign exc_deleg  = priv_r != PRIV_M && ((medeleg_r >> ac_exc_code) & 1);
+  assign intr_deleg     = priv_r != PRIV_M && ((mideleg_r >> intr_code) & 1);
+  assign exc_deleg      = priv_r != PRIV_M && ((medeleg_r >> ac_exc_code) & 1);
+
+  assign _csr_m_mstatus = ac_wdata & MSTATUS_MASK;
 
   always_comb begin
     trap_m_mstatus                         = mstatus_r;
     trap_s_mstatus                         = mstatus_r;
     mret_mstatus                           = mstatus_r;
     sret_mstatus                           = mstatus_r;
-    csr_m_mstatus                          = ac_wdata & MSTATUS_MASK;
+    csr_m_mstatus                          = _csr_m_mstatus;
 
     trap_m_mstatus[MSTATUS_MPIESH]         = mstatus_r[MSTATUS_MIESH];
     trap_m_mstatus[MSTATUS_MPPSH+:PRIVLEN] = priv_r;
@@ -211,7 +214,7 @@ module csr_reg_file
     sret_mstatus[MSTATUS_SPIESH]           = 1;
     sret_mstatus[MSTATUS_MPRVSH]           = 0;
 
-    if (csr_m_mstatus[MSTATUS_MPPSH+:PRIVLEN] == PRIV_H)
+    if (_csr_m_mstatus[MSTATUS_MPPSH+:PRIVLEN] == PRIV_H)
       csr_m_mstatus[MSTATUS_MPPSH+:PRIVLEN] = PRIV_U;
   end
 

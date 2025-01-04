@@ -1,5 +1,7 @@
 `default_nettype none
 
+`include "isa_pkg.svh"
+
 module mmu
   import isa_pkg::*;
 (
@@ -263,7 +265,7 @@ module mmu
     if (exc_pending)
       case (ac_access)
         ACC_LOAD:  exc_code = CAUSE_LOAD_PAGE_FAULT;
-        ACC_STORE: exc_code = CAUSE_STORE_PAGE_FAULT;
+        ACC_STORE: exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
         ACC_FETCH: exc_code = CAUSE_FETCH_PAGE_FAULT;
       endcase
   end
