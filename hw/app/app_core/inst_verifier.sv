@@ -11,6 +11,7 @@ module inst_verifier
   input  logic [FUNCT7LEN - 1:0]  ac_funct7,
   input  logic [FUNCT12LEN - 1:0] ac_funct12,
   output logic                    ac_mul,
+  output logic                    ac_div,
   output logic                    ac_ecall,
   output logic                    ac_ebreak,
   output logic                    ac_mret,
@@ -62,6 +63,8 @@ module inst_verifier
 
   assign ac_mul = ac_opcode == OPCODE_OP && (ac_funct3 == FUNCT3_MUL || ac_funct3 == FUNCT3_MULH ||
     ac_funct3 == FUNCT3_MULHSU || ac_funct3 == FUNCT3_MULHU) && ac_funct7 == FUNCT7_MULDIV;
+  assign ac_div = ac_opcode == OPCODE_OP && (ac_funct3 == FUNCT3_DIV || ac_funct3 == FUNCT3_DIVU ||
+    ac_funct3 == FUNCT3_REM || ac_funct3 == FUNCT3_REMU) && ac_funct7 == FUNCT7_MULDIV;
 
   assign amo_lr  = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_LR;
   assign amo_sc  = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_SC;
@@ -90,6 +93,6 @@ module inst_verifier
      ac_funct3 == FUNCT3_CSRRWI || ac_funct3 == FUNCT3_CSRRSI || ac_funct3 == FUNCT3_CSRRCI);
 
   assign ac_valid = ac_opcode == OPCODE_LUI || ac_opcode == OPCODE_AUIPC || ac_opcode == OPCODE_JAL ||
-    ac_opcode == OPCODE_JALR || branch || load || store || op_imm || op || ac_mul ||
+    ac_opcode == OPCODE_JALR || branch || load || store || op_imm || op || ac_mul || ac_div ||
     amo_lr || amo_sc || amo_rmw || csr || ac_ecall || ac_ebreak || ac_mret || ac_sret || ac_sfence_vma;
 endmodule

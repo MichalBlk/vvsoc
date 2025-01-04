@@ -73,6 +73,7 @@ module app_core
   logic [XLEN - 1:0]       tval, tval_r;
 
   logic                    iv_mul;
+  logic                    iv_div;
   logic                    iv_ecall;
   logic                    iv_ebreak;
   logic                    iv_mret;
@@ -159,6 +160,7 @@ module app_core
     .ac_funct7     (funct7),
     .ac_funct12    (funct12),
     .ac_mul        (iv_mul),
+    .ac_div        (iv_div),
     .ac_ecall      (iv_ecall),
     .ac_ebreak     (iv_ebreak),
     .ac_mret       (iv_mret),
@@ -246,6 +248,7 @@ module app_core
   logic                   bralu_res;
   logic [XLEN - 1:0]      csralu_res;
   logic [XLEN - 1:0]      mul_res;
+  logic [XLEN - 1:0]      div_res;
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign load_amo_lr       = opcode == OPCODE_LOAD ||
@@ -287,6 +290,13 @@ module app_core
     .ac_res    (mul_res)
   );
 
+  divisor DIVISOR(
+    .ac_src1   (rs1_data_r),
+    .ac_src2   (rs2_data_r),
+    .ac_funct3 (funct3),
+    .ac_res    (div_res)
+  );
+
   always_comb begin
     csr_wdata = csr_wdata_r;
     rd_data   = rd_data_r;
@@ -325,6 +335,8 @@ module app_core
         OPCODE_OP:
           if (iv_mul)
             rd_data = mul_res;
+          else if (iv_div)
+            rd_data = div_res;
           else
             rd_data = opalu_res;
 
