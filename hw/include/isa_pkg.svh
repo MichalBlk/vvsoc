@@ -82,6 +82,10 @@ package isa_pkg;
   parameter FUNCT3_MULH    = 1;
   parameter FUNCT3_MULHSU  = 2;
   parameter FUNCT3_MULHU   = 3;
+  parameter FUNCT3_DIV     = 4;
+  parameter FUNCT3_DIVU    = 5;
+  parameter FUNCT3_REM     = 6;
+  parameter FUNCT3_REMU    = 7;
 
 	parameter FUNCT3_PRIV    = 0;
 	parameter FUNCT3_CSRRW   = 1;
