@@ -89,11 +89,20 @@ package isa_pkg;
   /*
    * Funct5
    */
-  parameter FUNCT5LEN     = 5;
-  parameter FUNCT5SH      = 27;
+  parameter FUNCT5LEN       = 5;
+  parameter FUNCT5SH        = 27;
 
-  parameter FUNCT5_AMO_LR = 'h02;
-  parameter FUNCT5_AMO_SC = 'h03;
+  parameter FUNCT5_AMO_LR   = 'h02;
+  parameter FUNCT5_AMO_SC   = 'h03;
+  parameter FUNCT5_AMO_SWAP = 'h01;
+  parameter FUNCT5_AMO_ADD  = 'h00;
+  parameter FUNCT5_AMO_XOR  = 'h04;
+  parameter FUNCT5_AMO_AND  = 'h0c;
+  parameter FUNCT5_AMO_OR   = 'h08;
+  parameter FUNCT5_AMO_MIN  = 'h10;
+  parameter FUNCT5_AMO_MAX  = 'h14;
+  parameter FUNCT5_AMO_MINU = 'h18;
+  parameter FUNCT5_AMO_MAXU = 'h1c;
 
   /*
    * Funct7
@@ -237,18 +246,18 @@ package isa_pkg;
    * Exceptions
    */
   typedef enum logic [XLEN - 2:0] {
-    CAUSE_MISALIGNED_FETCH    = (XLEN - 1)'(0),
-    CAUSE_FAULT_FETCH         = (XLEN - 1)'(1),
-    CAUSE_ILLEGAL_INSTRUCTION = (XLEN - 1)'(2),
-    CAUSE_BREAKPOINT          = (XLEN - 1)'(3),
-    CAUSE_MISALIGNED_LOAD     = (XLEN - 1)'(4),
-    CAUSE_FAULT_LOAD          = (XLEN - 1)'(5),
-    CAUSE_MISALIGNED_STORE    = (XLEN - 1)'(6),
-    CAUSE_FAULT_STORE         = (XLEN - 1)'(7),
-    CAUSE_USER_ECALL          = (XLEN - 1)'(8),
-    CAUSE_FETCH_PAGE_FAULT    = (XLEN - 1)'(12),
-    CAUSE_LOAD_PAGE_FAULT     = (XLEN - 1)'(13),
-    CAUSE_STORE_PAGE_FAULT    = (XLEN - 1)'(15)
+    CAUSE_MISALIGNED_FETCH     = (XLEN - 1)'(0),
+    CAUSE_FETCH_FAULT          = (XLEN - 1)'(1),
+    CAUSE_ILLEGAL_INSTRUCTION  = (XLEN - 1)'(2),
+    CAUSE_BREAKPOINT           = (XLEN - 1)'(3),
+    CAUSE_MISALIGNED_LOAD      = (XLEN - 1)'(4),
+    CAUSE_LOAD_FAULT           = (XLEN - 1)'(5),
+    CAUSE_MISALIGNED_STORE_AMO = (XLEN - 1)'(6),
+    CAUSE_STORE_AMO_FAULT      = (XLEN - 1)'(7),
+    CAUSE_USER_ECALL           = (XLEN - 1)'(8),
+    CAUSE_FETCH_PAGE_FAULT     = (XLEN - 1)'(12),
+    CAUSE_LOAD_PAGE_FAULT      = (XLEN - 1)'(13),
+    CAUSE_STORE_AMO_PAGE_FAULT = (XLEN - 1)'(15)
   } exc_t;
 
   /*
@@ -307,11 +316,11 @@ package isa_pkg;
   /*
    * MEDELEG
    */
-  parameter MEDELEG_MASK = (1 << CAUSE_STORE_PAGE_FAULT) | (1 << CAUSE_LOAD_PAGE_FAULT) |
+  parameter MEDELEG_MASK = (1 << CAUSE_STORE_AMO_PAGE_FAULT) | (1 << CAUSE_LOAD_PAGE_FAULT) |
     (1 << CAUSE_FETCH_PAGE_FAULT) | (1 << (CAUSE_USER_ECALL + PRIV_S)) | (1 << CAUSE_USER_ECALL) |
-    (1 << CAUSE_FAULT_STORE) | (1 << CAUSE_MISALIGNED_STORE) | (1 << CAUSE_FAULT_LOAD) |
+    (1 << CAUSE_STORE_AMO_FAULT) | (1 << CAUSE_MISALIGNED_STORE_AMO) | (1 << CAUSE_LOAD_FAULT) |
     (1 << CAUSE_MISALIGNED_LOAD) | (1 << CAUSE_BREAKPOINT) | (1 << CAUSE_ILLEGAL_INSTRUCTION) |
-    (1 << CAUSE_FAULT_FETCH) | (1 << CAUSE_MISALIGNED_FETCH);
+    (1 << CAUSE_FETCH_FAULT) | (1 << CAUSE_MISALIGNED_FETCH);
 
   /*
    * MIDELEG

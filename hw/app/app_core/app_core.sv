@@ -30,8 +30,10 @@ module app_core
   typedef enum logic [2:0] {
     ST_IF,
     ST_DEC,
-    ST_EXE,
-    ST_MEM,
+    ST_EXE1,
+    ST_MEM1,
+    ST_EXE2,
+    ST_MEM2,
     ST_WB,
     ST_COM
   } state_t;
@@ -58,11 +60,13 @@ module app_core
   logic [XLEN - 1:0]       csr_wdata, csr_wdata_r;
   logic [XLEN - 1:0]       rd_data, rd_data_r;
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
+  logic [XLEN - 1:0]       amo_rmw_data, amo_rmw_data_r;
   logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
   logic                    tkn, tkn_r;
   logic                    amo_sc_succ;
   logic                    load_amo_lr;
   logic                    store_amo_sc_succ;
+  logic                    amo_rmw;
   logic [XLEN - 1:0]       mem_data, mem_data_r;
   exc_t                    exc_code, exc_code_r;
   logic                    exc_pending, exc_pending_r;
@@ -232,7 +236,7 @@ module app_core
   end
 
   /*
-   * Execute stage
+   * Execute stage 1
    */
   logic [XLEN - 1:0]      opalu_src2;
   logic [FUNCT7LEN - 1:0] opalu_funct7;
@@ -245,6 +249,7 @@ module app_core
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_LR);
   assign store_amo_sc_succ = opcode == OPCODE_STORE ||
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
+  assign amo_rmw           = opcode == OPCODE_AMO && funct5 != FUNCT5_AMO_LR && funct5 != FUNCT5_AMO_SC;
 
   assign opalu_src2        = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7      = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -278,7 +283,7 @@ module app_core
     mem_addr  = mem_addr_r;
     jmp_pc    = jmp_pc_r;
 
-    if (state_r == ST_EXE && !stall) begin
+    if (state_r == ST_EXE1 && !stall) begin
       csr_wdata = csralu_res;
 
       case (opcode)
@@ -327,12 +332,12 @@ module app_core
   end
 
   /*
-   * Memory stage
+   * Memory stage 1
    */
   always_comb begin
     mem_data = mem_data_r;
 
-    if (state_r == ST_MEM && !stall)
+    if (state_r == ST_MEM1 && !stall)
       mem_data = mmu_rdata;
   end
 
@@ -340,10 +345,32 @@ module app_core
     mem_data_r <= mem_data;
 
   /*
+   * Execute stage 2
+   */
+  logic [XLEN - 1:0] amo_alu_res;
+
+  amo_alu AMO_ALU(
+    .ac_src1   (rs2_data_r),
+    .ac_src2   (mem_data_r),
+    .ac_funct5 (funct5),
+    .ac_res    (amo_alu_res)
+  );
+
+  always_comb begin
+    amo_rmw_data = amo_rmw_data_r;
+
+    if (state_r == ST_EXE2)
+      amo_rmw_data = amo_alu_res;
+  end
+
+  always_ff @(posedge clk)
+    amo_rmw_data_r <= amo_rmw_data;
+
+  /*
    * Write back stage
    */
   always_comb
-    if (load_amo_lr)
+    if (load_amo_lr || amo_rmw)
       rf_wdata = mem_data_r;
     else if (opcode == OPCODE_SYSTEM)
       rf_wdata = csr_rdata_r;
@@ -363,7 +390,7 @@ module app_core
     if (state_r == ST_WB && !stall && opcode == OPCODE_AMO) begin
       if (funct5 == FUNCT5_AMO_SC)
         resv_valid = 0;
-      else begin
+      else if (funct5 == FUNCT5_AMO_LR) begin
         resv_addr  = mem_addr_r;
         resv_valid = 1;
       end
@@ -412,7 +439,7 @@ module app_core
         ST_IF:
           tkn = 0;
 
-        ST_EXE:
+        ST_EXE1:
           case (opcode)
             OPCODE_JAL, OPCODE_JALR:
               tkn = 1;
@@ -468,24 +495,24 @@ module app_core
             tval        = pc_r;
           end
 
-        ST_EXE:
+        ST_EXE1:
           if (tkn && jmp_pc[ILENB_LOG - 1:0]) begin
             exc_code    = CAUSE_MISALIGNED_FETCH;
             exc_pending = 1;
             tval        = jmp_pc;
           end else if (mem_access_unaligned) begin
-            if (opcode == load_amo_lr) begin
+            if (load_amo_lr) begin
               exc_code    = CAUSE_MISALIGNED_LOAD;
               exc_pending = 1;
               tval        = mem_addr;
-            end else if (store_amo_sc_succ) begin
-              exc_code    = CAUSE_MISALIGNED_STORE;
+            end else if (store_amo_sc_succ || amo_rmw) begin
+              exc_code    = CAUSE_MISALIGNED_STORE_AMO;
               exc_pending = 1;
               tval        = mem_addr;
             end
           end
 
-        ST_MEM:
+        ST_MEM1, ST_MEM2:
           if (mmu_exc_pending) begin
             exc_code    = mmu_exc_code;
             exc_pending = 1;
@@ -511,7 +538,7 @@ module app_core
    */
   logic mem_access;
 
-  assign mem_access = load_amo_lr || store_amo_sc_succ;
+  assign mem_access = load_amo_lr || store_amo_sc_succ || amo_rmw;
 
   always_comb begin
     state = state_r;
@@ -521,7 +548,9 @@ module app_core
         state = ST_IF;
       else if (exc_pending)
         state = ST_COM;
-      else if (state_r == ST_EXE && !mem_access)
+      else if (state_r == ST_EXE1 && !mem_access)
+        state = ST_WB;
+      else if (state_r == ST_MEM1 && !amo_rmw)
         state = ST_WB;
       else
         state = state_t'(state_r + 1);
@@ -554,11 +583,13 @@ module app_core
    * MMU
    */
   logic [XLEN - 1:0]      mmu_vaddr;
+  logic [XLEN - 1:0]      mmu_wdata;
   logic [XLENB_LOG - 1:0] mmu_size;
   logic                   mmu_nsign;
   access_t                mmu_access;
 
   assign mmu_vaddr = state_r == ST_IF ? pc_r : mem_addr_r;
+  assign mmu_wdata = state_r == ST_MEM1 ? rs2_data_r : amo_rmw_data_r;
   assign mmu_size  = state_r == ST_IF ? ILENB_LOG : mem_size;
   assign mmu_nsign = funct3[FUNCT3_NSIGNSH];
 
@@ -569,11 +600,14 @@ module app_core
       ST_IF:
         mmu_access = ACC_FETCH;
 
-      ST_MEM:
-        if (load_amo_lr)
+      ST_MEM1:
+        if (load_amo_lr || amo_rmw)
           mmu_access = ACC_LOAD;
         else
           mmu_access = ACC_STORE;
+
+      ST_MEM2:
+        mmu_access = ACC_STORE;
     endcase
   end
 
@@ -581,7 +615,7 @@ module app_core
     .clk            (clk),
     .nrst           (nrst),
     .ac_vaddr       (mmu_vaddr),
-    .ac_wdata       (rs2_data_r),
+    .ac_wdata       (mmu_wdata),
     .ac_size        (mmu_size),
     .ac_nsign       (mmu_nsign),
     .ac_access      (mmu_access),
@@ -606,5 +640,5 @@ module app_core
   /*
    * VirtIO manager signals
    */
-  assign vmgr_stallable = state_r == ST_DEC || state_r == ST_EXE || state_r == ST_WB;
+  assign vmgr_stallable = state_r == ST_DEC || state_r == ST_EXE1 || state_r == ST_WB;
 endmodule

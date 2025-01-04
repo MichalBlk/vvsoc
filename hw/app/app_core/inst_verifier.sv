@@ -24,6 +24,7 @@ module inst_verifier
   logic op;
   logic amo_lr;
   logic amo_sc;
+  logic amo_rmw;
   logic csr;
 
   assign branch = ac_opcode == OPCODE_BRANCH &&
@@ -58,8 +59,12 @@ module inst_verifier
     (ac_funct3 == FUNCT3_OR && ac_funct7 == FUNCT7_OR) ||
     (ac_funct3 == FUNCT3_AND && ac_funct7 == FUNCT7_AND);
 
-  assign amo_lr = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_LR;
-  assign amo_sc = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_SC;
+  assign amo_lr  = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_LR;
+  assign amo_sc  = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign && ac_funct5 == FUNCT5_AMO_SC;
+  assign amo_rmw = ac_opcode == OPCODE_AMO && size == XLENB_LOG && !nsign &&
+    (ac_funct5 == FUNCT5_AMO_SWAP || ac_funct5 == FUNCT5_AMO_ADD || ac_funct5 == FUNCT5_AMO_XOR ||
+    ac_funct5 == FUNCT5_AMO_AND || ac_funct5 == FUNCT5_AMO_OR || ac_funct5 == FUNCT5_AMO_MIN ||
+    ac_funct5 == FUNCT5_AMO_MAX || ac_funct5 == FUNCT5_AMO_MINU || ac_funct5 == FUNCT5_AMO_MAXU);
 
   assign ac_ecall = ac_opcode == OPCODE_SYSTEM && ac_funct3 == FUNCT3_PRIV &&
     ac_funct12 == FUNCT12_ECALL;
@@ -80,7 +85,7 @@ module inst_verifier
     (ac_funct3 == FUNCT3_CSRRW || ac_funct3 == FUNCT3_CSRRS || ac_funct3 == FUNCT3_CSRRC ||
      ac_funct3 == FUNCT3_CSRRWI || ac_funct3 == FUNCT3_CSRRSI || ac_funct3 == FUNCT3_CSRRCI);
 
-  assign ac_valid = ac_opcode == OPCODE_LUI || ac_opcode == OPCODE_AUIPC ||
-    ac_opcode == OPCODE_JAL || ac_opcode == OPCODE_JALR || branch || load || store || op_imm ||
-    op || amo_lr || amo_sc || csr || ac_ecall || ac_ebreak || ac_mret || ac_sret || ac_sfence_vma;
+  assign ac_valid = ac_opcode == OPCODE_LUI || ac_opcode == OPCODE_AUIPC || ac_opcode == OPCODE_JAL ||
+    ac_opcode == OPCODE_JALR || branch || load || store || op_imm || op || amo_lr || amo_sc ||
+    amo_rmw || csr || ac_ecall || ac_ebreak || ac_mret || ac_sret || ac_sfence_vma;
 endmodule
