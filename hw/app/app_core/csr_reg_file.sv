@@ -100,7 +100,7 @@ module csr_reg_file
         CSR_MIMPID:     ac_rdata = 0;
         CSR_MHARTID:    ac_rdata = 0;
         CSR_MSTATUS:    ac_rdata = mstatus_r;
-        CSR_MISA:       ac_rdata = 0; // TODO
+        CSR_MISA:       ac_rdata = MISA_VALUE;
         CSR_MEDELEG:    ac_rdata = medeleg_r;
         CSR_MIDELEG:    ac_rdata = mideleg_r;
         CSR_MIE:        ac_rdata = mie_r;
