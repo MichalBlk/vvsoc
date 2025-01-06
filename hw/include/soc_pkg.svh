@@ -22,9 +22,26 @@ package soc_pkg;
   } dev_t;
 
   /*
+   * Main memory
+   */
+  parameter        MMEMSZ       = 'h6000000;
+  parameter        MMEM_ADDRLEN = $clog2(MMEMSZ);
+
+  parameter MMEM_KERNEL_OFF     = 'h000000;
+  parameter MMEM_FW_OFF         = 'h100000;
+  parameter MMEM_DTB_OFF        = 'h200000;
+  parameter MMEM_INITRD_OFF     = 'h300000;
+
+  parameter MMEM_KERNEL_OFFW    = MMEM_KERNEL_OFF >> XLENB_LOG;
+  parameter MMEM_FW_OFFW        = MMEM_FW_OFF >> XLENB_LOG;
+  parameter MMEM_DTB_OFFW       = MMEM_DTB_OFF >> XLENB_LOG;
+  parameter MMEM_INITRD_OFFW    = MMEM_INITRD_OFF >> XLENB_LOG;
+
+
+  /*
    * Application core
    */
-  parameter AC_RESET_PC = /*XLEN'(DEV_MMEM) << ADDR_DEVSH;*/ 'h80100000;
+  parameter AC_RESET_PC = (XLEN'(DEV_MMEM) << ADDR_DEVSH) | MMEM_FW_OFF;
 
   /*
    * TLB
@@ -43,7 +60,6 @@ package soc_pkg;
    */
   parameter        VMEMSZ        = PAGESZ;
   parameter        VMEM_ADDRLEN  = $clog2(VMEMSZ);
-  parameter string VMEM_FILENAME = "vmem.bin";
 
   /*
    * VirtIO manager
@@ -75,13 +91,6 @@ package soc_pkg;
   parameter CLINT_REG_MTIMECMPH = 'h4004;
   parameter CLINT_REG_MTIME     = 'hbff8;
   parameter CLINT_REG_MTIMEH    = 'hbffc;
-
-  /*
-   * Main memory
-   */
-  parameter        MMEMSZ        = 'h6000000;
-  parameter        MMEM_ADDRLEN  = $clog2(MMEMSZ);
-  parameter string MMEM_FILENAME = "mmem.bin";
 
   /*
    * UART

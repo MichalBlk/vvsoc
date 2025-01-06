@@ -57,26 +57,26 @@ package isa_pkg;
   parameter FUNCT3_SIZESH  = 0;
   parameter FUNCT3_NSIGNSH = 2;
 
-	parameter FUNCT3_ADD     = 0;
-	parameter FUNCT3_SUB     = 0;
-	parameter FUNCT3_SLL     = 1;
-	parameter FUNCT3_SLT     = 2;
-	parameter FUNCT3_SLTU    = 3;
-	parameter FUNCT3_XOR     = 4;
-	parameter FUNCT3_SRL     = 5;
-	parameter FUNCT3_SRA     = 5;
-	parameter FUNCT3_OR      = 6;
-	parameter FUNCT3_AND     = 7;
+  parameter FUNCT3_ADD     = 0;
+  parameter FUNCT3_SUB     = 0;
+  parameter FUNCT3_SLL     = 1;
+  parameter FUNCT3_SLT     = 2;
+  parameter FUNCT3_SLTU    = 3;
+  parameter FUNCT3_XOR     = 4;
+  parameter FUNCT3_SRL     = 5;
+  parameter FUNCT3_SRA     = 5;
+  parameter FUNCT3_OR      = 6;
+  parameter FUNCT3_AND     = 7;
 
-	parameter FUNCT3_BEQ     = 0;
-	parameter FUNCT3_BNE     = 1;
-	parameter FUNCT3_BLT     = 4;
-	parameter FUNCT3_BGE     = 5;
-	parameter FUNCT3_BLTU    = 6;
-	parameter FUNCT3_BGEU    = 7;
+  parameter FUNCT3_BEQ     = 0;
+  parameter FUNCT3_BNE     = 1;
+  parameter FUNCT3_BLT     = 4;
+  parameter FUNCT3_BGE     = 5;
+  parameter FUNCT3_BLTU    = 6;
+  parameter FUNCT3_BGEU    = 7;
 
-	parameter FUNCT3_FENCE   = 0;
-	parameter FUNCT3_FENCEI  = 1;
+  parameter FUNCT3_FENCE   = 0;
+  parameter FUNCT3_FENCEI  = 1;
 
   parameter FUNCT3_MUL     = 0;
   parameter FUNCT3_MULH    = 1;
@@ -87,13 +87,13 @@ package isa_pkg;
   parameter FUNCT3_REM     = 6;
   parameter FUNCT3_REMU    = 7;
 
-	parameter FUNCT3_PRIV    = 0;
-	parameter FUNCT3_CSRRW   = 1;
-	parameter FUNCT3_CSRRS   = 2;
-	parameter FUNCT3_CSRRC   = 3;
-	parameter FUNCT3_CSRRWI  = 5;
-	parameter FUNCT3_CSRRSI  = 6;
-	parameter FUNCT3_CSRRCI  = 7;
+  parameter FUNCT3_PRIV    = 0;
+  parameter FUNCT3_CSRRW   = 1;
+  parameter FUNCT3_CSRRS   = 2;
+  parameter FUNCT3_CSRRC   = 3;
+  parameter FUNCT3_CSRRWI  = 5;
+  parameter FUNCT3_CSRRSI  = 6;
+  parameter FUNCT3_CSRRCI  = 7;
 
   /*
    * Funct5
@@ -141,12 +141,12 @@ package isa_pkg;
   parameter FUNCT12SH          = 20;
   parameter FUNCT12_PRIVSH     = 8;
 
-	parameter FUNCT12_ECALL      = 'h000;
-	parameter FUNCT12_EBREAK     = 'h001;
-	parameter FUNCT12_MRET       = 'h302;
-	parameter FUNCT12_SRET       = 'h102;
-	parameter FUNCT12_SFENCE_VMA = 'h120;
-	parameter FUNCT12_WFI        = 'h105;
+  parameter FUNCT12_ECALL      = 'h000;
+  parameter FUNCT12_EBREAK     = 'h001;
+  parameter FUNCT12_MRET       = 'h302;
+  parameter FUNCT12_SRET       = 'h102;
+  parameter FUNCT12_SFENCE_VMA = 'h120;
+  parameter FUNCT12_WFI        = 'h105;
 
   /*
    * Register encoding
@@ -279,7 +279,7 @@ package isa_pkg;
     MTI  = XLEN_LOG'(7),
     SEI  = XLEN_LOG'(9),
     MEI  = XLEN_LOG'(11),
-    PD1I = XLEN_LOG'(16)
+    PD0I = XLEN_LOG'(16)
   } intr_t;
 
   /*
@@ -350,12 +350,12 @@ package isa_pkg;
   /*
    * MIDELEG
    */
-  parameter MIDELEG_MASK = (1 << PD1I) | (1 << STI);
+  parameter MIDELEG_MASK = (1 << PD0I) | (1 << STI);
 
   /*
    * MIE
    */
-  parameter MIE_MASK = (1 << PD1I) | (1 << MTI) | (1 << STI);
+  parameter MIE_MASK = (1 << PD0I) | (1 << MTI) | (1 << STI);
 
   /*
    * MIP

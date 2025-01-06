@@ -105,32 +105,32 @@ module top
 
   initial begin
     integer file;
-    $display("0");
-    file = $fopen("emulator.bin", "rb");
-    $fread(MAIN_MEMORY.mem, file, 'h100000 >> 2);
-    $fclose(file);
-
-    $display("1");
+    $display("[TOP] Loading kernel...");
     file = $fopen("kernel.bin", "rb");
-    $fread(MAIN_MEMORY.mem, file);
+    $fread(MAIN_MEMORY.mem, file, MMEM_KERNEL_OFFW);
     $fclose(file);
 
-    $display("2");
+    $display("[TOP] Loading firmware...");
+    file = $fopen("fw.bin", "rb");
+    $fread(MAIN_MEMORY.mem, file, MMEM_FW_OFFW);
+    $fclose(file);
+
+    $display("[TOP] Loading dtb...");
+    file = $fopen("vrvsoc.dtb", "rb");
+    $fread(MAIN_MEMORY.mem, file, MMEM_DTB_OFFW);
+    $fclose(file);
+
+    $display("[TOP] Loading initrd...");
     file = $fopen("initrd.cpio", "rb");
-    $fread(MAIN_MEMORY.mem, file, 'h300000 >> 2);
+    $fread(MAIN_MEMORY.mem, file, MMEM_INITRD_OFFW);
     $fclose(file);
 
-    $display("3");
-    file = $fopen("board.dtb", "rb");
-    $fread(MAIN_MEMORY.mem, file, 'h200000 >> 2);
-    $fclose(file);
-
-    $display("4");
+    $display("[TOP] Loading VirtIO core image...");
     file = $fopen("virtio.bin", "rb");
     $fread(VIRTIO_MEMORY.mem, file);
     $fclose(file);
 
-    $display("5");
+    $display("[TOP] Images loaded successfully");
   end
 
   clint CLINT(
