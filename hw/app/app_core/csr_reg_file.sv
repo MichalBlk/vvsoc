@@ -175,8 +175,8 @@ module csr_reg_file
   always_comb begin
     intr_code = 'bx;
 
-    if (active_intrs[PD1I])
-      intr_code = PD1I;
+    if (active_intrs[PD0I])
+      intr_code = PD0I;
     else if (active_intrs[MTI])
       intr_code = MTI;
     else if (active_intrs[STI])
@@ -246,7 +246,7 @@ module csr_reg_file
 
     if (ac_com) begin
       mip[MTI]  = clint_intr_pending;
-      mip[PD1I] = vcd_intr_pending;
+      mip[PD0I] = vcd_intr_pending;
 
       cycle     = cycle_r + 1;
       instret   = instret_r + 1;
