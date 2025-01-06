@@ -6,9 +6,9 @@
 
 	chosen {
     bootargs = "";
-		linux,initrd-start = <0x80300000>;
-		linux,initrd-end = <0x80700000>;
-	};
+    linux,initrd-start = <0x80300000>;
+    linux,initrd-end = <0x80700000>;
+  };
 
 	cpus {
 		#address-cells = <1>;
