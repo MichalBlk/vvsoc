@@ -305,6 +305,20 @@ package isa_pkg;
     (1 << COUNTEREN_CYCLESH);
 
   /*
+   * MISA
+   */
+  parameter MISA_ASH   = 0;
+  parameter MISA_ISH   = 8;
+  parameter MISA_MSH   = 12;
+  parameter MISA_SSH   = 18;
+  parameter MISA_USH   = 20;
+  parameter MISA_MXLSH = 30;
+  parameter MISA_MXL32 = 1;
+
+  parameter MISA_VALUE = (MISA_MXL32 << MISA_MXLSH) | (1 << MISA_USH) |
+    (1 << MISA_SSH) | (1 << MISA_MSH) | (1 << MISA_ISH) | (1 << MISA_ASH);
+
+  /*
    * MSTATUS
    */
   parameter MSTATUS_SIESH  = 1;
