@@ -1,12 +1,15 @@
 `default_nettype none
 
 `include "isa_pkg.svh"
-`include "soc_pkg.svh"
 
-module tlb
+module tlb_dm
   import isa_pkg::*;
-  import soc_pkg::*;
-(
+#(
+  parameter  SETCNT     = 16,
+
+  localparam SETCNT_LOG = $clog2(SETCNT),
+  localparam TAGLEN     = XLEN - SETCNT_LOG
+)(
   input  logic                 clk,
   input  logic                 nrst,
 
@@ -20,34 +23,30 @@ module tlb
   output logic                 mmu_rsp,
   output logic                 mmu_valid
 );
-  logic [PTELEN - 1:0]       line_pte [TLB_ECNT - 1:0], line_pte_r [TLB_ECNT - 1:0];
-  logic [ASIDLEN - 1:0]      line_asid [TLB_ECNT - 1:0], line_asid_r [TLB_ECNT - 1:0];
-  logic [TLB_TAGLEN - 1:0]   line_tag [TLB_ECNT - 1:0], line_tag_r [TLB_ECNT - 1:0];
-  logic [TLB_ECNT - 1:0]     line_sp, line_sp_r;
-  logic [TLB_ECNT - 1:0]     line_valid, line_valid_r;
+  logic [PTELEN - 1:0]     line_pte [SETCNT - 1:0], line_pte_r [SETCNT - 1:0];
+  logic [ASIDLEN - 1:0]    line_asid [SETCNT - 1:0], line_asid_r [SETCNT - 1:0];
+  logic [TAGLEN - 1:0]     line_tag [SETCNT - 1:0], line_tag_r [SETCNT - 1:0];
+  logic [SETCNT - 1:0]     line_sp, line_sp_r;
+  logic [SETCNT - 1:0]     line_valid, line_valid_r;
 
-  logic [TLB_TAGLEN - 1:0]   tag;
-  logic [TLB_ECNT_LOG - 1:0] idx;
+  logic [TAGLEN - 1:0]     tag;
+  logic [SETCNT_LOG - 1:0] idx;
 
   assign {tag, idx} = mmu_vpn;
 
   /*
    * Reading
    */
-  logic glob;
-
-  assign glob      = line_pte_r[idx][PTE_GSH];
-
   assign mmu_rpte  = line_pte_r[idx];
   assign mmu_rsp   = line_sp_r[idx];
   assign mmu_valid = line_valid_r[idx] && line_tag_r[idx] == tag &&
-    (line_asid_r[idx] == mmu_asid || glob);
+    (line_asid_r[idx] == mmu_asid || line_pte_r[idx][PTE_GSH]);
 
   /*
    * Writing
    */
   always_comb begin
-    for (int i = 0; i < TLB_ECNT; i++) begin
+    for (int i = 0; i < SETCNT; i++) begin
       line_pte[i]  = line_pte_r[i];
       line_asid[i] = line_asid_r[i];
       line_tag[i]  = line_tag_r[i];
@@ -70,7 +69,7 @@ module tlb
     if (!nrst)
       line_valid_r <= 0;
     else begin
-      for (int i = 0; i < TLB_ECNT; i++) begin
+      for (int i = 0; i < SETCNT; i++) begin
         line_pte_r[i]  <= line_pte[i];
         line_asid_r[i] <= line_asid[i];
         line_tag_r[i]  <= line_tag[i];
