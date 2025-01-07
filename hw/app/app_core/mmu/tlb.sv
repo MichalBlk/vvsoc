@@ -20,63 +20,105 @@ module tlb
   output logic                 mmu_rsp,
   output logic                 mmu_valid
 );
-  logic [PTELEN - 1:0]       line_pte [TLB_ECNT - 1:0], line_pte_r [TLB_ECNT - 1:0];
-  logic [ASIDLEN - 1:0]      line_asid [TLB_ECNT - 1:0], line_asid_r [TLB_ECNT - 1:0];
-  logic [TLB_TAGLEN - 1:0]   line_tag [TLB_ECNT - 1:0], line_tag_r [TLB_ECNT - 1:0];
-  logic [TLB_ECNT - 1:0]     line_sp, line_sp_r;
-  logic [TLB_ECNT - 1:0]     line_valid, line_valid_r;
+  logic [PTELEN - 1:0]          line_pte [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0],
+    line_pte_r [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0];
+  logic [ASIDLEN - 1:0]         line_asid [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0],
+    line_asid_r [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0];
+  logic [TLB_TAGLEN - 1:0]      line_tag [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0],
+    line_tag_r [TLB_SETCNT - 1:0][TLB_LINECNT - 1:0];
+  logic [TLB_LINECNT - 1:0]     line_sp [TLB_SETCNT - 1: 0], line_sp_r [TLB_SETCNT - 1:0];
+  logic [TLB_LINECNT - 1:0]     line_valid [TLB_SETCNT - 1:0], line_valid_r [TLB_SETCNT - 1:0];
+  logic [TLB_LINECNT_LOG - 1:0] line_nxt [TLB_SETCNT - 1:0], line_nxt_r [TLB_SETCNT - 1:0];
 
-  logic [TLB_TAGLEN - 1:0]   tag;
-  logic [TLB_ECNT_LOG - 1:0] idx;
+  logic [TLB_TAGLEN - 1:0]      tag;
+  logic [TLB_SETCNT_LOG - 1:0]  set_idx;
 
-  assign {tag, idx} = mmu_vpn;
+  assign {tag, set_idx} = mmu_vpn;
 
   /*
    * Reading
    */
-  logic glob;
+  always_comb begin
+    mmu_rpte  = 'bx;
+    mmu_rsp   = 'bx;
+    mmu_valid = 0;
 
-  assign glob      = line_pte_r[idx][PTE_GSH];
-
-  assign mmu_rpte  = line_pte_r[idx];
-  assign mmu_rsp   = line_sp_r[idx];
-  assign mmu_valid = line_valid_r[idx] && line_tag_r[idx] == tag &&
-    (line_asid_r[idx] == mmu_asid || glob);
+    for (int i = 0; i < TLB_LINECNT; i++) begin
+      if (line_valid_r[set_idx][i] && line_tag_r[set_idx][i] == tag &&
+        (line_asid_r[set_idx][i] == mmu_asid || line_pte_r[set_idx][i][PTE_GSH])) begin
+        mmu_rpte  = line_pte_r[set_idx][i];
+        mmu_rsp   = line_sp_r[set_idx][i];
+        mmu_valid = 1;
+      end
+    end
+  end
 
   /*
    * Writing
    */
+  logic [TLB_LINECNT_LOG - 1:0] free_idx;
+  logic [TLB_LINECNT_LOG - 1:0] line_idx;
+  logic                         free;
+
   always_comb begin
-    for (int i = 0; i < TLB_ECNT; i++) begin
-      line_pte[i]  = line_pte_r[i];
-      line_asid[i] = line_asid_r[i];
-      line_tag[i]  = line_tag_r[i];
+    free_idx = 'bx;
+    free     = 0;
+
+    for (int i = 0; i < TLB_LINECNT; i++) begin
+      if (!line_valid_r[set_idx][i]) begin
+        free_idx = i;
+        free     = 1;
+      end
+    end
+  end
+
+  assign line_idx = free ? free_idx : line_nxt_r[set_idx];
+
+  always_comb begin
+    for (int i = 0; i < TLB_SETCNT; i++) begin
+      for (int j = 0; j < TLB_LINECNT; j++) begin
+        line_pte[i][j]  = line_pte_r[i][j];
+        line_asid[i][j] = line_asid_r[i][j];
+        line_tag[i][j]  = line_tag_r[i][j];
+      end
+
+      line_sp[i]    = line_sp_r[i];
+      line_valid[i] = line_valid_r[i];
+      line_nxt[i]   = line_nxt_r[i];
     end
 
-    line_sp    = line_sp_r;
-    line_valid = line_valid_r;
-
     if (mmu_wen) begin
-      line_pte[idx]   = mmu_wpte;
-      line_asid[idx]  = mmu_asid;
-      line_tag[idx]   = tag;
-      line_sp[idx]    = mmu_wsp;
-      line_valid[idx] = 1;
-    end else if (mmu_flush)
-      line_valid = 0;
+      if (!free)
+        line_nxt[set_idx] = line_nxt[set_idx] + 1;
+
+      line_pte[set_idx][line_idx]   = mmu_wpte;
+      line_asid[set_idx][line_idx]  = mmu_asid;
+      line_tag[set_idx][line_idx]   = tag;
+      line_sp[set_idx][line_idx]    = mmu_wsp;
+      line_valid[set_idx][line_idx] = 1;
+    end else if (mmu_flush) begin
+      for (int i = 0; i < TLB_SETCNT; i++)
+        line_valid[i] = 0;
+    end
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      line_valid_r <= 0;
-    else begin
-      for (int i = 0; i < TLB_ECNT; i++) begin
-        line_pte_r[i]  <= line_pte[i];
-        line_asid_r[i] <= line_asid[i];
-        line_tag_r[i]  <= line_tag[i];
+    if (!nrst) begin
+      for (int i = 0; i < TLB_SETCNT; i++) begin
+        line_valid_r[i] <= 0;
+        line_nxt_r[i]   <= 0;
       end
+    end else begin
+      for (int i = 0; i < TLB_SETCNT; i++) begin
+        for (int j = 0; j < TLB_LINECNT; j++) begin
+          line_pte_r[i][j]  <= line_pte[i][j];
+          line_asid_r[i][j] <= line_asid[i][j];
+          line_tag_r[i][j]  <= line_tag[i][j];
+        end
 
-      line_sp_r    <= line_sp;
-      line_valid_r <= line_valid;
+        line_sp_r[i]    <= line_sp[i];
+        line_valid_r[i] <= line_valid[i];
+        line_nxt_r[i]   <= line_nxt[i];
+      end
     end
 endmodule
