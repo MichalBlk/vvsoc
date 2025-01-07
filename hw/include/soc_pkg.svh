@@ -45,11 +45,8 @@ package soc_pkg;
   /*
    * TLB
    */
-  parameter TLB_SETCNT      = 4;
-  parameter TLB_SETCNT_LOG  = $clog2(TLB_SETCNT);
-  parameter TLB_LINECNT     = 4;
-  parameter TLB_LINECNT_LOG = $clog2(TLB_LINECNT);
-  parameter TLB_TAGLEN      = PNLEN - TLB_SETCNT_LOG;
+  parameter TLB_SETCNT  = 4;
+  parameter TLB_LINECNT = 4;
 
   /*
    * VirtIO core

@@ -1,9 +1,11 @@
 `default_nettype none
 
 `include "isa_pkg.svh"
+`include "soc_pkg.svh"
 
 module mmu
   import isa_pkg::*;
+  import soc_pkg::*;
 (
   input  logic                   clk,
   input  logic                   nrst,
@@ -72,7 +74,10 @@ module mmu
   assign tlb_vpn  = ac_vaddr[VADDR_VPN0SH+:PNLEN];
   assign tlb_asid = ac_satp[SATP_ASIDSH+:ASIDLEN];
 
-  tlb TLB(
+  tlb_sa #(
+    .SETCNT  (TLB_SETCNT),
+    .LINECNT (TLB_LINECNT)
+  ) TLB(
     .clk       (clk),
     .nrst      (nrst),
     .mmu_vpn   (tlb_vpn),
