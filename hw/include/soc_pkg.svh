@@ -24,19 +24,18 @@ package soc_pkg;
   /*
    * Main memory
    */
-  parameter        MMEMSZ       = 'h6000000;
-  parameter        MMEM_ADDRLEN = $clog2(MMEMSZ);
+  parameter MMEMSZ           = 'h6000000;
+  parameter MMEM_ADDRLEN     = $clog2(MMEMSZ);
 
-  parameter MMEM_KERNEL_OFF     = 'h000000;
-  parameter MMEM_FW_OFF         = 'h100000;
-  parameter MMEM_DTB_OFF        = 'h200000;
-  parameter MMEM_INITRD_OFF     = 'h300000;
+  parameter MMEM_KERNEL_OFF  = 'h000000;
+  parameter MMEM_FW_OFF      = 'h100000;
+  parameter MMEM_DTB_OFF     = 'h200000;
+  parameter MMEM_INITRD_OFF  = 'h300000;
 
-  parameter MMEM_KERNEL_OFFW    = MMEM_KERNEL_OFF >> XLENB_LOG;
-  parameter MMEM_FW_OFFW        = MMEM_FW_OFF >> XLENB_LOG;
-  parameter MMEM_DTB_OFFW       = MMEM_DTB_OFF >> XLENB_LOG;
-  parameter MMEM_INITRD_OFFW    = MMEM_INITRD_OFF >> XLENB_LOG;
-
+  parameter MMEM_KERNEL_OFFW = MMEM_KERNEL_OFF >> XLENB_LOG;
+  parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
+  parameter MMEM_DTB_OFFW    = MMEM_DTB_OFF >> XLENB_LOG;
+  parameter MMEM_INITRD_OFFW = MMEM_INITRD_OFF >> XLENB_LOG;
 
   /*
    * Application core
@@ -46,7 +45,7 @@ package soc_pkg;
   /*
    * TLB
    */
-  parameter TLB_ECNT     = 32;
+  parameter TLB_ECNT     = 64;
   parameter TLB_ECNT_LOG = $clog2(TLB_ECNT);
   parameter TLB_TAGLEN   = PNLEN - TLB_ECNT_LOG;
 
@@ -58,8 +57,8 @@ package soc_pkg;
   /*
    * VirtIO memory
    */
-  parameter        VMEMSZ        = PAGESZ;
-  parameter        VMEM_ADDRLEN  = $clog2(VMEMSZ);
+  parameter VMEMSZ       = PAGESZ;
+  parameter VMEM_ADDRLEN = $clog2(VMEMSZ);
 
   /*
    * VirtIO manager
