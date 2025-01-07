@@ -594,18 +594,7 @@ module app_core
   /*
    * TLB flushing
    */
-  logic csr_mstatus;
-  logic csr_sstatus;
-  logic csr_satp;
-
-  assign csr_mstatus   = csr_addr_t'(funct12) == CSR_MSTATUS;
-  assign csr_sstatus   = csr_addr_t'(funct12) == CSR_SSTATUS;
-  assign csr_satp      = csr_addr_t'(funct12) == CSR_SATP;
-
-  assign mmu_tlb_flush = state_r == ST_COM &&
-    (exc_pending_r || csrrf_intr_handling) ||
-    (iv_mret || iv_sret || iv_sfence_vma) ||
-    (csrrf_csr && (csr_mstatus || csr_sstatus || csr_satp));
+  assign mmu_tlb_flush = state_r == ST_COM && iv_sfence_vma;
 
   /*
    * MMU

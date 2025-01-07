@@ -366,9 +366,11 @@ package isa_pkg;
    * SATP
    */
   parameter SATP_PPNSH  = 0;
+  parameter SATP_ASIDSH = 22;
   parameter SATP_MODESH = 31;
 
-  parameter SATP_MASK   = (1 << SATP_MODESH) | ({PNLEN{1'b1}} << SATP_PPNSH);
+  parameter SATP_MASK   = (1 << SATP_MODESH) | ({ASIDLEN{1'b1}} << SATP_ASIDSH) |
+    ({PNLEN{1'b1}} << SATP_PPNSH);
 
   /*
    * Sv32
@@ -395,6 +397,7 @@ package isa_pkg;
   parameter PTE_WSH         = 2;
   parameter PTE_XSH         = 3;
   parameter PTE_USH         = 4;
+  parameter PTE_GSH         = 5;
   parameter PTE_ASH         = 6;
   parameter PTE_DSH         = 7;
   parameter PTE_PPN0SH      = 10;
@@ -402,6 +405,8 @@ package isa_pkg;
 
   parameter PTE_XWR_RESV0   = (1 << PTE_WSH);
   parameter PTE_XWR_RESV1   = (1 << PTE_XSH) | (1 << PTE_WSH);
+
+  parameter ASIDLEN         = 9;
 
   parameter PAGESZ          = 2**12;
   parameter PAGESZ_LOG      = $clog2(PAGESZ);
