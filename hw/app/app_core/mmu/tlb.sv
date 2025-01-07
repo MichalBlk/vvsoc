@@ -34,14 +34,14 @@ module tlb
   /*
    * Reading
    */
-  logic gmapping;
+  logic glob;
 
-  assign gmapping  = line_pte_r[idx][PTE_GSH];
+  assign glob      = line_pte_r[idx][PTE_GSH];
 
   assign mmu_rpte  = line_pte_r[idx];
   assign mmu_rsp   = line_sp_r[idx];
   assign mmu_valid = line_valid_r[idx] && line_tag_r[idx] == tag &&
-    (line_asid_r[idx] == mmu_asid || gmapping);
+    (line_asid_r[idx] == mmu_asid || glob);
 
   /*
    * Writing
