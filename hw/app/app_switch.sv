@@ -16,6 +16,9 @@ module app_switch
   output logic [XLEN - 1:0]          ac_rdata,
   output logic                       ac_stall,
 
+  output logic [BLEN - 1:0]          dbgc_wdata,
+  output logic                       dbgc_wen,
+
   input  logic [XLEN - 1:0]          clint_rdata,
   output logic [CLINT_ADDRLEN - 1:0] clint_addr,
   output logic [XLEN - 1:0]          clint_wdata,
@@ -30,6 +33,8 @@ module app_switch
   output logic                       msw_ren,
   output logic                       msw_wen
 );
+  assign dbgc_wdata  = ac_wdata;
+
   assign clint_addr  = ac_addr;
   assign clint_wdata = ac_wdata;
 
@@ -41,12 +46,17 @@ module app_switch
   always_comb begin
     ac_stall  = 0;
 
+    dbgc_wen  = 0;
+
     clint_wen = 0;
 
     msw_ren   = 0;
     msw_wen   = 0;
 
     case (ac_addr[ADDR_DEVSH+:DEVLEN])
+      DEV_DBGC:
+        dbgc_wen = ac_wen;
+
       DEV_CLINT: begin
         ac_rdata  = clint_rdata;
 

@@ -6,12 +6,15 @@
 
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_encoding.h>
+#include <sbi/sbi_string.h>
+#include <sbi/sbi_console.h>
 #include <sbi/sbi_const.h>
 #include <sbi/sbi_platform.h>
 
 #include <sbi_utils/timer/aclint_mtimer.h>
 
 #define VRVSOC_HART_COUNT		1
+#define VRVSOC_DBGC_ADDR		0x60000000
 #define VRVSOC_CLINT_ADDR		0x70000000
 #define VRVSOC_ACLINT_MTIMER_FREQ	50000000
 #define VRVSOC_ACLINT_MTIMER_ADDR	(VRVSOC_CLINT_ADDR + CLINT_MTIMER_OFFSET)
@@ -28,18 +31,30 @@ static struct aclint_mtimer_data mtimer = {
 	.has_64bit_mmio = false,
 };
 
-/*
- * Initialize the platform interrupt controller during cold boot.
- */
+static void dbgc_putc(char c)
+{
+	*((volatile char *)VRVSOC_DBGC_ADDR) = c;
+}
+
+struct sbi_console_device console = {
+	.console_putc = dbgc_putc,
+};
+
+static int platform_console_init(void)
+{
+	const char *name = "DBG console";
+	size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
+	sbi_memcpy(console.name, name, size);
+	sbi_console_set_device(&console);
+	return 0;
+}
+
 static int platform_irqchip_init(bool coldboot)
 {
   csr_set(CSR_MIDELEG, 1 << VRVSOC_INTR_PD0);
   return 0;
 }
 
-/*
- * Initialize platform timer during cold boot.
- */
 static int platform_timer_init(bool coldboot)
 {
 	int ret;
@@ -53,10 +68,8 @@ static int platform_timer_init(bool coldboot)
 	return aclint_mtimer_warm_init();
 }
 
-/*
- * Platform descriptor.
- */
 const struct sbi_platform_operations platform_ops = {
+	.console_init = platform_console_init,
 	.irqchip_init = platform_irqchip_init,
 	.timer_init = platform_timer_init
 };
