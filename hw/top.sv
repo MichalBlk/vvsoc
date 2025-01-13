@@ -27,6 +27,8 @@ module top
 
   logic [XLEN - 1:0]             asw_ac_rdata;
   logic                          asw_ac_stall;
+  logic [BLEN - 1:0]             asw_dbgc_wdata;
+  logic                          asw_dbgc_wen;
   logic [CLINT_ADDRLEN - 1:0]    asw_clint_addr;
   logic [XLEN - 1:0]             asw_clint_wdata;
   logic                          asw_clint_wen;
@@ -133,6 +135,12 @@ module top
     $display("[TOP] Images loaded successfully");
   end
 
+  dbg_console DBG_CONSOLE (
+    .clk       (clk),
+    .asw_wdata (asw_dbgc_wdata),
+    .asw_wen   (asw_dbgc_wen)
+  );
+
   clint CLINT(
     .clk             (clk),
     .nrst            (nrst),
@@ -171,6 +179,8 @@ module top
     .ac_wen      (ac_asw_wen),
     .ac_rdata    (asw_ac_rdata),
     .ac_stall    (asw_ac_stall),
+    .dbgc_wdata  (asw_dbgc_wdata),
+    .dbgc_wen    (asw_dbgc_wen),
     .clint_rdata (clint_asw_rdata),
     .clint_addr  (asw_clint_addr),
     .clint_wdata (asw_clint_wdata),

@@ -26,6 +26,11 @@
 #define VCD_QUEUE_NUM_MAX 2
 
 /*
+ * Debug console
+ */
+#define DBGC_START 0x60000000
+
+/*
  * CLINT
  */
 #define CLINT_START 0x70000000
