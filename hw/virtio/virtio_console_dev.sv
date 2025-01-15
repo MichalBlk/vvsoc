@@ -51,7 +51,7 @@ module virtio_console_dev
         VIRTIO_REG_VERSION:           msw_rdata = VIRTIO_VERSION;
         VIRTIO_REG_DEVICE_ID:         msw_rdata = VIRTIO_DEVICE_ID_CONSOLE;
         VIRTIO_REG_VENDOR_ID:         msw_rdata = VIRTIO_VENDOR_ID_QEMU;
-        VIRTIO_REG_DEVICE_FEATURES:   msw_rdata = 0;
+        VIRTIO_REG_DEVICE_FEATURES:   msw_rdata = VIRTIO_DEVICE_FEATURES_VAL;
         VIRTIO_REG_QUEUE_NUM_MAX:     msw_rdata = VCD_QUEUECNT;
 
         VIRTIO_REG_QUEUE_READY:
@@ -61,7 +61,7 @@ module virtio_console_dev
         VIRTIO_REG_STATUS:            msw_rdata = status_r;
         VIRTIO_REG_CONFIG_GENERATION: msw_rdata = 0;
 
-        default:                      msw_rdata = 'bx;
+        default:                      msw_rdata = 0;
       endcase
 
   /*
