@@ -145,7 +145,6 @@ package isa_pkg;
   parameter FUNCT12_EBREAK     = 'h001;
   parameter FUNCT12_MRET       = 'h302;
   parameter FUNCT12_SRET       = 'h102;
-  parameter FUNCT12_SFENCE_VMA = 'h120;
   parameter FUNCT12_WFI        = 'h105;
 
   /*

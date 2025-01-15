@@ -86,7 +86,7 @@ module inst_verifier
     ac_funct12 == FUNCT12_SRET;
 
   assign ac_sfence_vma = ac_opcode == OPCODE_SYSTEM && ac_funct3 == FUNCT3_PRIV &&
-    ac_funct12 == FUNCT12_SFENCE_VMA;
+    ac_funct7 == FUNCT7_SFENCE_VMA;
 
   assign csr = ac_opcode == OPCODE_SYSTEM &&
     (ac_funct3 == FUNCT3_CSRRW || ac_funct3 == FUNCT3_CSRRS || ac_funct3 == FUNCT3_CSRRC ||
