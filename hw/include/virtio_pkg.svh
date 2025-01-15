@@ -5,22 +5,23 @@ package virtio_pkg;
   /*
    * VirtIO registers
    */
-  parameter VIRTIO_REG_MAGIC_VALUE       = 'h00;
-  parameter VIRTIO_REG_VERSION           = 'h04;
-  parameter VIRTIO_REG_DEVICE_ID         = 'h08;
-  parameter VIRTIO_REG_VENDOR_ID         = 'h0c;
-  parameter VIRTIO_REG_DEVICE_FEATURES   = 'h10;
-  parameter VIRTIO_REG_QUEUE_SELECT      = 'h30;
-  parameter VIRTIO_REG_QUEUE_NUM_MAX     = 'h34;
-  parameter VIRTIO_REG_QUEUE_READY       = 'h44;
-  parameter VIRTIO_REG_QUEUE_NOTIFY      = 'h50;
-  parameter VIRTIO_REG_INTERRUPT_STATUS  = 'h60;
-  parameter VIRTIO_REG_INTERRUPT_ACK     = 'h64;
-  parameter VIRTIO_REG_STATUS            = 'h70;
-  parameter VIRTIO_REG_QUEUE_DESC_LOW    = 'h80;
-  parameter VIRTIO_REG_QUEUE_DRIVER_LOW  = 'h90;
-  parameter VIRTIO_REG_QUEUE_DEVICE_LOW  = 'ha0;
-  parameter VIRTIO_REG_CONFIG_GENERATION = 'hfc;
+  parameter VIRTIO_REG_MAGIC_VALUE         = 'h00;
+  parameter VIRTIO_REG_VERSION             = 'h04;
+  parameter VIRTIO_REG_DEVICE_ID           = 'h08;
+  parameter VIRTIO_REG_VENDOR_ID           = 'h0c;
+  parameter VIRTIO_REG_DEVICE_FEATURES     = 'h10;
+  parameter VIRTIO_REG_DEVICE_FEATURES_SEL = 'h14;
+  parameter VIRTIO_REG_QUEUE_SELECT        = 'h30;
+  parameter VIRTIO_REG_QUEUE_NUM_MAX       = 'h34;
+  parameter VIRTIO_REG_QUEUE_READY         = 'h44;
+  parameter VIRTIO_REG_QUEUE_NOTIFY        = 'h50;
+  parameter VIRTIO_REG_INTERRUPT_STATUS    = 'h60;
+  parameter VIRTIO_REG_INTERRUPT_ACK       = 'h64;
+  parameter VIRTIO_REG_STATUS              = 'h70;
+  parameter VIRTIO_REG_QUEUE_DESC_LOW      = 'h80;
+  parameter VIRTIO_REG_QUEUE_DRIVER_LOW    = 'h90;
+  parameter VIRTIO_REG_QUEUE_DEVICE_LOW    = 'ha0;
+  parameter VIRTIO_REG_CONFIG_GENERATION   = 'hfc;
 
   /*
    * VirtIO magic value
@@ -41,6 +42,12 @@ package virtio_pkg;
    * VirtIO vendor IDs
    */
   parameter VIRTIO_VENDOR_ID_QEMU = 'h554d4551;
+
+  /*
+   * VirtIO device features
+   */
+  parameter VIRTIO_F_VERSION_1SH       = 1;
+  parameter VIRTIO_DEVICE_FEATURES_VAL = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
    * VirtIO status
