@@ -34,7 +34,6 @@ module virtio_manager
   input  logic [VCD_QUEUECNT_LOG - 1:0] vcd_queue_num,
   input  logic                          vcd_notify,
   input  logic                          vcd_drvok,
-  input  logic                          vcd_intr_pending,
   output logic                          vcd_used,
 
   output logic                          busy
@@ -56,7 +55,8 @@ module virtio_manager
   logic [VMGR_UART_RX_FIFO_ADDRLEN - 1:0] uart_rx_fifo_tail, uart_rx_fifo_tail_r;
   logic [VMGR_UART_RX_FIFO_CNTLEN - 1:0]  uart_rx_fifo_cnt, uart_rx_fifo_cnt_r;
 
-  logic [VCD_QUEUECNT - 1:0]              queue_notified, queue_notified_r;
+  logic [VMGR_QUEUE_NOTIF_CNTLEN - 1:0]   queue_notif_cnt[VCD_QUEUECNT - 1:0],
+    queue_notif_cnt_r[VCD_QUEUECNT - 1:0];
   logic [VCD_QUEUECNT_LOG - 1:0]          queue_num, queue_num_r;
 
   logic                                   rx_pending;
@@ -126,36 +126,41 @@ module virtio_manager
   /*
    * VirtIO console device signals
    */
-  assign vcd_used = finished;
+  assign vcd_used = finished && vsw_wdata == VMGR_FINISH_SUCCESS;
 
   /*
    * Queue notifications
    */
-  always_comb begin
-    queue_notified = queue_notified_r;
+  logic notif_cnt_max;
 
-    if (vcd_notify)
-      queue_notified[vcd_queue_num] = 1;
+  assign notif_cnt_max = queue_notif_cnt_r[vcd_queue_num] == {VMGR_QUEUE_NOTIF_CNTLEN{1'b1}};
+
+  always_comb begin
+    for (int i = 0; i < VCD_QUEUECNT; i++)
+      queue_notif_cnt[i] = queue_notif_cnt_r[i];
+
+    if (vcd_notify && !notif_cnt_max)
+      queue_notif_cnt[vcd_queue_num] = queue_notif_cnt_r[vcd_queue_num] + 1;
     else if (finished)
-      queue_notified[queue_num_r] = 0;
+      queue_notif_cnt[queue_num_r] = queue_notif_cnt_r[queue_num_r] - 1;
   end
 
   always_ff @(posedge clk, negedge nrst) begin
     if (!nrst)
-      queue_notified_r <= 0;
+      for (int i = 0; i < VCD_QUEUECNT; i++)
+        queue_notif_cnt_r[i] <= 0;
     else
-      queue_notified_r <= queue_notified;
+      for (int i = 0; i < VCD_QUEUECNT; i++)
+        queue_notif_cnt_r[i] <= queue_notif_cnt[i];
   end
 
   /*
    * Pending queues
    */
-  logic [VCD_QUEUECNT - 1:0] queue_pending;
-
-  assign queue_pending = vcd_queue_rdy & queue_notified_r;
-
-  assign rx_pending    = queue_pending[VIRTIO_CONSOLE_RX_QUEUE_NUM] && uart_rx_fifo_cnt_r;
-  assign tx_pending    = queue_pending[VIRTIO_CONSOLE_TX_QUEUE_NUM];
+  assign rx_pending = vcd_queue_rdy[VIRTIO_CONSOLE_RX_QUEUE_NUM] &&
+    queue_notif_cnt_r[VIRTIO_CONSOLE_RX_QUEUE_NUM] && uart_rx_fifo_cnt_r;
+  assign tx_pending = vcd_queue_rdy[VIRTIO_CONSOLE_TX_QUEUE_NUM] &&
+    queue_notif_cnt_r[VIRTIO_CONSOLE_TX_QUEUE_NUM];
 
   /*
    * Queue number
@@ -209,33 +214,33 @@ module virtio_manager
 
     case (state_r)
       ST_IDLE:
-        if (ac_stallable && vcd_drvok && !vcd_intr_pending && !delay_cnt_r && pending) begin
+        if (ac_stallable && vcd_drvok && !delay_cnt_r && pending)
           state = ST_BUSY;
-/*
-          if (queue_num == 0)
-            $display("[VMGR] waking up for receiving");
-          else
-            $display("[VMGR] waking up for transmitting");
-*/
-        end
       ST_BUSY:
-        if (finished) begin
+        if (finished)
           state = ST_IDLE;
-/*
-          if (queue_num_r == 0)
-            $display("[VMGR] receiving finished");
-          else
-            $display("[VMGR] transmitting finished");
-*/
-        end
     endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
       state_r <= ST_IDLE;
-    else
+    else begin
       state_r <= state;
+/*
+      if (state_r == ST_IDLE && state == ST_BUSY) begin
+        if (queue_num == 0)
+          $display("[VMGR] waking up for receiving");
+        else
+          $display("[VMGR] waking up for transmitting");
+      end else if (state_r == ST_BUSY && state == ST_IDLE) begin
+        if (queue_num_r == 0)
+          $display("[VMGR] receiving finished, result=%d", vsw_wdata);
+        else
+          $display("[VMGR] transmitting finished, result=%d", vsw_wdata);
+      end
+*/
+    end
 
   /*
    * Other signals

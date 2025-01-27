@@ -46,8 +46,7 @@ package virtio_pkg;
   /*
    * VirtIO device features
    */
-  parameter VIRTIO_F_VERSION_1SH       = 1;
-  parameter VIRTIO_DEVICE_FEATURES_VAL = 1 << VIRTIO_F_VERSION_1SH;
+  parameter VIRTIO_F_VERSION_1SH = 32;
 
   /*
    * VirtIO status

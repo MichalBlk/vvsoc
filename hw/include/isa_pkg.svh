@@ -137,15 +137,15 @@ package isa_pkg;
   /*
    * Funct12
    */
-  parameter FUNCT12LEN         = 12;
-  parameter FUNCT12SH          = 20;
-  parameter FUNCT12_PRIVSH     = 8;
+  parameter FUNCT12LEN     = 12;
+  parameter FUNCT12SH      = 20;
+  parameter FUNCT12_PRIVSH = 8;
 
-  parameter FUNCT12_ECALL      = 'h000;
-  parameter FUNCT12_EBREAK     = 'h001;
-  parameter FUNCT12_MRET       = 'h302;
-  parameter FUNCT12_SRET       = 'h102;
-  parameter FUNCT12_WFI        = 'h105;
+  parameter FUNCT12_ECALL  = 'h000;
+  parameter FUNCT12_EBREAK = 'h001;
+  parameter FUNCT12_MRET   = 'h302;
+  parameter FUNCT12_SRET   = 'h102;
+  parameter FUNCT12_WFI    = 'h105;
 
   /*
    * Register encoding
@@ -276,9 +276,9 @@ package isa_pkg;
   typedef enum logic [XLEN_LOG - 1:0] {
     STI  = XLEN_LOG'(5),
     MTI  = XLEN_LOG'(7),
-    SEI  = XLEN_LOG'(9),
-    MEI  = XLEN_LOG'(11),
-    PD0I = XLEN_LOG'(16)
+    //SEI  = XLEN_LOG'(9),
+    PD0I = XLEN_LOG'(9),
+    MEI  = XLEN_LOG'(11)
   } intr_t;
 
   /*

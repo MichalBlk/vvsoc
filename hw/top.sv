@@ -51,17 +51,18 @@ module top
   logic                          msw_mmem_wen;
   logic [VCD_ADDRLEN - 1:0]      msw_vcd_addr;
   logic [XLEN - 1:0]             msw_vcd_wdata;
+  logic                          msw_vcd_ren;
   logic                          msw_vcd_wen;
 
   logic [XLEN - 1:0]             mmem_msw_rdata;
   logic                          mmem_msw_stall;
 
+  logic                          vcd_ac_intr_pending;
   logic [XLEN - 1:0]             vcd_msw_rdata;
   logic [VCD_QUEUECNT - 1:0]     vcd_vmgr_queue_rdy;
   logic [VCD_QUEUECNT_LOG - 1:0] vcd_vmgr_queue_num;
   logic                          vcd_vmgr_notify;
   logic                          vcd_vmgr_drvok;
-  logic                          vcd_intr_pending;
 
   logic [XLEN - 1:0]             vsw_vc_rdata;
   logic                          vsw_vc_stall;
@@ -165,7 +166,7 @@ module top
     .asw_nsign          (ac_asw_nsign),
     .asw_ren            (ac_asw_ren),
     .asw_wen            (ac_asw_wen),
-    .vcd_intr_pending   (vcd_intr_pending),
+    .vcd_intr_pending   (vcd_ac_intr_pending),
     .vmgr_busy          (vmgr_busy),
     .vmgr_stallable     (ac_vmgr_stallable)
   );
@@ -224,6 +225,7 @@ module top
     .vcd_rdata  (vcd_msw_rdata),
     .vcd_addr   (msw_vcd_addr),
     .vcd_wdata  (msw_vcd_wdata),
+    .vcd_ren    (msw_vcd_ren),
     .vcd_wen    (msw_vcd_wen)
   );
 
@@ -243,19 +245,20 @@ module top
   );
 
   virtio_console_dev VIRTIO_CONSOLE_DEV(
-    .clk            (clk),
-    .nrst           (nrst),
-    .msw_addr       (msw_vcd_addr),
-    .msw_wdata      (msw_vcd_wdata),
-    .msw_wen        (msw_vcd_wen),
-    .msw_rdata      (vcd_msw_rdata),
-    .vmgr_busy      (vmgr_busy),
-    .vmgr_used      (vmgr_vcd_used),
-    .vmgr_queue_rdy (vcd_vmgr_queue_rdy),
-    .vmgr_queue_num (vcd_vmgr_queue_num),
-    .vmgr_notify    (vcd_vmgr_notify),
-    .vmgr_drvok     (vcd_vmgr_drvok),
-    .intr_pending   (vcd_intr_pending)
+    .clk             (clk),
+    .nrst            (nrst),
+    .ac_intr_pending (vcd_ac_intr_pending),
+    .msw_addr        (msw_vcd_addr),
+    .msw_wdata       (msw_vcd_wdata),
+    .msw_ren         (msw_vcd_ren),
+    .msw_wen         (msw_vcd_wen),
+    .msw_rdata       (vcd_msw_rdata),
+    .vmgr_busy       (vmgr_busy),
+    .vmgr_used       (vmgr_vcd_used),
+    .vmgr_queue_rdy  (vcd_vmgr_queue_rdy),
+    .vmgr_queue_num  (vcd_vmgr_queue_num),
+    .vmgr_notify     (vcd_vmgr_notify),
+    .vmgr_drvok      (vcd_vmgr_drvok)
   );
 
   virtio_switch VIRTIO_SWITCH(
@@ -327,7 +330,6 @@ module top
     .vcd_queue_num    (vcd_vmgr_queue_num),
     .vcd_drvok        (vcd_vmgr_drvok),
     .vcd_notify       (vcd_vmgr_notify),
-    .vcd_intr_pending (vcd_intr_pending),
     .vcd_used         (vmgr_vcd_used),
     .busy             (vmgr_busy)
   );

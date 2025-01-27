@@ -6,7 +6,7 @@
 /*
  * VirtIO memory
  */
-#define VMEMSZ PAGESZ
+#define VMEMSZ 4 * PAGESZ
 #define VMEM_START 0x10000000
 
 /*
@@ -17,6 +17,9 @@
 #define VMGR_REG_UART_RX 0x0
 #define VMGR_REG_UART_TX 0x4
 #define VMGR_REG_FINISH 0x8
+
+#define VMGR_FINISH_SUCCESS 0
+#define VMGR_FINISH_FAILURE 1
 
 /*
  * VirtIO console device
