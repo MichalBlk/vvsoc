@@ -39,6 +39,7 @@ module main_switch
   input  logic [XLEN - 1:0]         vcd_rdata,
   output logic [VCD_ADDRLEN - 1:0]  vcd_addr,
   output logic [XLEN - 1:0]         vcd_wdata,
+  output logic                      vcd_ren,
   output logic                      vcd_wen
 );
   logic [XLEN - 1:0] addr;
@@ -59,6 +60,7 @@ module main_switch
 
     vcd_addr   = 'bx;
     vcd_wdata  = 'bx;
+    vcd_ren    = 0;
     vcd_wen    = 0;
 
     addr       = vmgr_busy ? vsw_addr : asw_addr;
@@ -70,12 +72,14 @@ module main_switch
 
           vcd_addr  = vsw_addr;
           vcd_wdata = vsw_wdata;
+          vcd_ren   = vsw_ren;
           vcd_wen   = vsw_wen;
         end else begin
           asw_rdata  = vcd_rdata;
 
           vcd_addr   = asw_addr;
           vcd_wdata  = asw_wdata;
+          vcd_ren    = asw_ren;
           vcd_wen    = asw_wen;
         end
 
