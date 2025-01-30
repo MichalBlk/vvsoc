@@ -23,7 +23,7 @@ module virtio_core
   output logic                   vsw_wen
 );
   typedef enum logic [2:0] {
-    ST_IF,
+    ST_IF_DEC,
     ST_DEC,
     ST_EXE,
     ST_MEM,
@@ -55,32 +55,19 @@ module virtio_core
   logic                    rf_wen;
 
   /*
-   * Instruction fetch stage
-   */
-  always_comb begin
-    inst = inst_r;
-
-    if (state_r == ST_IF && !vsw_stall)
-      inst = vsw_rdata;
-  end
-
-  always_ff @(posedge clk)
-    inst_r <= inst;
-
-  /*
-   * Decode stage
+   * Instruction fetch and decode stage
    */
   logic [XLEN - 1:0] rf_rdata1;
   logic [XLEN - 1:0] rf_rdata2;
   logic [XLEN - 1:0] ig_imm;
 
-  assign opcode   = inst_r[OPCODESH+:OPCODELEN];
-  assign rs1      = inst_r[RS1SH+:REGCNT_LOG];
-  assign rs2      = inst_r[RS2SH+:REGCNT_LOG];
-  assign rd       = inst_r[RDSH+:REGCNT_LOG];
-  assign funct3   = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct5   = inst_r[FUNCT5SH+:FUNCT5LEN];
-  assign funct7   = inst_r[FUNCT7SH+:FUNCT7LEN];
+  assign opcode   = inst[OPCODESH+:OPCODELEN];
+  assign rs1      = inst[RS1SH+:REGCNT_LOG];
+  assign rs2      = inst[RS2SH+:REGCNT_LOG];
+  assign rd       = inst[RDSH+:REGCNT_LOG];
+  assign funct3   = inst[FUNCT3SH+:FUNCT3LEN];
+  assign funct5   = inst[FUNCT5SH+:FUNCT5LEN];
+  assign funct7   = inst[FUNCT7SH+:FUNCT7LEN];
 
   assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
@@ -101,16 +88,18 @@ module virtio_core
   );
 
   imm_gen IMM_GEN(
-    .inst (inst_r),
+    .inst (inst),
     .imm  (ig_imm)
   );
 
   always_comb begin
+    inst     = inst_r;
     imm      = imm_r;
     rs1_data = rs1_data_r;
     rs2_data = rs2_data_r;
 
-    if (state_r == ST_DEC) begin
+    if (state_r == ST_IF_DEC && !vsw_stall) begin
+      inst     = vsw_rdata;
       imm      = ig_imm;
       rs1_data = rf_rdata1;
       rs2_data = rf_rdata2;
@@ -118,6 +107,7 @@ module virtio_core
   end
 
   always_ff @(posedge clk) begin
+    inst_r     <= inst;
     imm_r      <= imm;
     rs1_data_r <= rs1_data;
     rs2_data_r <= rs2_data;
@@ -247,7 +237,7 @@ module virtio_core
 
     if (!vsw_stall) begin
       if (state_r == ST_WB)
-        state = ST_IF;
+        state = ST_IF_DEC;
       else if (state_r == ST_EXE && !mem_access)
         state = ST_WB;
       else
@@ -257,19 +247,19 @@ module virtio_core
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      state_r <= ST_IF;
+      state_r <= ST_IF_DEC;
     else if (!vmgr_nsrst)
-      state_r <= ST_IF;
+      state_r <= ST_IF_DEC;
     else
       state_r <= state;
 
   /*
    * VirtIO switch signals
    */
-  assign vsw_addr  = state_r == ST_IF ? pc_r : mem_addr_r;
+  assign vsw_addr  = state_r == ST_IF_DEC ? pc_r : mem_addr_r;
   assign vsw_wdata = rs2_data_r;
-  assign vsw_size  = state_r == ST_IF ? ILENB_LOG : mem_size;
+  assign vsw_size  = state_r == ST_IF_DEC ? ILENB_LOG : mem_size;
   assign vsw_nsign = funct3[FUNCT3_NSIGNSH];
-  assign vsw_ren   = state_r == ST_IF || (state_r == ST_MEM && opcode == OPCODE_LOAD);
+  assign vsw_ren   = state_r == ST_IF_DEC || (state_r == ST_MEM && opcode == OPCODE_LOAD);
   assign vsw_wen   = state_r == ST_MEM && opcode == OPCODE_STORE;
 endmodule
