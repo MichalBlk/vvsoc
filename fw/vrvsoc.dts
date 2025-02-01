@@ -7,7 +7,7 @@
   chosen {
     bootargs = "earlycon=sbi console=hvc0 root=/dev/ram";
     linux,initrd-start = <0x84000000>;
-    linux,initrd-end = <0x84502000>;
+    linux,initrd-end = <0x8416a300>;
   };
 
   cpus {
