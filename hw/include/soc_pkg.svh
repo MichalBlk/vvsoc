@@ -90,7 +90,6 @@ package soc_pkg;
   parameter         VCD_QUEUECNT_LOG    = $clog2(VCD_QUEUECNT);
   parameter         VCD_QUEUENUMMAX     = 2;
   parameter         VCD_QUEUENUMMAX_LOG = $clog2(VCD_QUEUENUMMAX);
-  parameter         VCD_USEDCNTLEN      = 4;
   parameter longint VCD_FEATURES        = 1 << VIRTIO_F_VERSION_1SH;
 
   /*

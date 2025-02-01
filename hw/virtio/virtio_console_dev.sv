@@ -29,19 +29,17 @@ module virtio_console_dev
 );
   localparam VIRTQUEUE_TOTALSZW = VCD_QUEUECNT * VIRTQUEUESZW;
 
-  logic [XLEN - 1:0]           virtqueue [VIRTQUEUE_TOTALSZW - 1:0],
+  logic [XLEN - 1:0]         virtqueue [VIRTQUEUE_TOTALSZW - 1:0],
     virtqueue_r [VIRTQUEUE_TOTALSZW- 1:0];
 
-  logic [XLEN - 1:0]           status, status_r;
-  logic [XLEN - 1:0]           queue_sel, queue_sel_r;
-  logic [XLEN - 1:0]           device_features_sel, device_features_sel_r;
-  logic [VCD_USEDCNTLEN - 1:0] used_cnt, used_cnt_r;
+  logic [XLEN - 1:0]         status, status_r;
+  logic [XLEN - 1:0]         queue_sel, queue_sel_r;
+  logic [XLEN - 1:0]         device_features_sel, device_features_sel_r;
+  logic [XLEN - 1:0]         interrupt_status, interrupt_status_r;
 
-  logic [VCD_ADDRLENW - 1:0]   addrw;
-  logic [XLEN - 1:0]           interrupt_status;
+  logic [VCD_ADDRLENW - 1:0] addrw;
 
-  assign addrw            = msw_addr >> XLENB_LOG;
-  assign interrupt_status = used_cnt_r ? 1 << VIRTIO_INTERRUPT_USED_BUFSH : 0;
+  assign addrw = msw_addr >> XLENB_LOG;
 
   /*
    * Reading
@@ -64,7 +62,7 @@ module virtio_console_dev
         VIRTIO_REG_QUEUE_READY:
           msw_rdata = virtqueue_r[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_READY_OFFW];
 
-        VIRTIO_REG_INTERRUPT_STATUS:  msw_rdata = interrupt_status;
+        VIRTIO_REG_INTERRUPT_STATUS:  msw_rdata = interrupt_status_r;
         VIRTIO_REG_STATUS:            msw_rdata = status_r;
         VIRTIO_REG_CONFIG_GENERATION: msw_rdata = 0;
 
@@ -79,10 +77,6 @@ module virtio_console_dev
   /*
    * Writing
    */
-  logic used_cnt_max;
-
-  assign used_cnt_max = used_cnt_r == {VCD_USEDCNTLEN{1'b1}};
-
   always_comb begin
     for (int i = 0; i < VIRTQUEUE_TOTALSZW; i++)
       virtqueue[i] = virtqueue_r[i];
@@ -90,7 +84,7 @@ module virtio_console_dev
     status              = status_r;
     queue_sel           = queue_sel_r;
     device_features_sel = device_features_sel_r;
-    used_cnt            = used_cnt_r;
+    interrupt_status    = interrupt_status_r;
 
     if (msw_wen) begin
       if (vmgr_busy)
@@ -107,7 +101,7 @@ module virtio_console_dev
             virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_READY_OFFW] = msw_wdata;
 
           VIRTIO_REG_INTERRUPT_ACK:
-            used_cnt = used_cnt_r ? used_cnt_r - 1 : 0;
+            interrupt_status = interrupt_status_r & ~msw_wdata;
 
           VIRTIO_REG_STATUS: begin
             status = msw_wdata;
@@ -118,7 +112,7 @@ module virtio_console_dev
 
               queue_sel           = 0;
               device_features_sel = 0;
-              used_cnt            = 0;
+              interrupt_status    = 0;
             end
           end
 
@@ -131,8 +125,8 @@ module virtio_console_dev
           VIRTIO_REG_QUEUE_DEVICE_LOW:
             virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_DEVICE_OFFW] = msw_wdata;
         endcase
-    end else if (vmgr_used && !used_cnt_max)
-      used_cnt = used_cnt_r + 1;
+    end else if (vmgr_used)
+      interrupt_status = interrupt_status_r | (1 << VIRTIO_INTERRUPT_USED_BUFSH);
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -143,7 +137,7 @@ module virtio_console_dev
       status_r              <= 0;
       queue_sel_r           <= 0;
       device_features_sel_r <= 0;
-      used_cnt_r            <= 0;
+      interrupt_status_r    <= 0;
     end else begin
       for (int i = 0; i < VIRTQUEUE_TOTALSZW; i++)
         virtqueue_r[i] <= virtqueue[i];
@@ -151,7 +145,7 @@ module virtio_console_dev
       status_r              <= status;
       queue_sel_r           <= queue_sel;
       device_features_sel_r <= device_features_sel;
-      used_cnt_r            <= used_cnt;
+      interrupt_status_r    <= interrupt_status;
 /*
       if (!vmgr_busy && msw_wen)
         $display("[VCD] writing value %h to register %h", msw_wdata, msw_addr);
@@ -166,7 +160,7 @@ module virtio_console_dev
   /*
    * Application core signals
    */
-  assign ac_intr_pending = interrupt_status[VIRTIO_INTERRUPT_USED_BUFSH];
+  assign ac_intr_pending = interrupt_status_r[VIRTIO_INTERRUPT_USED_BUFSH];
 
   /*
    * VirtIO manager signals
