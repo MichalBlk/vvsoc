@@ -171,7 +171,7 @@ module mmu
   assign valid        = pte[PTE_VSH];
   assign xwr_resv     = xwr == PTE_XWR_RESV0 || xwr == PTE_XWR_RESV1;
   assign sp_unaligned = pte[PTE_PPN0SH+:PT_ADDRLEN] != 0;
-  assign ill          = !(exwr & ac_access) ||
+  assign ill          = (exwr & ac_access) != ac_access ||
     (priv == PRIV_S && pte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
     (priv == PRIV_U && !pte[PTE_USH]);
 
