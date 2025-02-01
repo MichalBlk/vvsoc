@@ -38,8 +38,7 @@ module mmu
     ST_L1,
     ST_L0,
     ST_UPDATE,
-    ST_ACCESS,
-    ST_FINISH
+    ST_ACCESS
   } state_t;
 
   state_t              state, state_r;
@@ -51,9 +50,6 @@ module mmu
   logic [2:0]          xwr, exwr;
   logic                sp, sp_r;
   logic [XLEN - 1:0]   paddr, paddr_r;
-  logic [XLEN - 1:0]   mem_data, mem_data_r;
-  exc_t                exc_code, exc_code_r;
-  logic                exc_pending, exc_pending_r;
 
   logic [PTELEN - 1:0] tlb_rpte;
   logic                tlb_rsp;
@@ -164,19 +160,6 @@ module mmu
   assign tlb_wen = state_r == ST_UPDATE && !asw_stall;
 
   /*
-   * Access stage
-   */
-  always_comb begin
-    mem_data = mem_data_r;
-
-    if (state_r == ST_ACCESS && !asw_stall)
-      mem_data = asw_rdata;
-  end
-
-  always_ff @(posedge clk)
-    mem_data_r <= mem_data;
-
-  /*
    * Exception detection
    */
   logic valid;
@@ -192,40 +175,28 @@ module mmu
     (priv == PRIV_U && !pte[PTE_USH]);
 
   always_comb begin
-    exc_code    = exc_code_r;
-    exc_pending = exc_pending_r;
+    ac_exc_code    = exc_t'('bx);
+    ac_exc_pending = 0;
 
     if (!asw_stall)
       case (state_r)
         ST_TLB:
-          exc_pending = ac_access != ACC_NONE && !omit_translation && tlb_valid &&
-            (!valid || xwr_resv || (sp && sp_unaligned) || ill);
+          ac_exc_pending = ac_access != ACC_NONE && !omit_translation && tlb_valid && ill;
 
         ST_L1:
-          exc_pending = !valid || xwr_resv || (sp && (sp_unaligned || ill));
+          ac_exc_pending = !valid || xwr_resv || (sp && (sp_unaligned || ill));
 
         ST_L0:
-          exc_pending = !valid || xwr_resv || !xwr || ill;
-
-        ST_FINISH:
-          exc_pending = 0;
+          ac_exc_pending = !valid || xwr_resv || !xwr || ill;
       endcase
 
-    if (exc_pending)
+    if (ac_exc_pending)
       case (ac_access)
-        ACC_LOAD:  exc_code = CAUSE_LOAD_PAGE_FAULT;
-        ACC_STORE: exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
-        ACC_FETCH: exc_code = CAUSE_FETCH_PAGE_FAULT;
+        ACC_LOAD:  ac_exc_code = CAUSE_LOAD_PAGE_FAULT;
+        ACC_STORE: ac_exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
+        ACC_FETCH: ac_exc_code = CAUSE_FETCH_PAGE_FAULT;
       endcase
   end
-
-  always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      exc_pending_r <= 0;
-    else begin
-      exc_code_r    <= exc_code;
-      exc_pending_r <= exc_pending;
-    end
 
   /*
    * State transitions
@@ -234,10 +205,10 @@ module mmu
     state = state_r;
 
     if (!asw_stall) begin
-      if (state_r == ST_FINISH)
+      if (state_r == ST_ACCESS)
         state = ST_TLB;
-      else if (exc_pending)
-        state = ST_FINISH;
+      else if (ac_exc_pending)
+        state = ST_TLB;
       else if (state_r == ST_TLB) begin
         if (ac_access != ACC_NONE) begin
           if (omit_translation || tlb_valid)
@@ -261,10 +232,8 @@ module mmu
   /*
    * Application core signals
    */
-  assign ac_rdata       = mem_data_r;
-  assign ac_exc_code    = exc_code_r;
-  assign ac_exc_pending = exc_pending_r;
-  assign ac_stall       = state != ST_TLB;
+  assign ac_rdata = asw_rdata;
+  assign ac_stall = state != ST_TLB;
 
   /*
    * Application switch signals
