@@ -402,8 +402,8 @@ package isa_pkg;
   parameter PTE_PPN0SH      = 10;
   parameter PTE_PPN1SH      = 20;
 
-  parameter PTE_XWR_RESV0   = (1 << PTE_WSH);
-  parameter PTE_XWR_RESV1   = (1 << PTE_XSH) | (1 << PTE_WSH);
+  parameter PTE_XWR_RESV0   = 3'b010;
+  parameter PTE_XWR_RESV1   = 3'b110;
 
   parameter ASIDLEN         = 9;
 
