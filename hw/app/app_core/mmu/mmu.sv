@@ -46,6 +46,7 @@ module mmu
 
   priv_t               priv;
   logic                omit_translation;
+  logic [XLEN - 1:0]   l1_pte, l1_pte_r;
   logic [PTELEN - 1:0] pte, pte_r;
   logic [2:0]          xwr, exwr;
   logic                sp, sp_r;
@@ -104,8 +105,9 @@ module mmu
   end
 
   always_comb begin
-    pte = pte_r;
-    sp  = sp_r;
+    l1_pte = l1_pte_r;
+    pte    = pte_r;
+    sp     = sp_r;
 
     if (!asw_stall)
       case (state_r)
@@ -115,20 +117,20 @@ module mmu
         end
 
         ST_L1: begin
-          pte = asw_rdata;
-          sp  = xwr != 0;
+          l1_pte = asw_rdata;
+          pte    = asw_rdata;
+          sp     = xwr != 0;
         end
 
-        ST_L0: begin
+        ST_L0:
           pte = asw_rdata;
-          sp  = 0;
-        end
       endcase
   end
 
   always_ff @(posedge clk) begin
-    pte_r <= pte;
-    sp_r  <= sp;
+    l1_pte_r <= l1_pte;
+    pte_r    <= pte;
+    sp_r     <= sp;
   end
 
   /*
@@ -185,7 +187,7 @@ module mmu
   assign valid        = pte[PTE_VSH];
   assign xwr_resv     = xwr == PTE_XWR_RESV0 || xwr == PTE_XWR_RESV1;
   assign sp_unaligned = pte[PTE_PPN0SH+:PT_ADDRLEN] != 0;
-  assign ill          = !(exwr & ac_access) ||
+  assign ill          = (exwr & ac_access) != ac_access ||
     (priv == PRIV_S && pte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
     (priv == PRIV_U && !pte[PTE_USH]);
 
@@ -275,7 +277,7 @@ module mmu
   assign l1_pte_addr  = {ac_satp[SATP_PPNSH+:PNLEN], ac_vaddr[VADDR_VPN1SH+:PT_ADDRLEN],
     {PTELENB_LOG{1'b0}}};
 
-  assign l0_pte_addr  = {pte_r[PTE_PPN0SH+:PNLEN], ac_vaddr[VADDR_VPN0SH+:PT_ADDRLEN],
+  assign l0_pte_addr  = {l1_pte_r[PTE_PPN0SH+:PNLEN], ac_vaddr[VADDR_VPN0SH+:PT_ADDRLEN],
     {PTELENB_LOG{1'b0}}};
 
   assign updated_pte  = pte_r | (1 << PTE_ASH) | ((ac_access == ACC_STORE) << PTE_DSH);
