@@ -32,14 +32,18 @@ static int handle_rx(void) {
   int aidx = vq->last_aidx;
   if (aidx == avr->idx)
     return VMGR_FINISH_FAILURE;
-  int didx = avr->ring[mod(aidx)];
+  int didx = avr->ring[mod(aidx)], len = 0;
   desc_t *d = vq->desc + didx;
   char *c = d->addr;
-  int x = vmgr_rd(VMGR_REG_UART_RX);
-  if (x == -1)
+  for (;; len++, c++) {
+    int x = vmgr_rd(VMGR_REG_UART_RX);
+    if (x == -1)
+      break;
+    *c = x;
+  }
+  if (!len)
     halt();
-  *c = x;
-  add_used(vq, didx, 1);
+  add_used(vq, didx, len);
   vq->last_aidx++;
   return VMGR_FINISH_SUCCESS;
 }
