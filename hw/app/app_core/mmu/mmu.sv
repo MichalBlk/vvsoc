@@ -101,8 +101,9 @@ module mmu
   end
 
   always_comb begin
-    pte = pte_r;
-    sp  = sp_r;
+    l1_pte = l1_pte_r;
+    pte    = pte_r;
+    sp     = sp_r;
 
     if (!asw_stall)
       case (state_r)
@@ -117,10 +118,8 @@ module mmu
           sp     = xwr != 0;
         end
 
-        ST_L0: begin
+        ST_L0:
           pte = asw_rdata;
-          sp  = 0;
-        end
       endcase
   end
 
