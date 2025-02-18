@@ -43,8 +43,6 @@ module app_core
 
   logic [ILEN - 1:0]       inst, inst_r;
   logic [OPCODELEN - 1:0]  opcode;
-  logic [REGCNT_LOG - 1:0] rs1;
-  logic [REGCNT_LOG - 1:0] rs2;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
   logic [FUNCT5LEN - 1:0]  funct5;
@@ -108,8 +106,15 @@ module app_core
   /*
    * Instruction fetch and decode stage
    */
+  logic [OPCODELEN - 1:0]  __opcode;
+  logic [FUNCT3LEN - 1:0]  __funct3;
+  logic [FUNCT12LEN - 1:0] __funct12;
   logic [OPCODELEN - 1:0]  _opcode;
+  logic [REGCNT_LOG - 1:0] _rs1;
+  logic [REGCNT_LOG - 1:0] _rs2;
   logic [FUNCT3LEN - 1:0]  _funct3;
+  logic [FUNCT5LEN - 1:0]  _funct5;
+  logic [FUNCT7LEN - 1:0]  _funct7;
   logic [FUNCT12LEN - 1:0] _funct12;
   logic                    fence;
   logic                    wfi;
@@ -119,30 +124,27 @@ module app_core
   logic [XLEN - 1:0]       csrrf_rdata;
   logic                    csrrf_ren;
 
-  assign _opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
-  assign _funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
-  assign _funct12 = mmu_rdata[FUNCT12SH+:FUNCT12LEN];
-  assign fence    = _opcode == OPCODE_MISC_MEM &&
-    (_funct3 == FUNCT3_FENCE || _funct3 == FUNCT3_FENCEI);
-  assign wfi      = _opcode == OPCODE_SYSTEM && _funct3 == FUNCT3_PRIV && _funct12 == FUNCT12_WFI;
+  assign __opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
+  assign __funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
+  assign __funct12 = mmu_rdata[FUNCT12SH+:FUNCT12LEN];
+  assign fence     = __opcode == OPCODE_MISC_MEM &&
+    (__funct3 == FUNCT3_FENCE || __funct3 == FUNCT3_FENCEI);
+  assign wfi       = __opcode == OPCODE_SYSTEM && __funct3 == FUNCT3_PRIV && __funct12 == FUNCT12_WFI;
 
-  assign opcode   = inst[OPCODESH+:OPCODELEN];
-  assign rs1      = inst[RS1SH+:REGCNT_LOG];
-  assign rs2      = inst[RS2SH+:REGCNT_LOG];
-  assign rd       = inst[RDSH+:REGCNT_LOG];
-  assign funct3   = inst[FUNCT3SH+:FUNCT3LEN];
-  assign funct5   = inst[FUNCT5SH+:FUNCT5LEN];
-  assign funct7   = inst[FUNCT7SH+:FUNCT7LEN];
-  assign funct12  = inst[FUNCT12SH+:FUNCT12LEN];
-
-  assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+  assign _opcode   = inst[OPCODESH+:OPCODELEN];
+  assign _rs1      = inst[RS1SH+:REGCNT_LOG];
+  assign _rs2      = inst[RS2SH+:REGCNT_LOG];
+  assign _funct3   = inst[FUNCT3SH+:FUNCT3LEN];
+  assign _funct5   = inst[FUNCT5SH+:FUNCT5LEN];
+  assign _funct7   = inst[FUNCT7SH+:FUNCT7LEN];
+  assign _funct12  = inst[FUNCT12SH+:FUNCT12LEN];
 
   inst_verifier INST_VERIFIER(
-    .ac_opcode     (opcode),
-    .ac_funct3     (funct3),
-    .ac_funct5     (funct5),
-    .ac_funct7     (funct7),
-    .ac_funct12    (funct12),
+    .ac_opcode     (_opcode),
+    .ac_funct3     (_funct3),
+    .ac_funct5     (_funct5),
+    .ac_funct7     (_funct7),
+    .ac_funct12    (_funct12),
     .ac_mul        (iv_mul),
     .ac_div        (iv_div),
     .ac_ecall      (iv_ecall),
@@ -159,8 +161,8 @@ module app_core
     .clk     (clk),
     .nrst    (nrst),
     .nsrst   (1),
-    .raddr1  (rs1),
-    .raddr2  (rs2),
+    .raddr1  (_rs1),
+    .raddr2  (_rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
@@ -169,12 +171,12 @@ module app_core
     .rdata2  (rf_rdata2)
   );
 
-  assign csrrf_csr = opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV;
+  assign csrrf_csr = _opcode == OPCODE_SYSTEM && _funct3 != FUNCT3_PRIV;
 
   csr_reg_file CSR_REG_FILE(
     .clk                (clk),
     .nrst               (nrst),
-    .ac_addr            (csr_addr_t'(funct12)),
+    .ac_addr            (csr_addr_t'(_funct12)),
     .ac_wdata           (csr_wdata_r),
     .ac_pc              (pc_r),
     .ac_target_pc       (csrrf_target_pc),
@@ -236,6 +238,15 @@ module app_core
   logic [XLEN - 1:0]      csralu_res;
   logic [XLEN - 1:0]      mul_res;
   logic [XLEN - 1:0]      div_res;
+
+  assign opcode            = inst_r[OPCODESH+:OPCODELEN];
+  assign rd                = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3            = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct5            = inst_r[FUNCT5SH+:FUNCT5LEN];
+  assign funct7            = inst_r[FUNCT7SH+:FUNCT7LEN];
+  assign funct12           = inst_r[FUNCT12SH+:FUNCT12LEN];
+
+  assign mem_size          = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign load_amo_lr       = opcode == OPCODE_LOAD ||

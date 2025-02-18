@@ -1,1 +1,1 @@
-verilator --public -I../hw/include -y ../hw -y ../hw/common -y ../hw/app -y ../hw/app/app_core -y ../hw/app/app_core/mmu -y ../hw/virtio --cc top.sv -O3 -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT --exe tb.cpp --build
+verilator -O3 --x-assign fast --x-initial fast --noassert  -I../hw/include -y ../hw -y ../hw/common -y ../hw/app -y ../hw/app/app_core -y ../hw/app/app_core/mmu -y ../hw/virtio --cc top.sv -CFLAGS -O3 -CFLAGS -D_REENTRANT -Wno-WIDTH -Wno-CASEINCOMPLETE --exe tb.cpp --build

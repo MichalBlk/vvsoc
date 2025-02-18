@@ -43,6 +43,10 @@ module main_switch
   output logic                      vcd_wen
 );
   logic [XLEN - 1:0] addr;
+  dev_t              dev;
+
+  assign addr = vmgr_busy ? vsw_addr : asw_addr;
+  assign dev  = dev_t'(addr[ADDR_DEVSH+:DEVLEN]);
 
   always_comb begin
     asw_rdata  = 'bx;
@@ -63,9 +67,7 @@ module main_switch
     vcd_ren    = 0;
     vcd_wen    = 0;
 
-    addr       = vmgr_busy ? vsw_addr : asw_addr;
-
-    case (addr[ADDR_DEVSH+:DEVLEN])
+    case (dev)
       DEV_VCD:
         if (vmgr_busy) begin
           vsw_rdata = vcd_rdata;
