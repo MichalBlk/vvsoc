@@ -35,8 +35,6 @@ module virtio_core
 
   logic [ILEN - 1:0]       inst, inst_r;
   logic [OPCODELEN - 1:0]  opcode;
-  logic [REGCNT_LOG - 1:0] rs1;
-  logic [REGCNT_LOG - 1:0] rs2;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
   logic [FUNCT5LEN - 1:0]  funct5;
@@ -57,19 +55,14 @@ module virtio_core
   /*
    * Instruction fetch and decode stage
    */
-  logic [XLEN - 1:0] rf_rdata1;
-  logic [XLEN - 1:0] rf_rdata2;
-  logic [XLEN - 1:0] ig_imm;
+  logic [REGCNT_LOG - 1:0] _rs1;
+  logic [REGCNT_LOG - 1:0] _rs2;
+  logic [XLEN - 1:0]       rf_rdata1;
+  logic [XLEN - 1:0]       rf_rdata2;
+  logic [XLEN - 1:0]       ig_imm;
 
-  assign opcode   = inst[OPCODESH+:OPCODELEN];
-  assign rs1      = inst[RS1SH+:REGCNT_LOG];
-  assign rs2      = inst[RS2SH+:REGCNT_LOG];
-  assign rd       = inst[RDSH+:REGCNT_LOG];
-  assign funct3   = inst[FUNCT3SH+:FUNCT3LEN];
-  assign funct5   = inst[FUNCT5SH+:FUNCT5LEN];
-  assign funct7   = inst[FUNCT7SH+:FUNCT7LEN];
-
-  assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+  assign _rs1 = inst[RS1SH+:REGCNT_LOG];
+  assign _rs2 = inst[RS2SH+:REGCNT_LOG];
 
   reg_file #(
     .RSTARG (0)
@@ -77,8 +70,8 @@ module virtio_core
     .clk     (clk),
     .nrst    (nrst),
     .nsrst   (vmgr_nsrst),
-    .raddr1  (rs1),
-    .raddr2  (rs2),
+    .raddr1  (_rs1),
+    .raddr2  (_rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
@@ -120,6 +113,14 @@ module virtio_core
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
   logic                   bralu_res;
+
+  assign opcode       = inst_r[OPCODESH+:OPCODELEN];
+  assign rd           = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3       = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct5       = inst_r[FUNCT5SH+:FUNCT5LEN];
+  assign funct7       = inst_r[FUNCT7SH+:FUNCT7LEN];
+
+  assign mem_size     = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
