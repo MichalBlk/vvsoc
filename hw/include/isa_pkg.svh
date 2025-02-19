@@ -276,9 +276,9 @@ package isa_pkg;
   typedef enum logic [XLEN_LOG - 1:0] {
     STI  = XLEN_LOG'(5),
     MTI  = XLEN_LOG'(7),
-    //SEI  = XLEN_LOG'(9),
-    PD0I = XLEN_LOG'(9),
-    MEI  = XLEN_LOG'(11)
+    SEI  = XLEN_LOG'(9),
+    MEI  = XLEN_LOG'(11),
+    PD0I = XLEN_LOG'(16)
   } intr_t;
 
   /*

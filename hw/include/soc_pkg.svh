@@ -28,13 +28,13 @@ package soc_pkg;
   /*
    * Main memory
    */
-  parameter MMEMSZ           = 'h6000000;
+  parameter MMEMSZ           = 'h4000000;
   parameter MMEM_ADDRLEN     = $clog2(MMEMSZ);
 
   parameter MMEM_KERNEL_OFF  = 'h0000000;
   parameter MMEM_FW_OFF      = 'h2000000;
-  parameter MMEM_DTB_OFF     = 'h3000000;
-  parameter MMEM_INITRD_OFF  = 'h4000000;
+  parameter MMEM_DTB_OFF     = 'h2100000;
+  parameter MMEM_INITRD_OFF  = 'h3000000;
 
   parameter MMEM_KERNEL_OFFW = MMEM_KERNEL_OFF >> XLENB_LOG;
   parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
