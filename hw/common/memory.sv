@@ -32,36 +32,39 @@ module memory
   logic [XLEN - 1:0]     mem [SZW - 1:0];
 
   state_t                state, state_r;
-  logic [XLEN - 1:0]     data, data_r;
+  logic [XLEN - 1:0]     cdata, cdata_r;
+  logic [XLEN - 1:0]     ndata, ndata_r;
+  logic [ADDRWLEN - 1:0] addrw, addrw_r;
+  logic [XLEN_LOG - 1:0] addrbit, addrbit_r;
+  logic [XLEN_LOG:0]     sizebit, sizebit_r;
+  logic [XLEN - 1:0]     mask, mask_r;
 
-  logic [ADDRWLEN - 1:0] addrw;
-  logic [XLEN_LOG - 1:0] addrbit;
-  logic [XLEN_LOG:0]     sizebit;
-  logic [XLEN - 1:0]     mask;
+  logic [XLEN - 1:0]     value;
 
+  /*
+   * Address and size calculation
+   */
   assign addrw   = addr >> XLENB_LOG;
   assign addrbit = addr[XLENB_LOG - 1:0] << BLEN_LOG;
   assign sizebit = 1 << (size + BLEN_LOG);
   assign mask    = (1 << sizebit) - 1;
 
+  always_ff @(posedge clk) begin
+    addrw_r   <= addrw;
+    addrbit_r <= addrbit;
+    sizebit_r <= sizebit;
+    mask_r    <= mask;
+  end
+
   /*
    * Data
    */
-  always_comb begin
-    data = data_r;
+  assign cdata = state_r == ST_WRITE && addrw == addrw_r ? value : {<<BLEN{mem[addrw]}};
+  assign ndata = wdata;
 
-    if (state_r == ST_READ)
-      data = {<<BLEN{mem[addrw]}};
-  end
-
-  always_ff @(posedge clk)
-    data_r <= data;
-
-  always_ff @(posedge clk, negedge nrst) begin
-    if (!nrst)
-      state_r <= ST_READ;
-    else
-      state_r <= state;
+  always_ff @(posedge clk) begin
+    cdata_r <= cdata;
+    ndata_r <= ndata;
   end
 
   /*
@@ -69,7 +72,7 @@ module memory
    */
   logic [XLEN - 1:0] shdata;
 
-  assign shdata = (data >> addrbit) & mask;
+  assign shdata = (cdata >> addrbit) & mask;
 
   always_comb begin
     if (!nsign && (shdata >> (sizebit - 1)))
@@ -81,29 +84,27 @@ module memory
   /*
    * Writing
    */
+  assign value = (cdata_r & ~(mask_r << addrbit_r)) | ((ndata_r & mask_r) << addrbit_r);
+
   always_ff @(posedge clk) begin
     if (state_r == ST_WRITE)
-      mem[addrw] <= {<<BLEN{(data_r & ~(mask << addrbit)) | ((wdata & mask) << addrbit)}};
+      mem[addrw_r] <= {<<BLEN{value}};
   end
 
   /*
    * State transitions
    */
-  always_comb begin
-    state = state_r;
+  assign state = wen ? ST_WRITE : ST_READ;
 
-    case (state_r)
-      ST_READ:
-        if (wen)
-          state = ST_WRITE;
-
-      ST_WRITE:
-        state = ST_READ;
-    endcase
+  always_ff @(posedge clk, negedge nrst) begin
+    if (!nrst)
+      state_r <= ST_READ;
+    else
+      state_r <= state;
   end
 
   /*
    * Other signals
    */
-  assign stall = state == ST_WRITE;
+  assign stall = 0;
 endmodule
