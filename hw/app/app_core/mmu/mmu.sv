@@ -69,27 +69,7 @@ module mmu
    */
   logic [PNLEN - 1:0]   tlb_vpn;
   logic [ASIDLEN - 1:0] tlb_asid;
-/*
-  longint hit;
-  longint miss;
 
-  always_ff @(posedge clk, negedge nrst)
-    if (!nrst) begin
-      hit  <= 0;
-      miss <= 0;
-    end else if (state_r == ST_TLB && ac_access != ACC_NONE && !omit_translation) begin
-      if (tlb_valid)
-        hit <= hit + 1;
-      else
-        miss <= miss + 1;
-    end
-
-  always_ff @(posedge clk)
-    if (ac_priv == PRIV_U) begin
-      $display("total=%d, hit=%d, miss=%d", hit + miss, hit, miss);
-      $finish();
-    end
-*/
   assign tlb_vpn  = ac_vaddr[VADDR_VPN0SH+:PNLEN];
   assign tlb_asid = ac_satp[SATP_ASIDSH+:ASIDLEN];
 
