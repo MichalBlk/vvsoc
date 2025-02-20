@@ -50,6 +50,8 @@ module mmu
   logic [2:0]          xwr, exwr;
   logic                sp, sp_r;
   logic [XLEN - 1:0]   paddr, paddr_r;
+  logic [XLEN - 1:0]   early_paddr;
+  logic                needs_update;
 
   logic [PTELEN - 1:0] tlb_rpte;
   logic                tlb_rsp;
@@ -79,8 +81,8 @@ module mmu
     .nrst      (nrst),
     .mmu_vpn   (tlb_vpn),
     .mmu_asid  (tlb_asid),
-    .mmu_wpte  (pte_r),
-    .mmu_wsp   (sp_r),
+    .mmu_wpte  (pte),
+    .mmu_wsp   (sp),
     .mmu_wen   (tlb_wen),
     .mmu_flush (ac_tlb_flush),
     .mmu_rpte  (tlb_rpte),
@@ -135,6 +137,17 @@ module mmu
   logic [SPNLEN - 1:0] spn;
   logic [PNLEN - 1:0]  pn;
 
+  always_comb begin
+    early_paddr = 'bx;
+
+    if (omit_translation)
+      early_paddr = ac_vaddr;
+    else if (tlb_rsp)
+      early_paddr = {tlb_rpte[PTE_PPN1SH+:SPNLEN], ac_vaddr[0+:SUPERPAGESZ_LOG]};
+    else
+      early_paddr = {tlb_rpte[PTE_PPN0SH+:PNLEN], ac_vaddr[0+:PAGESZ_LOG]};
+  end
+
   assign spn = pte[PTE_PPN1SH+:SPNLEN];
   assign pn  = pte[PTE_PPN0SH+:PNLEN];
 
@@ -155,9 +168,10 @@ module mmu
     paddr_r <= paddr;
 
   /*
-   * Update stage
+   * TLB updates
    */
-  assign tlb_wen = state_r == ST_UPDATE && !asw_stall;
+  assign tlb_wen = !asw_stall && !ac_exc_pending &&
+    ((state_r == ST_L1 && sp) || state_r == ST_L0);
 
   /*
    * Exception detection
@@ -204,20 +218,25 @@ module mmu
   always_comb begin
     state = state_r;
 
-    if (!asw_stall) begin
+    if (state_r == ST_TLB) begin
+      if (ac_access != ACC_NONE) begin
+        if (ac_exc_pending)
+          state = ST_TLB;
+        else if (omit_translation || tlb_valid) begin
+          if (asw_stall)
+            state = ST_ACCESS;
+          else
+            state = ST_TLB;
+        end else
+          state = ST_L1;
+      end
+    end else if (!asw_stall) begin
       if (state_r == ST_ACCESS)
         state = ST_TLB;
       else if (ac_exc_pending)
         state = ST_TLB;
-      else if (state_r == ST_TLB) begin
-        if (ac_access != ACC_NONE) begin
-          if (omit_translation || tlb_valid)
-            state = ST_ACCESS;
-          else
-            state = ST_L1;
-        end
-      end else if (state_r == ST_L1 && sp)
-        state = ST_UPDATE;
+      else if (((state_r == ST_L1 && sp) || state_r == ST_L0) && !needs_update)
+        state = ST_ACCESS;
       else
         state = state_t'(state + 1);
     end
@@ -241,7 +260,9 @@ module mmu
   logic [XLEN - 1:0]   l1_pte_addr;
   logic [XLEN - 1:0]   l0_pte_addr;
   logic [PTELEN - 1:0] updated_pte;
-  logic                needs_update;
+  logic                early_access;
+
+  assign needs_update = !pte[PTE_ASH] || (ac_access == ACC_STORE && !pte[PTE_DSH]);
 
   assign l1_pte_addr  = {ac_satp[SATP_PPNSH+:PNLEN], ac_vaddr[VADDR_VPN1SH+:PT_ADDRLEN],
     {PTELENB_LOG{1'b0}}};
@@ -250,7 +271,8 @@ module mmu
     {PTELENB_LOG{1'b0}}};
 
   assign updated_pte  = pte_r | (1 << PTE_ASH) | ((ac_access == ACC_STORE) << PTE_DSH);
-  assign needs_update = !pte_r[PTE_ASH] || (ac_access == ACC_STORE && !pte_r[PTE_DSH]);
+
+  assign early_access = ac_access != ACC_NONE && !ac_exc_pending && (omit_translation || tlb_valid);
 
   always_comb begin
     asw_addr  = 'bx;
@@ -260,6 +282,14 @@ module mmu
     asw_wen   = 0;
 
     case (state_r)
+      ST_TLB: begin
+        asw_addr  = early_paddr;
+        asw_wdata = ac_wdata;
+        asw_size  = ac_size;
+        asw_ren   = ac_access != ACC_STORE && early_access;
+        asw_wen   = ac_access == ACC_STORE && early_access;
+      end
+
       ST_L1: begin
         asw_addr = l1_pte_addr;
         asw_size = PTELENB_LOG;
