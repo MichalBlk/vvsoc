@@ -143,6 +143,15 @@ module app_core
 
   assign _mem_size = _funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
+  assign opcode    = inst_r[OPCODESH+:OPCODELEN];
+  assign rd        = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3    = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct5    = inst_r[FUNCT5SH+:FUNCT5LEN];
+  assign funct7    = inst_r[FUNCT7SH+:FUNCT7LEN];
+  assign funct12   = inst_r[FUNCT12SH+:FUNCT12LEN];
+
+  assign mem_size  = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+
   inst_verifier INST_VERIFIER(
     .ac_opcode     (_opcode),
     .ac_funct3     (_funct3),
@@ -245,15 +254,6 @@ module app_core
   logic              bralu_res;
   logic [XLEN - 1:0] mul_res;
   logic [XLEN - 1:0] div_res;
-
-  assign opcode            = inst_r[OPCODESH+:OPCODELEN];
-  assign rd                = inst_r[RDSH+:REGCNT_LOG];
-  assign funct3            = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct5            = inst_r[FUNCT5SH+:FUNCT5LEN];
-  assign funct7            = inst_r[FUNCT7SH+:FUNCT7LEN];
-  assign funct12           = inst_r[FUNCT12SH+:FUNCT12LEN];
-
-  assign mem_size          = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign load_amo_lr       = opcode == OPCODE_LOAD ||
