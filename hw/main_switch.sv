@@ -40,7 +40,13 @@ module main_switch
   output logic [VCD_ADDRLEN - 1:0]  vcd_addr,
   output logic [XLEN - 1:0]         vcd_wdata,
   output logic                      vcd_ren,
-  output logic                      vcd_wen
+  output logic                      vcd_wen,
+
+  input  logic [XLEN - 1:0]         vgd_rdata,
+  output logic [VGD_ADDRLEN - 1:0]  vgd_addr,
+  output logic [XLEN - 1:0]         vgd_wdata,
+  output logic                      vgd_ren,
+  output logic                      vgd_wen
 );
   logic [XLEN - 1:0] addr;
   dev_t              dev;
@@ -67,6 +73,11 @@ module main_switch
     vcd_ren    = 0;
     vcd_wen    = 0;
 
+    vgd_addr   = 'bx;
+    vgd_wdata  = 'bx;
+    vgd_ren    = 0;
+    vgd_wen    = 0;
+
     case (dev)
       DEV_VCD:
         if (vmgr_busy) begin
@@ -83,6 +94,23 @@ module main_switch
           vcd_wdata  = asw_wdata;
           vcd_ren    = asw_ren;
           vcd_wen    = asw_wen;
+        end
+
+      DEV_VGD:
+        if (vmgr_busy) begin
+          vsw_rdata = vgd_rdata;
+
+          vgd_addr  = vsw_addr;
+          vgd_wdata = vsw_wdata;
+          vgd_ren   = vsw_ren;
+          vgd_wen   = vsw_wen;
+        end else begin
+          asw_rdata  = vgd_rdata;
+
+          vgd_addr   = asw_addr;
+          vgd_wdata  = asw_wdata;
+          vgd_ren    = asw_ren;
+          vgd_wen    = asw_wen;
         end
 
       default:

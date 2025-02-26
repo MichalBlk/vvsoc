@@ -7,11 +7,20 @@ module top
   import isa_pkg::*;
   import soc_pkg::*;
 (
-  input  logic clk,
-  input  logic nrst,
+  input  logic                      clk,
+  input  logic                      vga_clk,
+  input  logic                      nrst,
 
-  input  logic rx,
-  output logic tx
+  input  logic                      rx,
+  output logic                      tx,
+
+  output logic [VGA_POSLEN - 1:0]   x,
+  output logic [VGA_POSLEN - 1:0]   y,
+  output logic [VGA_COLORLEN - 1:0] r,
+  output logic [VGA_COLORLEN - 1:0] g,
+  output logic [VGA_COLORLEN - 1:0] b,
+  output logic                      hsync,
+  output logic                      vsync
 );
   logic [XLEN - 1:0]             clint_asw_rdata;
   logic [CNTLEN - 1:0]           clint_ac_mtime;
@@ -53,6 +62,10 @@ module top
   logic [XLEN - 1:0]             msw_vcd_wdata;
   logic                          msw_vcd_ren;
   logic                          msw_vcd_wen;
+  logic [VGD_ADDRLEN - 1:0]      msw_vgd_addr;
+  logic [XLEN - 1:0]             msw_vgd_wdata;
+  logic                          msw_vgd_ren;
+  logic                          msw_vgd_wen;
 
   logic [XLEN - 1:0]             mmem_msw_rdata;
   logic                          mmem_msw_stall;
@@ -63,6 +76,13 @@ module top
   logic [VCD_QUEUECNT_LOG - 1:0] vcd_vmgr_queue_num;
   logic                          vcd_vmgr_notify;
   logic                          vcd_vmgr_drvok;
+
+  logic                          vgd_ac_intr_pending;
+  logic [XLEN - 1:0]             vgd_msw_rdata;
+  logic [VGD_QUEUECNT - 1:0]     vgd_vmgr_queue_rdy;
+  logic [VGD_QUEUECNT_LOG - 1:0] vgd_vmgr_queue_num;
+  logic                          vgd_vmgr_notify;
+  logic                          vgd_vmgr_drvok;
 
   logic [XLEN - 1:0]             vsw_vc_rdata;
   logic                          vsw_vc_stall;
@@ -92,11 +112,15 @@ module top
 
   logic [BLEN - 1:0]             vmgr_uart_tx_byte;
   logic                          vmgr_uart_tx_start;
+  logic [VGA_COLORLEN - 1:0]     vmgr_vga_r;
+  logic [VGA_COLORLEN - 1:0]     vmgr_vga_g;
+  logic [VGA_COLORLEN - 1:0]     vmgr_vga_b;
   logic                          vmgr_vc_nsrst;
   logic [XLEN - 1:0]             vmgr_vc_srstarg;
   logic [XLEN - 1:0]             vmgr_vsw_rdata;
   logic                          vmgr_vsw_stall;
   logic                          vmgr_vcd_used;
+  logic                          vmgr_vgd_used;
   logic                          vmgr_busy;
 
   logic [XLEN - 1:0]             vmem_vsw_rdata;
@@ -105,6 +129,9 @@ module top
   logic [BLEN - 1:0]             uart_vmgr_rx_byte;
   logic                          uart_vmgr_rx_ready;
   logic                          uart_vmgr_tx_busy;
+
+  logic [VGA_POSLEN - 1:0]       vga_vmgr_x;
+  logic [VGA_POSLEN - 1:0]       vga_vmgr_y;
 
   initial begin
     integer file;
@@ -167,11 +194,13 @@ module top
     .asw_ren            (ac_asw_ren),
     .asw_wen            (ac_asw_wen),
     .vcd_intr_pending   (vcd_ac_intr_pending),
+    .vgd_intr_pending   (vgd_ac_intr_pending),
     .vmgr_busy          (vmgr_busy),
     .vmgr_stallable     (ac_vmgr_stallable)
   );
 
   app_switch APP_SWITCH(
+    .clk         (clk),
     .ac_addr     (ac_asw_addr),
     .ac_wdata    (ac_asw_wdata),
     .ac_size     (ac_asw_size),
@@ -226,7 +255,12 @@ module top
     .vcd_addr   (msw_vcd_addr),
     .vcd_wdata  (msw_vcd_wdata),
     .vcd_ren    (msw_vcd_ren),
-    .vcd_wen    (msw_vcd_wen)
+    .vcd_wen    (msw_vcd_wen),
+    .vgd_rdata  (vgd_msw_rdata),
+    .vgd_addr   (msw_vgd_addr),
+    .vgd_wdata  (msw_vgd_wdata),
+    .vgd_ren    (msw_vgd_ren),
+    .vgd_wen    (msw_vgd_wen)
   );
 
   memory #(
@@ -261,7 +295,25 @@ module top
     .vmgr_drvok      (vcd_vmgr_drvok)
   );
 
+  virtio_gpu_dev VIRTIO_GPU_DEV(
+    .clk             (clk),
+    .nrst            (nrst),
+    .ac_intr_pending (vgd_ac_intr_pending),
+    .msw_addr        (msw_vgd_addr),
+    .msw_wdata       (msw_vgd_wdata),
+    .msw_ren         (msw_vgd_ren),
+    .msw_wen         (msw_vgd_wen),
+    .msw_rdata       (vgd_msw_rdata),
+    .vmgr_busy       (vmgr_busy),
+    .vmgr_used       (vmgr_vgd_used),
+    .vmgr_queue_rdy  (vgd_vmgr_queue_rdy),
+    .vmgr_queue_num  (vgd_vmgr_queue_num),
+    .vmgr_notify     (vgd_vmgr_notify),
+    .vmgr_drvok      (vgd_vmgr_drvok)
+  );
+
   virtio_switch VIRTIO_SWITCH(
+    .clk        (clk),
     .vc_addr    (vc_vsw_addr),
     .vc_wdata   (vc_vsw_wdata),
     .vc_size    (vc_vsw_size),
@@ -318,6 +370,11 @@ module top
     .uart_tx_busy     (uart_vmgr_tx_busy),
     .uart_tx_byte     (vmgr_uart_tx_byte),
     .uart_tx_start    (vmgr_uart_tx_start),
+    .vga_x            (vga_vmgr_x),
+    .vga_y            (vga_vmgr_y),
+    .vga_r            (vmgr_vga_r),
+    .vga_g            (vmgr_vga_g),
+    .vga_b            (vmgr_vga_b),
     .vc_nsrst         (vmgr_vc_nsrst),
     .vc_srstarg       (vmgr_vc_srstarg),
     .vsw_addr         (vsw_vmgr_addr),
@@ -331,6 +388,11 @@ module top
     .vcd_drvok        (vcd_vmgr_drvok),
     .vcd_notify       (vcd_vmgr_notify),
     .vcd_used         (vmgr_vcd_used),
+    .vgd_queue_rdy    (vgd_vmgr_queue_rdy),
+    .vgd_queue_num    (vgd_vmgr_queue_num),
+    .vgd_drvok        (vgd_vmgr_drvok),
+    .vgd_notify       (vgd_vmgr_notify),
+    .vgd_used         (vmgr_vgd_used),
     .busy             (vmgr_busy)
   );
 
@@ -359,5 +421,22 @@ module top
     .vmgr_rx_byte  (uart_vmgr_rx_byte),
     .vmgr_rx_ready (uart_vmgr_rx_ready),
     .vmgr_tx_busy  (uart_vmgr_tx_busy)
+  );
+
+  vga VGA(
+    .vga_clk (vga_clk),
+    .nrst    (nrst),
+    .x       (x),
+    .y       (y),
+    .r       (r),
+    .g       (g),
+    .b       (b),
+    .hsync   (hsync),
+    .vsync   (vsync),
+    .vmgr_r  (vmgr_vga_r),
+    .vmgr_g  (vmgr_vga_g),
+    .vmgr_b  (vmgr_vga_b),
+    .vmgr_x  (vga_vmgr_x),
+    .vmgr_y  (vga_vmgr_y)
   );
 endmodule

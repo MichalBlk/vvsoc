@@ -4,15 +4,14 @@
 
 module multiplier
   import isa_pkg::*;
-#(
-  localparam DXLEN = 2 * XLEN
-)
 (
   input  logic [XLEN - 1:0]      ac_src1,
   input  logic [XLEN - 1:0]      ac_src2,
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
   output logic [XLEN - 1:0]      ac_res
 );
+  localparam DXLEN = 2 * XLEN;
+
   logic signed [XLEN - 1:0] src1_s;
   logic signed [XLEN - 1:0] src2_s;
   logic [DXLEN - 1:0]       res_ss;

@@ -7,6 +7,8 @@ module app_switch
   import isa_pkg::*;
   import soc_pkg::*;
 (
+  input  logic                       clk,
+
   input  logic [XLEN - 1:0]          ac_addr,
   input  logic [XLEN - 1:0]          ac_wdata,
   input  logic [XLENB_LOG - 1:0]     ac_size,
@@ -33,6 +35,10 @@ module app_switch
   output logic                       msw_ren,
   output logic                       msw_wen
 );
+  dev_t dev;
+
+  assign dev         = dev_t'(ac_addr[ADDR_DEVSH+:DEVLEN]);
+
   assign dbgc_wdata  = ac_wdata;
 
   assign clint_addr  = ac_addr;
@@ -53,7 +59,7 @@ module app_switch
     msw_ren   = 0;
     msw_wen   = 0;
 
-    case (ac_addr[ADDR_DEVSH+:DEVLEN])
+    case (dev)
       DEV_DBGC:
         dbgc_wen = ac_wen;
 
@@ -72,4 +78,10 @@ module app_switch
       end
     endcase
   end
+/*
+  always_ff @(posedge clk)
+    if ((ac_ren || ac_wen) && dev != DEV_VCD && dev != DEV_VGD && dev != DEV_DBGC &&
+      dev != DEV_CLINT && dev != DEV_MMEM)
+      $display("[ASW] Unknown device %h!", dev);
+*/
 endmodule

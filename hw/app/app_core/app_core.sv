@@ -24,6 +24,8 @@ module app_core
 
   input  logic                   vcd_intr_pending,
 
+  input  logic                   vgd_intr_pending,
+
   input  logic                   vmgr_busy,
   output logic                   vmgr_stallable
 );
@@ -209,7 +211,8 @@ module app_core
     .ac_tvec            (csrrf_tvec),
     .ac_intr_handling   (csrrf_intr_handling),
     .clint_intr_pending (clint_intr_pending),
-    .vcd_intr_pending   (vcd_intr_pending)
+    .vcd_intr_pending   (vcd_intr_pending),
+    .vgd_intr_pending   (vgd_intr_pending)
   );
 
   imm_gen IMM_GEN(

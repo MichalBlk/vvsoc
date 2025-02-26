@@ -24,7 +24,7 @@ PLATFORM_RISCV_CODE_MODEL = medany
 # Space separated list of object file names to be compiled for the platform
 platform-objs-y += platform.o
 
-FW_TEXT_START=0x80100000
+FW_TEXT_START=0x81000000
 
 # Dynamic firmware configuration.
 FW_DYNAMIC=n
@@ -33,7 +33,7 @@ FW_DYNAMIC=n
 FW_JUMP=y
 # This needs to be 4MB aligned for 32-bit support
 FW_JUMP_ADDR=0x80000000
-FW_JUMP_FDT_ADDR=0x80200000
+FW_JUMP_FDT_ADDR=0x81100000
 
 # Firmware with payload configuration.
 FW_PAYLOAD=n

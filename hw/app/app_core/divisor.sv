@@ -4,16 +4,15 @@
 
 module divisor
   import isa_pkg::*;
-#(
-  localparam ALL = {XLEN{1'b1}},
-  localparam MAXPW = 1 << (XLEN - 1)
-)
 (
   input  logic [XLEN - 1:0]      ac_src1,
   input  logic [XLEN - 1:0]      ac_src2,
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
   output logic [XLEN - 1:0]      ac_res
 );
+  localparam ALL   = {XLEN{1'b1}};
+  localparam MAXPW = 1 << (XLEN - 1);
+
   logic signed [XLEN - 1:0] src1_s;
   logic signed [XLEN - 1:0] src2_s;
   logic [XLEN - 1:0]        q_s;
