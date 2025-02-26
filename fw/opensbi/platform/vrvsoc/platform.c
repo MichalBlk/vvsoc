@@ -43,7 +43,7 @@ struct sbi_console_device console = {
 
 static int platform_console_init(void)
 {
-  const char *name = "DBG Console";
+  const char *name = "DBG console";
   size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
   sbi_memcpy(console.name, name, size);
   sbi_console_set_device(&console);
