@@ -424,19 +424,19 @@ module top
   );
 
   vga VGA(
-    .vga_clk    (vga_clk),
-    .nrst       (nrst),
-    .x          (x),
-    .y          (y),
-    .r          (r),
-    .g          (g),
-    .b          (b),
-    .hsync      (hsync),
-    .vsync      (vsync),
-    .vmgr_r     (vmgr_vga_r),
-    .vmgr_g     (vmgr_vga_g),
-    .vmgr_b     (vmgr_vga_b),
-    .vmgr_x     (vga_vmgr_x),
-    .vmgr_y     (vga_vmgr_y)
+    .vga_clk (vga_clk),
+    .nrst    (nrst),
+    .x       (x),
+    .y       (y),
+    .r       (r),
+    .g       (g),
+    .b       (b),
+    .hsync   (hsync),
+    .vsync   (vsync),
+    .vmgr_r  (vmgr_vga_r),
+    .vmgr_g  (vmgr_vga_g),
+    .vmgr_b  (vmgr_vga_b),
+    .vmgr_x  (vga_vmgr_x),
+    .vmgr_y  (vga_vmgr_y)
   );
 endmodule
