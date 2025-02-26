@@ -21,7 +21,8 @@ package virtio_pkg;
   parameter VIRTIO_REG_QUEUE_DESC_LOW      = 'h80;
   parameter VIRTIO_REG_QUEUE_DRIVER_LOW    = 'h90;
   parameter VIRTIO_REG_QUEUE_DEVICE_LOW    = 'ha0;
-  parameter VIRTIO_REG_CONFIG_GENERATION   = 'hfc;
+  parameter VIRTIO_REG_SHM_LEN_LOW         = 'hb0;
+  parameter VIRTIO_REG_SHM_LEN_HIGH        = 'hb4;
 
   /*
    * VirtIO magic value
@@ -36,7 +37,8 @@ package virtio_pkg;
   /*
    * VirtIO device IDs
    */
-  parameter VIRTIO_DEVICE_ID_CONSOLE = 3; 
+  parameter VIRTIO_DEVICE_ID_CONSOLE = 3;
+  parameter VIRTIO_DEVICE_ID_GPU     = 16;
 
   /*
    * VirtIO vendor IDs
@@ -74,6 +76,15 @@ package virtio_pkg;
    */
   parameter VIRTIO_CONSOLE_RX_QUEUE_NUM = 0;
   parameter VIRTIO_CONSOLE_TX_QUEUE_NUM = 1;
+
+  /*
+   * VirtIO GPU
+   */
+  parameter VIRTIO_GPU_REG_NUM_SCANOUTS = 'h108;
+
+  parameter VIRTIO_GPU_CTRL_QUEUE_NUM   = 0;
+  parameter VIRTIO_GPU_CURS_QUEUE_NUM   = 1;
+
 endpackage
 
 `endif /* !__VIRTIO_PKG_H__ */

@@ -7,6 +7,8 @@ module virtio_switch
   import isa_pkg::*;
   import soc_pkg::*;
 (
+  input  logic                      clk,
+
   input  logic [XLEN - 1:0]         vc_addr,
   input  logic [XLEN - 1:0]         vc_wdata,
   input  logic [XLENB_LOG - 1:0]    vc_size,
@@ -41,6 +43,10 @@ module virtio_switch
   output logic                      msw_ren,
   output logic                      msw_wen
 );
+  dev_t dev;
+
+  assign dev        = dev_t'(vc_addr[ADDR_DEVSH+:DEVLEN]);
+
   assign vmem_addr  = vc_addr;
   assign vmem_wdata = vc_wdata;
   assign vmem_size  = vc_size;
@@ -64,7 +70,7 @@ module virtio_switch
     msw_ren  = 0;
     msw_wen  = 0;
 
-    case (vc_addr[ADDR_DEVSH+:DEVLEN])
+    case (dev)
       DEV_VMEM: begin
         vc_rdata = vmem_rdata;
         vc_stall = vmem_stall;
@@ -90,4 +96,10 @@ module virtio_switch
       end
     endcase
   end
+/*
+  always_ff @(posedge clk)
+    if ((vc_ren || vc_wen) && dev != DEV_VMEM && dev != DEV_VMGR &&
+      dev != DEV_VCD && dev != DEV_VGD && dev != DEV_MMEM)
+      $display("[VSW] Unknown device %h!", dev);
+*/
 endmodule

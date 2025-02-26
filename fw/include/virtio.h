@@ -1,36 +1,39 @@
 #ifndef __VIRTIO_H__
 #define __VIRTIO_H__
 
+#include <stdint.h>
 #include <soc.h>
+
+#define QUEUE_NUM_MAX 8
 
 typedef struct {
   void *addr;
-  int __pad;
-  int len;
-  short flags;
-  short next;
+  uint32_t __pad;
+  uint32_t len;
+  uint16_t flags;
+  uint16_t next;
 } desc_t;
 
 typedef struct {
-  short flags;
-  short idx;
-  short ring[VCD_QUEUE_NUM_MAX];
-  short __pad;
+  uint16_t flags;
+  uint16_t idx;
+  uint16_t ring[QUEUE_NUM_MAX];
+  uint16_t __pad;
 } avail_vring_t;
 
 typedef struct {
-  short flags;
-  short idx;
+  uint16_t flags;
+  uint16_t idx;
   struct {
-    int idx;
-    int len;
-  } ring [VCD_QUEUE_NUM_MAX];
-  short __pad;
+    uint32_t idx;
+    uint32_t len;
+  } ring [QUEUE_NUM_MAX];
+  uint16_t __pad;
 } used_vring_t;
 
 typedef struct {
-  int ready;
-  int last_aidx;
+  uint32_t ready;
+  uint32_t last_aidx;
   desc_t *desc;
   avail_vring_t *avail;
   used_vring_t *used;
@@ -68,6 +71,7 @@ typedef struct {
  * VirtIO device IDs
  */
 #define VIRTIO_DEVICE_ID_CONSOLE 3 
+#define VIRTIO_DEVICDE_ID_GPU 16
 
 /*
  * VirtIO vendor IDs
@@ -89,5 +93,11 @@ typedef struct {
  */
 #define VIRTIO_CONSOLE_RX_QUEUE_NUM 0
 #define VIRTIO_CONSOLE_TX_QUEUE_NUM 1
+
+/*
+ * VirtIO GPU
+ */
+#define VIRTIO_GPU_CTRL_QUEUE_NUM 0
+#define VIRTIO_GPU_CURS_QUEUE_NUM 1
 
 #endif /* !__VIRTIO_H__ */

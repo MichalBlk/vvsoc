@@ -4,7 +4,7 @@
 `include "virtio_pkg.svh"
 `include "soc_pkg.svh"
 
-module virtio_console_dev
+module virtio_gpu_dev
   import isa_pkg::*;
   import virtio_pkg::*;
   import soc_pkg::*;
@@ -14,7 +14,7 @@ module virtio_console_dev
 
   output logic                          ac_intr_pending,
 
-  input  logic [VCD_ADDRLEN - 1:0]      msw_addr,
+  input  logic [VGD_ADDRLEN - 1:0]      msw_addr,
   input  logic [XLEN - 1:0]             msw_wdata,
   input  logic                          msw_ren,
   input  logic                          msw_wen,
@@ -22,12 +22,12 @@ module virtio_console_dev
 
   input  logic                          vmgr_busy,
   input  logic                          vmgr_used,
-  output logic [VCD_QUEUECNT - 1:0]     vmgr_queue_rdy,
-  output logic [VCD_QUEUECNT_LOG - 1:0] vmgr_queue_num,
+  output logic [VGD_QUEUECNT - 1:0]     vmgr_queue_rdy,
+  output logic [VGD_QUEUECNT_LOG - 1:0] vmgr_queue_num,
   output logic                          vmgr_notify,
   output logic                          vmgr_drvok
 );
-  localparam VIRTQUEUE_TOTALSZW = VCD_QUEUECNT * VIRTQUEUESZW;
+  localparam VIRTQUEUE_TOTALSZW = VGD_QUEUECNT * VIRTQUEUESZW;
 
   logic [XLEN - 1:0]         virtqueue [VIRTQUEUE_TOTALSZW - 1:0],
     virtqueue_r [VIRTQUEUE_TOTALSZW - 1:0];
@@ -51,13 +51,13 @@ module virtio_console_dev
       case (msw_addr)
         VIRTIO_REG_MAGIC_VALUE:      msw_rdata = VIRTIO_MAGIC_VALUE;
         VIRTIO_REG_VERSION:          msw_rdata = VIRTIO_VERSION;
-        VIRTIO_REG_DEVICE_ID:        msw_rdata = VIRTIO_DEVICE_ID_CONSOLE;
+        VIRTIO_REG_DEVICE_ID:        msw_rdata = VIRTIO_DEVICE_ID_GPU;
         VIRTIO_REG_VENDOR_ID:        msw_rdata = VIRTIO_VENDOR_ID_QEMU;
 
         VIRTIO_REG_DEVICE_FEATURES:
-          msw_rdata = VCD_FEATURES[device_features_sel_r * XLEN+:XLEN];
+          msw_rdata = VGD_FEATURES[device_features_sel_r * XLEN+:XLEN];
 
-        VIRTIO_REG_QUEUE_NUM_MAX:    msw_rdata = VCD_QUEUENUMMAX;
+        VIRTIO_REG_QUEUE_NUM_MAX:    msw_rdata = VGD_QUEUENUMMAX;
 
         VIRTIO_REG_QUEUE_READY:
           msw_rdata = virtqueue_r[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_READY_OFFW];
@@ -68,12 +68,13 @@ module virtio_console_dev
         VIRTIO_REG_SHM_LEN_LOW, VIRTIO_REG_SHM_LEN_HIGH:
           msw_rdata = {XLEN{1'b1}};
 
+        VIRTIO_GPU_REG_NUM_SCANOUTS: msw_rdata = 1;
         default:                     msw_rdata = 0;
       endcase
 /*
   always_ff @(posedge clk)
     if (!vmgr_busy && msw_ren)
-      $display("[VCD] reading register %h", msw_addr);
+      $display("[VGD] reading register %h", msw_addr);
 */
 
   /*
@@ -150,12 +151,12 @@ module virtio_console_dev
       interrupt_status_r    <= interrupt_status;
 /*
       if (!vmgr_busy && msw_wen)
-        $display("[VCD] writing value %h to register %h", msw_wdata, msw_addr);
+        $display("[VGD] writing value %h to register %h", msw_wdata, msw_addr);
 
       if (vmgr_used)
-        $display("[VCD] rising interrupt");
+        $display("[VGD] rising interrupt");
       else if (ac_intr_pending && !interrupt_status)
-        $display("[VCD] clearing interrupt");
+        $display("[VGD] clearing interrupt");
 */
     end
 

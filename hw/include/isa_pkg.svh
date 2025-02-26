@@ -278,7 +278,8 @@ package isa_pkg;
     MTI  = XLEN_LOG'(7),
     SEI  = XLEN_LOG'(9),
     MEI  = XLEN_LOG'(11),
-    PD0I = XLEN_LOG'(16)
+    PD0I = XLEN_LOG'(16),
+    PD1I = XLEN_LOG'(17)
   } intr_t;
 
   /*
@@ -349,12 +350,12 @@ package isa_pkg;
   /*
    * MIDELEG
    */
-  parameter MIDELEG_MASK = (1 << PD0I) | (1 << STI);
+  parameter MIDELEG_MASK = (1 << PD1I) | (1 << PD0I) | (1 << STI);
 
   /*
    * MIE
    */
-  parameter MIE_MASK = (1 << PD0I) | (1 << MTI) | (1 << STI);
+  parameter MIE_MASK = (1 << PD1I) | (1 << PD0I) | (1 << MTI) | (1 << STI);
 
   /*
    * MIP

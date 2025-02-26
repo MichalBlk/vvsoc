@@ -16,11 +16,19 @@
 
 #define VMGR_REG_UART_RX 0x0
 #define VMGR_REG_UART_TX 0x4
-#define VMGR_REG_FINISH 0x8
+#define VMGR_REG_VGA_UPDATE 0x8
+#define VMGR_REG_FINISH 0xc
 
 #define VMGR_FINISH_SUCCESS 0
 #define VMGR_FINISH_FAILURE 1
 
+typedef enum {
+  VMGR_DEV_VCD,
+  VMGR_DEV_VGD
+} vmgr_dev_t;
+
+#define VMGR_ARG_QN_MASK 0x1
+#define VMGR_ARG_DEV_SH 1
 /*
  * VirtIO console device
  */
@@ -29,8 +37,18 @@
 #define VCD_QUEUE_NUM_MAX 2
 
 /*
- * Debug console
+ * VirtIO GPU device
  */
+#define VGD_START 0x40000000
+
+#define VGD_QUEUE_NUM_MAX 8
+
+#define VGA_WIDTH 640
+#define VGA_HEIGHT 480
+
+/*
+ * Debug console
+ 
 #define DBGC_START 0x60000000
 
 /*

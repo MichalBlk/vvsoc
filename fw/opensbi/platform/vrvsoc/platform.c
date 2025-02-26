@@ -14,11 +14,12 @@
 #include <sbi_utils/timer/aclint_mtimer.h>
 
 #define VRVSOC_HART_COUNT		1
-#define VRVSOC_DBGC_ADDR		0x60000000
-#define VRVSOC_CLINT_ADDR		0x70000000
+#define VRVSOC_DBGC_ADDR    0x60000000
+#define VRVSOC_CLINT_ADDR   0x70000000
 #define VRVSOC_ACLINT_MTIMER_FREQ	50000000
 #define VRVSOC_ACLINT_MTIMER_ADDR	(VRVSOC_CLINT_ADDR + CLINT_MTIMER_OFFSET)
 #define VRVSOC_INTR_PD0 16
+#define VRVSOC_INTR_PD1 17
 
 static struct aclint_mtimer_data mtimer = {
 	.mtime_freq = VRVSOC_ACLINT_MTIMER_FREQ,
@@ -33,25 +34,25 @@ static struct aclint_mtimer_data mtimer = {
 
 static void dbgc_putc(char c)
 {
-	*((volatile char *)VRVSOC_DBGC_ADDR) = c;
+  *((volatile char *)VRVSOC_DBGC_ADDR) = c;
 }
 
 struct sbi_console_device console = {
-	.console_putc = dbgc_putc,
+  .console_putc = dbgc_putc,
 };
 
 static int platform_console_init(void)
 {
-	const char *name = "DBG console";
-	size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
-	sbi_memcpy(console.name, name, size);
-	sbi_console_set_device(&console);
-	return 0;
+  const char *name = "DBG Console";
+  size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
+  sbi_memcpy(console.name, name, size);
+  sbi_console_set_device(&console);
+  return 0;
 }
 
 static int platform_irqchip_init(bool coldboot)
 {
-  csr_set(CSR_MIDELEG, 1 << VRVSOC_INTR_PD0);
+  csr_set(CSR_MIDELEG, (1 << VRVSOC_INTR_PD0) | (1 << VRVSOC_INTR_PD1));
   return 0;
 }
 
@@ -69,7 +70,7 @@ static int platform_timer_init(bool coldboot)
 }
 
 const struct sbi_platform_operations platform_ops = {
-	.console_init = platform_console_init,
+  .console_init = platform_console_init,
 	.irqchip_init = platform_irqchip_init,
 	.timer_init = platform_timer_init
 };
