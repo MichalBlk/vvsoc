@@ -39,6 +39,7 @@ module app_core
   } state_t;
 
   state_t                  state, state_r;
+  state_t                  pv_state, pv_state_r;
   logic [XLEN - 1:0]       pc, pc_r;
   logic [XLEN - 1:0]       resv_addr, resv_addr_r;
   logic                    resv_valid, resv_valid_r;
@@ -62,6 +63,11 @@ module app_core
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
   logic [XLEN - 1:0]       amo_rmw_data, amo_rmw_data_r;
   logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
+  logic                    mul, mul_r;
+  logic                    div, div_r;
+  logic                    mret, mret_r;
+  logic                    sret, sret_r;
+  logic                    sfence_vma, sfence_vma_r;
   logic                    tkn, tkn_r;
   logic                    fast, fast_r;
   logic                    amo_sc_succ;
@@ -86,7 +92,6 @@ module app_core
   logic                    rf_wen;
 
   logic [XLEN - 1:0]       csrrf_target_pc;
-  logic                    csrrf_csr;
   logic                    csrrf_com;
   priv_t                   csrrf_priv;
   logic [XLEN - 1:0]       csrrf_mstatus;
@@ -125,6 +130,9 @@ module app_core
   logic [XLEN - 1:0]       rf_rdata1;
   logic [XLEN - 1:0]       rf_rdata2;
   logic [XLEN - 1:0]       ig_imm;
+  logic                    csrrf_csr;
+  logic                    csrrf_mret;
+  logic                    csrrf_sret;
   logic [XLEN - 1:0]       csrrf_rdata;
   logic                    csrrf_ren;
 
@@ -186,7 +194,9 @@ module app_core
     .rdata2  (rf_rdata2)
   );
 
-  assign csrrf_csr = _opcode == OPCODE_SYSTEM && _funct3 != FUNCT3_PRIV;
+  assign csrrf_mret = state_r == ST_IF_DEC ? iv_mret : mret_r;
+  assign csrrf_sret = state_r == ST_IF_DEC ? iv_sret : sret_r;
+  assign csrrf_csr  = _opcode == OPCODE_SYSTEM && _funct3 != FUNCT3_PRIV;
 
   csr_reg_file CSR_REG_FILE(
     .clk                (clk),
@@ -199,8 +209,8 @@ module app_core
     .ac_exc_pending     (exc_pending_r),
     .ac_tval            (tval_r),
     .ac_csr             (csrrf_csr),
-    .ac_mret            (iv_mret),
-    .ac_sret            (iv_sret),
+    .ac_mret            (csrrf_mret),
+    .ac_sret            (csrrf_sret),
     .ac_com             (csrrf_com),
     .ac_mtime           (clint_mtime),
     .ac_rdata           (csrrf_rdata),
@@ -221,34 +231,49 @@ module app_core
   );
 
   always_comb begin
-    inst      = inst_r;
-    imm       = imm_r;
-    rs1_data  = rs1_data_r;
-    rs2_data  = rs2_data_r;
-    csr_rdata = csr_rdata_r;
-    mem_addr  = mem_addr_r;
-    fast      = fast_r;
+    inst       = inst_r;
+    imm        = imm_r;
+    rs1_data   = rs1_data_r;
+    rs2_data   = rs2_data_r;
+    csr_rdata  = csr_rdata_r;
+    mem_addr   = mem_addr_r;
+    mul        = mul_r;
+    div        = div_r;
+    mret       = mret_r;
+    sret       = sret_r;
+    sfence_vma = sfence_vma_r;
+    fast       = fast_r;
 
     if (state_r == ST_IF_DEC && !stall) begin
-      inst      = fence || wfi ? NOP : mmu_rdata;
-      imm       = ig_imm;
-      rs1_data  = rf_rdata1;
-      rs2_data  = rf_rdata2;
-      csr_rdata = csrrf_rdata;
-      mem_addr  = rs1_data + imm;
-      fast      = _opcode == OPCODE_LUI || _opcode == OPCODE_AUIPC || _opcode == OPCODE_OP_IMM ||
+      inst       = fence || wfi ? NOP : mmu_rdata;
+      imm        = ig_imm;
+      rs1_data   = rf_rdata1;
+      rs2_data   = rf_rdata2;
+      csr_rdata  = csrrf_rdata;
+      mem_addr   = rs1_data + imm;
+      mul        = iv_mul;
+      div        = iv_div;
+      mret       = iv_mret;
+      sret       = iv_sret;
+      sfence_vma = iv_sfence_vma;
+      fast       = _opcode == OPCODE_LUI || _opcode == OPCODE_AUIPC || _opcode == OPCODE_OP_IMM ||
         (_opcode == OPCODE_OP && !iv_mul && !iv_div);
     end
   end
 
   always_ff @(posedge clk) begin
-    inst_r      <= inst;
-    imm_r       <= imm;
-    rs1_data_r  <= rs1_data;
-    rs2_data_r  <= rs2_data;
-    csr_rdata_r <= csr_rdata;
-    mem_addr_r  <= mem_addr;
-    fast_r      <= fast;
+    inst_r       <= inst;
+    imm_r        <= imm;
+    rs1_data_r   <= rs1_data;
+    rs2_data_r   <= rs2_data;
+    csr_rdata_r  <= csr_rdata;
+    mem_addr_r   <= mem_addr;
+    mul_r        <= mul;
+    div_r        <= div;
+    mret_r       <= mret;
+    sret_r       <= sret;
+    sfence_vma_r <= sfence_vma;
+    fast_r       <= fast;
   end
 
   /*
@@ -306,7 +331,7 @@ module app_core
           jmp_pc = pc_r + imm_r;
 
         OPCODE_OP:
-          if (iv_mul)
+          if (mul_r)
             rd_data1 = mul_res;
           else
             rd_data1 = div_res;
@@ -571,7 +596,8 @@ module app_core
   assign mem_access = load_amo_lr || store_amo_sc_succ || amo_rmw;
 
   always_comb begin
-    state = state_r;
+    state    = state_r;
+    pv_state = state_r;
 
     if (!stall) begin
       if (state_r == ST_COM)
@@ -595,15 +621,18 @@ module app_core
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      state_r <= ST_IF_DEC;
-    else
-      state_r <= state;
+    if (!nrst) begin
+      state_r    <= ST_IF_DEC;
+      pv_state_r <= ST_COM;
+    end else begin
+      state_r    <= state;
+      pv_state_r <= pv_state;
+    end
 
   /*
    * TLB flushing
    */
-  assign mmu_tlb_flush = state_r == ST_COM && iv_sfence_vma;
+  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
 
   /*
    * MMU
