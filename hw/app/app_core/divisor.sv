@@ -5,34 +5,122 @@
 module divisor
   import isa_pkg::*;
 (
+  input  logic                   clk,
+  input  logic                   nrst,
   input  logic [XLEN - 1:0]      ac_src1,
   input  logic [XLEN - 1:0]      ac_src2,
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
-  output logic [XLEN - 1:0]      ac_res
+  input  logic                   ac_start,
+  output logic [XLEN - 1:0]      ac_res,
+  output logic                   ac_stall
 );
-  localparam ALL   = {XLEN{1'b1}};
-  localparam MAXPW = 1 << (XLEN - 1);
+  typedef enum logic [1:0] {
+    ST_IDLE,
+    ST_BUSY,
+    ST_SPECIAL
+  } state_t;
 
-  logic signed [XLEN - 1:0] src1_s;
-  logic signed [XLEN - 1:0] src2_s;
-  logic [XLEN - 1:0]        q_s;
-  logic [XLEN - 1:0]        q_u;
-  logic [XLEN - 1:0]        r_s;
-  logic [XLEN - 1:0]        r_u;
-  logic                     zero;
-  logic                     ovf;
+  state_t                state, state_r;
+  logic [XLEN_LOG - 1:0] cnt, cnt_r;
+  logic [XLEN - 1:0]     q, q_r;
+  logic [XLEN - 1:0]     acc, acc_r;
+  logic [XLEN - 1:0]     src1_u, src2_u;
+  logic                  sign_src1;
+  logic                  sign_src2;
+  logic                  diff_signs;
+  logic                  sign;
+  logic                  zero;
+  logic                  ovf;
 
-  assign src1_s = ac_src1;
-  assign src2_s = ac_src2;
+  assign sign_src1  = ac_src1[XLEN - 1];
+  assign sign_src2  = ac_src2[XLEN - 1];
+  assign diff_signs = sign_src1 ^ sign_src2;
+  assign sign       = ac_funct3 == FUNCT3_DIV || ac_funct3 == FUNCT3_REM;
+  assign zero       = !ac_src2;
+  assign ovf        = ac_src1 == MAXPW && ac_src2 == ALL;
 
-  assign q_s = src1_s / src2_s;
-  assign q_u = ac_src1 / ac_src2;
-  assign r_s = src1_s % src2_s;
-  assign r_u = ac_src1 % ac_src2;
+  always_comb begin
+    src1_u = ac_src1;
+    src2_u = ac_src2;
 
-  assign zero = !ac_src2;
-  assign ovf  = ac_src1 == MAXPW && ac_src2 == ALL;
+    if (sign) begin
+      if (ac_src1[XLEN - 1])
+        src1_u = ~ac_src1 + 1;
+      if (ac_src2[XLEN - 1])
+        src2_u = ~ac_src2 + 1;
+    end
+  end
 
+  /*
+   * State transitions
+   */
+  logic special;
+
+  assign special = zero || (ovf && (ac_funct3 == FUNCT3_DIV || ac_funct3 == FUNCT3_REM));
+
+  always_comb begin
+    state = state_r;
+
+    if (state_r == ST_IDLE && ac_start)
+      state = special ? ST_SPECIAL : ST_BUSY;
+    else if (state_r == ST_BUSY && !cnt_r)
+      state = ST_IDLE;
+    else if (state_r == ST_SPECIAL)
+      state = ST_IDLE;
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst)
+      state_r <= ST_IDLE;
+    else
+      state_r <= state;
+
+  /*
+   * Bit counter
+   */
+  always_comb begin
+    cnt = cnt_r;
+
+    if (state_r == ST_BUSY)
+      cnt = cnt_r - 1;
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst)
+      cnt_r <= XLEN - 1;
+    else
+      cnt_r <= cnt;
+
+  /*
+   * Division operation
+   */
+  logic [XLEN - 1:0] val;
+  logic              gte;
+
+  assign val = {acc_r[0+:XLEN - 1], q_r[XLEN - 1]};
+  assign gte = val >= src2_u;
+
+  always_comb begin
+    q   = q_r;
+    acc = acc_r;
+
+    if (state_r == ST_IDLE && ac_start) begin
+      q   = src1_u;
+      acc = 0;
+    end else if (state_r == ST_BUSY) begin
+      q   = {q_r[0+:XLEN - 1], gte};
+      acc = gte ? val - src2_u : val;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    q_r   <= q;
+    acc_r <= acc;
+  end
+
+  /*
+   * Application core signals
+   */
   always_comb
     case (ac_funct3)
       FUNCT3_DIV:
@@ -41,13 +129,13 @@ module divisor
         else if (ovf)
           ac_res = MAXPW;
         else
-          ac_res = q_s;
+          ac_res = diff_signs ? ~q + 1 : q;
 
       FUNCT3_DIVU:
         if (zero)
           ac_res = ALL;
         else
-          ac_res = q_u;
+          ac_res = q;
 
       FUNCT3_REM:
         if (zero)
@@ -55,14 +143,16 @@ module divisor
         else if (ovf)
           ac_res = 0;
         else
-          ac_res = r_s;
+          ac_res = sign_src1 ? ~acc + 1 : acc;
 
       FUNCT3_REMU:
         if (zero)
           ac_res = ac_src1;
         else
-          ac_res = r_u;
+          ac_res = acc;
 
       default: ac_res = 'bx;
     endcase
+
+  assign ac_stall = state != ST_IDLE;
 endmodule

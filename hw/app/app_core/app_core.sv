@@ -39,6 +39,7 @@ module app_core
   } state_t;
 
   state_t                  state, state_r;
+  state_t                  pv_state, pv_state_r;
   logic [XLEN - 1:0]       pc, pc_r;
   logic [XLEN - 1:0]       resv_addr, resv_addr_r;
   logic                    resv_valid, resv_valid_r;
@@ -98,6 +99,8 @@ module app_core
   logic                    csrrf_ill;
   logic [XLEN - 1:0]       csrrf_tvec;
   logic                    csrrf_intr_handling;
+
+  logic                    div_stall;
 
   logic                    mmu_tlb_flush;
   logic [XLEN - 1:0]       mmu_rdata;
@@ -280,6 +283,7 @@ module app_core
    */
   logic              bralu_res;
   logic [XLEN - 1:0] mul_res;
+  logic              div_start;
   logic [XLEN - 1:0] div_res;
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
@@ -303,11 +307,17 @@ module app_core
     .ac_res    (mul_res)
   );
 
+  assign div_start = state_r == ST_EXE1 && pv_state_r == ST_IF_DEC && div_r;
+
   divisor DIVISOR(
+    .clk       (clk),
+    .nrst      (nrst),
     .ac_src1   (rs1_data_r),
     .ac_src2   (rs2_data_r),
     .ac_funct3 (funct3),
-    .ac_res    (div_res)
+    .ac_start  (div_start),
+    .ac_res    (div_res),
+    .ac_stall  (div_stall)
   );
 
   always_comb begin
@@ -595,7 +605,8 @@ module app_core
   assign mem_access = load_amo_lr || store_amo_sc_succ || amo_rmw;
 
   always_comb begin
-    state = state_r;
+    state    = state_r;
+    pv_state = state_r;
 
     if (!stall) begin
       if (state_r == ST_COM)
@@ -609,9 +620,10 @@ module app_core
           state = ST_MEM1;
         else
           state = ST_EXE1;
-      end else if (state_r == ST_EXE1 && !mem_access)
-        state = ST_COM;
-      else if (state_r == ST_MEM1 && !amo_rmw)
+      end else if (state_r == ST_EXE1) begin
+        if (!div_stall)
+          state = mem_access ? ST_MEM1 : ST_COM;
+      end else if (state_r == ST_MEM1 && !amo_rmw)
         state = ST_COM;
       else
         state = state_t'(state_r + 1);
@@ -619,10 +631,13 @@ module app_core
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      state_r <= ST_IF_DEC;
-    else
-      state_r <= state;
+    if (!nrst) begin
+      state_r    <= ST_IF_DEC;
+      pv_state_r <= ST_COM;
+    end else begin
+      state_r    <= state;
+      pv_state_r <= pv_state;
+    end
 
   /*
    * TLB flushing
