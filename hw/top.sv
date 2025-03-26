@@ -134,36 +134,25 @@ module top
   logic [VGA_POSLEN - 1:0]       vga_vmgr_y;
 
   initial begin
-    integer file;
     $display("[TOP] Loading kernel...");
-    file = $fopen("kernel.bin", "rb");
-    $fread(MAIN_MEMORY.mem, file, MMEM_KERNEL_OFFW);
-    $fclose(file);
+    $readmemh("kernel.mif", MAIN_MEMORY.mem, MMEM_KERNEL_OFFW);
 
     $display("[TOP] Loading firmware...");
-    file = $fopen("fw.bin", "rb");
-    $fread(MAIN_MEMORY.mem, file, MMEM_FW_OFFW);
-    $fclose(file);
+    $readmemh("fw.mif", MAIN_MEMORY.mem, MMEM_FW_OFFW);
 
     $display("[TOP] Loading dtb...");
-    file = $fopen("vrvsoc.dtb", "rb");
-    $fread(MAIN_MEMORY.mem, file, MMEM_DTB_OFFW);
-    $fclose(file);
+    $readmemh("vrvsoc.mif", MAIN_MEMORY.mem, MMEM_DTB_OFFW);
 
     $display("[TOP] Loading initrd...");
-    file = $fopen("initrd.cpio", "rb");
-    $fread(MAIN_MEMORY.mem, file, MMEM_INITRD_OFFW);
-    $fclose(file);
+    $readmemh("initrd.mif", MAIN_MEMORY.mem, MMEM_INITRD_OFFW);
 
     $display("[TOP] Loading VirtIO core image...");
-    file = $fopen("virtio.bin", "rb");
-    $fread(VIRTIO_MEMORY.mem, file);
-    $fclose(file);
+    $readmemh("virtio.mif", VIRTIO_MEMORY.mem);
 
     $display("[TOP] Images loaded successfully");
   end
 
-  dbg_console DBG_CONSOLE (
+  dbg_console DBG_CONSOLE(
     .clk       (clk),
     .asw_wdata (asw_dbgc_wdata),
     .asw_wen   (asw_dbgc_wen)

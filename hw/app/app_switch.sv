@@ -78,10 +78,9 @@ module app_switch
       end
     endcase
   end
-/*
+
   always_ff @(posedge clk)
     if ((ac_ren || ac_wen) && dev != DEV_VCD && dev != DEV_VGD && dev != DEV_DBGC &&
       dev != DEV_CLINT && dev != DEV_MMEM)
       $display("[ASW] Unknown device %h!", dev);
-*/
 endmodule

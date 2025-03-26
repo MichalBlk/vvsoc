@@ -59,7 +59,7 @@ module memory
   /*
    * Data
    */
-  assign cdata = state_r == ST_WRITE && addrw == addrw_r ? value : {<<BLEN{mem[addrw]}};
+  assign cdata = state_r == ST_WRITE && addrw == addrw_r ? value : mem[addrw];
   assign ndata = wdata;
 
   always_ff @(posedge clk) begin
@@ -88,7 +88,7 @@ module memory
 
   always_ff @(posedge clk) begin
     if (state_r == ST_WRITE)
-      mem[addrw_r] <= {<<BLEN{value}};
+      mem[addrw_r] <= value;
   end
 
   /*

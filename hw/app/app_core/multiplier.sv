@@ -10,8 +10,6 @@ module multiplier
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
   output logic [XLEN - 1:0]      ac_res
 );
-  localparam DXLEN = 2 * XLEN;
-
   logic signed [XLEN - 1:0] src1_s;
   logic signed [XLEN - 1:0] src2_s;
   logic [DXLEN - 1:0]       res_ss;
