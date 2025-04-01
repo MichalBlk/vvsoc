@@ -45,18 +45,26 @@ module mmu
 
   priv_t               priv;
   logic                omit_translation;
+  logic [2:0]          tlb_xwr, tlb_exwr;
   logic [XLEN - 1:0]   l1_pte, l1_pte_r;
-  logic [PTELEN - 1:0] pte, pte_r;
-  logic [2:0]          xwr, exwr;
-  logic                sp, sp_r;
+  logic [2:0]          l1_xwr, l1_exwr;
+  logic                l1_sp;
+  logic                l1_needs_update;
+  logic                l1_exc_pending;
+  logic [XLEN - 1:0]   l0_pte, l0_pte_r;
+  logic [2:0]          l0_xwr, l0_exwr;
+  logic                l0_needs_update;
+  logic                l0_exc_pending;
   logic [XLEN - 1:0]   paddr, paddr_r;
   logic [XLEN - 1:0]   early_paddr;
-  logic                needs_update;
+  logic                sp, sp_r;
+  logic                tlb_exc_pending;
 
+  logic [XLEN - 1:0]   tlb_wpte;
+  logic                tlb_wen;
   logic [PTELEN - 1:0] tlb_rpte;
   logic                tlb_rsp;
   logic                tlb_valid;
-  logic                tlb_wen;
 
   assign priv             = 
     ac_priv == PRIV_M && ac_mstatus[MSTATUS_MPRVSH] && ac_access != ACC_FETCH ?
@@ -81,7 +89,7 @@ module mmu
     .nrst      (nrst),
     .mmu_vpn   (tlb_vpn),
     .mmu_asid  (tlb_asid),
-    .mmu_wpte  (pte),
+    .mmu_wpte  (tlb_wpte),
     .mmu_wsp   (sp),
     .mmu_wen   (tlb_wen),
     .mmu_flush (ac_tlb_flush),
@@ -90,52 +98,106 @@ module mmu
     .mmu_valid (tlb_valid)
   );
 
-  /*
-   * PTE computation
-   */
-  assign xwr = {pte[PTE_XSH], pte[PTE_WSH], pte[PTE_RSH]};
+  assign tlb_xwr = {tlb_rpte[PTE_XSH], tlb_rpte[PTE_WSH], tlb_rpte[PTE_RSH]};
 
   always_comb begin
-    exwr = xwr;
+    tlb_exwr = tlb_xwr;
 
     if (ac_mstatus[MSTATUS_MXRSH])
-      exwr[0] |= xwr[2];
+      tlb_exwr[0] |= tlb_xwr[2];
   end
+
+  /*
+   * L1 stage
+   */
+  assign l1_xwr = {l1_pte[PTE_XSH], l1_pte[PTE_WSH], l1_pte[PTE_RSH]};
+
+  always_comb begin
+    l1_exwr = l1_xwr;
+
+    if (ac_mstatus[MSTATUS_MXRSH])
+      l1_exwr[0] |= l1_xwr[2];
+  end
+
+  assign l1_sp           = l1_xwr != 0;
+  assign l1_needs_update = !l1_pte[PTE_ASH] || (ac_access == ACC_STORE && !l1_pte[PTE_DSH]);
 
   always_comb begin
     l1_pte = l1_pte_r;
-    pte    = pte_r;
-    sp     = sp_r;
 
-    if (!asw_stall)
-      case (state_r)
-        ST_TLB: begin
-          pte = tlb_rpte;
-          sp  = tlb_rsp;
-        end
-
-        ST_L1: begin
-          l1_pte = asw_rdata;
-          pte    = asw_rdata;
-          sp     = xwr != 0;
-        end
-
-        ST_L0:
-          pte = asw_rdata;
-      endcase
+    if (state_r == ST_L1 && !asw_stall)
+      l1_pte = asw_rdata;
   end
 
-  always_ff @(posedge clk) begin
+  always_ff @(posedge clk)
     l1_pte_r <= l1_pte;
-    pte_r    <= pte;
-    sp_r     <= sp;
+
+  /*
+   * L0 stage
+   */
+  assign l0_xwr = {l0_pte[PTE_XSH], l0_pte[PTE_WSH], l0_pte[PTE_RSH]};
+
+  always_comb begin
+    l0_exwr = l0_xwr;
+
+    if (ac_mstatus[MSTATUS_MXRSH])
+      l0_exwr[0] |= l0_xwr[2];
   end
+
+  assign l0_needs_update = !l0_pte[PTE_ASH] || (ac_access == ACC_STORE && !l0_pte[PTE_DSH]);
+
+  always_comb begin
+    l0_pte = l0_pte_r;
+
+    if (state_r == ST_L0 && !asw_stall)
+      l0_pte = asw_rdata;
+  end
+
+  always_ff @(posedge clk)
+    l0_pte_r <= l0_pte;
+
+  /*
+   * Superpage detection
+   */
+  always_comb begin
+    sp = sp_r;
+
+    case (state_r)
+      ST_TLB:
+        sp = tlb_rsp;
+
+      ST_L1:
+        if (!asw_stall)
+          sp = l1_sp;
+
+      ST_L0:
+        if (!asw_stall)
+          sp = 0;
+    endcase
+  end
+
+  always_ff @(posedge clk)
+    sp_r <= sp;
+
+  /*
+   * TLB updates
+   */
+  assign tlb_wpte = state_r == ST_L1 ? l1_pte : l0_pte;
+  assign tlb_wen  = !asw_stall && ((state_r == ST_L1 && l1_sp && !l1_exc_pending) ||
+    (state_r == ST_L0 && !l0_exc_pending));
 
   /*
    * PA computation
    */
-  logic [SPNLEN - 1:0] spn;
-  logic [PNLEN - 1:0]  pn;
+  logic [SPNLEN - 1:0] tlb_spn;
+  logic [SPNLEN - 1:0] l1_spn;
+  logic [PNLEN - 1:0]  tlb_pn;
+  logic [PNLEN - 1:0]  l0_pn;
+
+  assign tlb_spn = tlb_rpte[PTE_PPN1SH+:SPNLEN];
+  assign l1_spn  = l1_pte[PTE_PPN1SH+:SPNLEN];
+  assign tlb_pn  = tlb_rpte[PTE_PPN0SH+:PNLEN];
+  assign l0_pn   = l0_pte[PTE_PPN0SH+:PNLEN];
 
   always_comb begin
     early_paddr = 'bx;
@@ -143,73 +205,86 @@ module mmu
     if (omit_translation)
       early_paddr = ac_vaddr;
     else if (tlb_rsp)
-      early_paddr = {tlb_rpte[PTE_PPN1SH+:SPNLEN], ac_vaddr[0+:SUPERPAGESZ_LOG]};
+      early_paddr = {tlb_spn, ac_vaddr[0+:SUPERPAGESZ_LOG]};
     else
-      early_paddr = {tlb_rpte[PTE_PPN0SH+:PNLEN], ac_vaddr[0+:PAGESZ_LOG]};
+      early_paddr = {tlb_pn, ac_vaddr[0+:PAGESZ_LOG]};
   end
-
-  assign spn = pte[PTE_PPN1SH+:SPNLEN];
-  assign pn  = pte[PTE_PPN0SH+:PNLEN];
 
   always_comb begin
     paddr = paddr_r;
 
-    if (!asw_stall) begin
-      if (state_r == ST_TLB && omit_translation)
-        paddr = ac_vaddr;
-      else if (sp)
-        paddr = {spn, ac_vaddr[0+:SUPERPAGESZ_LOG]};
-      else
-        paddr = {pn, ac_vaddr[0+:PAGESZ_LOG]};
-    end
+    case (state_r)
+      ST_TLB:
+        paddr = early_paddr;
+
+      ST_L1:
+        if (!asw_stall)
+          paddr = {l1_spn, ac_vaddr[0+:SUPERPAGESZ_LOG]};
+
+      ST_L0:
+        if (!asw_stall)
+          paddr = {l0_pn, ac_vaddr[0+:PAGESZ_LOG]};
+      endcase
   end
 
   always_ff @(posedge clk)
     paddr_r <= paddr;
 
   /*
-   * TLB updates
-   */
-  assign tlb_wen = !asw_stall && !ac_exc_pending &&
-    ((state_r == ST_L1 && sp) || state_r == ST_L0);
-
-  /*
    * Exception detection
    */
-  logic valid;
-  logic xwr_resv;
-  logic sp_unaligned;
-  logic ill;
+  logic tlb_ill;
+  logic l1_valid;
+  logic l1_xwr_resv;
+  logic l1_sp_unaligned;
+  logic l1_ill;
+  logic l0_valid;
+  logic l0_xwr_resv;
+  logic l0_sp_unaligned;
+  logic l0_ill;
 
-  assign valid        = pte[PTE_VSH];
-  assign xwr_resv     = xwr == PTE_XWR_RESV0 || xwr == PTE_XWR_RESV1;
-  assign sp_unaligned = pte[PTE_PPN0SH+:PT_ADDRLEN] != 0;
-  assign ill          = (exwr & ac_access) != ac_access ||
-    (priv == PRIV_S && pte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
-    (priv == PRIV_U && !pte[PTE_USH]);
+  assign tlb_ill         = (tlb_exwr & ac_access) != ac_access ||
+    (priv == PRIV_S && tlb_rpte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
+    (priv == PRIV_U && !tlb_rpte[PTE_USH]);
+  assign tlb_exc_pending = ac_access != ACC_NONE && !omit_translation && tlb_valid && tlb_ill;
+
+  assign l1_valid        = l1_pte[PTE_VSH];
+  assign l1_xwr_resv     = l1_xwr == PTE_XWR_RESV0 || l1_xwr == PTE_XWR_RESV1;
+  assign l1_sp_unaligned = l1_pte[PTE_PPN0SH+:PT_ADDRLEN] != 0;
+  assign l1_ill          = (l1_exwr & ac_access) != ac_access ||
+    (priv == PRIV_S && l1_pte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
+    (priv == PRIV_U && !l1_pte[PTE_USH]);
+  assign l1_exc_pending  = !l1_valid || l1_xwr_resv || (l1_sp && (l1_sp_unaligned || l1_ill));
+
+  assign l0_valid        = l0_pte[PTE_VSH];
+  assign l0_xwr_resv     = l0_xwr == PTE_XWR_RESV0 || l0_xwr == PTE_XWR_RESV1;
+  assign l0_ill          = (l0_exwr & ac_access) != ac_access ||
+    (priv == PRIV_S && l0_pte[PTE_USH] && !ac_mstatus[MSTATUS_SUMSH]) ||
+    (priv == PRIV_U && !l0_pte[PTE_USH]);
+  assign l0_exc_pending  = !l0_valid || l0_xwr_resv || !l0_xwr || l0_ill;
 
   always_comb begin
     ac_exc_code    = exc_t'('bx);
     ac_exc_pending = 0;
 
-    if (!asw_stall)
-      case (state_r)
-        ST_TLB:
-          ac_exc_pending = ac_access != ACC_NONE && !omit_translation && tlb_valid && ill;
+    case (state_r)
+      ST_TLB:
+        ac_exc_pending = tlb_exc_pending;
 
-        ST_L1:
-          ac_exc_pending = !valid || xwr_resv || (sp && (sp_unaligned || ill));
+      ST_L1:
+        if (!asw_stall)
+          ac_exc_pending = l1_exc_pending;
 
-        ST_L0:
-          ac_exc_pending = !valid || xwr_resv || !xwr || ill;
-      endcase
+      ST_L0:
+        if (!asw_stall)
+          ac_exc_pending = l0_exc_pending;
+    endcase
 
-    if (ac_exc_pending)
-      case (ac_access)
-        ACC_LOAD:  ac_exc_code = CAUSE_LOAD_PAGE_FAULT;
-        ACC_STORE: ac_exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
-        ACC_FETCH: ac_exc_code = CAUSE_FETCH_PAGE_FAULT;
-      endcase
+    case (ac_access)
+      ACC_LOAD:  ac_exc_code = CAUSE_LOAD_PAGE_FAULT;
+      ACC_STORE: ac_exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
+      ACC_FETCH: ac_exc_code = CAUSE_FETCH_PAGE_FAULT;
+    endcase
   end
 
   /*
@@ -220,7 +295,7 @@ module mmu
 
     if (state_r == ST_TLB) begin
       if (ac_access != ACC_NONE) begin
-        if (ac_exc_pending)
+        if (tlb_exc_pending)
           state = ST_TLB;
         else if (omit_translation || tlb_valid) begin
           if (asw_stall)
@@ -235,7 +310,8 @@ module mmu
         state = ST_TLB;
       else if (ac_exc_pending)
         state = ST_TLB;
-      else if (((state_r == ST_L1 && sp) || state_r == ST_L0) && !needs_update)
+      else if ((state_r == ST_L1 && l1_sp && !l1_needs_update) ||
+        (state_r == ST_L0 && !l0_needs_update))
         state = ST_ACCESS;
       else
         state = state_t'(state + 1);
@@ -249,7 +325,7 @@ module mmu
       state_r <= state;
 
   /*
-   * Application core signals
+   * Other application core signals
    */
   assign ac_rdata = asw_rdata;
   assign ac_stall = state != ST_TLB;
@@ -259,20 +335,21 @@ module mmu
    */
   logic [XLEN - 1:0]   l1_pte_addr;
   logic [XLEN - 1:0]   l0_pte_addr;
-  logic [PTELEN - 1:0] updated_pte;
+  logic [PTELEN - 1:0] l1_updated_pte;
+  logic [PTELEN - 1:0] l0_updated_pte;
   logic                early_access;
 
-  assign needs_update = !pte[PTE_ASH] || (ac_access == ACC_STORE && !pte[PTE_DSH]);
-
-  assign l1_pte_addr  = {ac_satp[SATP_PPNSH+:PNLEN], ac_vaddr[VADDR_VPN1SH+:PT_ADDRLEN],
+  assign l1_pte_addr    = {ac_satp[SATP_PPNSH+:PNLEN], ac_vaddr[VADDR_VPN1SH+:PT_ADDRLEN],
     {PTELENB_LOG{1'b0}}};
 
-  assign l0_pte_addr  = {l1_pte_r[PTE_PPN0SH+:PNLEN], ac_vaddr[VADDR_VPN0SH+:PT_ADDRLEN],
+  assign l0_pte_addr    = {l1_pte_r[PTE_PPN0SH+:PNLEN], ac_vaddr[VADDR_VPN0SH+:PT_ADDRLEN],
     {PTELENB_LOG{1'b0}}};
 
-  assign updated_pte  = pte_r | (1 << PTE_ASH) | ((ac_access == ACC_STORE) << PTE_DSH);
+  assign l1_updated_pte = l1_pte_r | (1 << PTE_ASH) | ((ac_access == ACC_STORE) << PTE_DSH);
+  assign l0_updated_pte = l0_pte_r | (1 << PTE_ASH) | ((ac_access == ACC_STORE) << PTE_DSH);
 
-  assign early_access = ac_access != ACC_NONE && !ac_exc_pending && (omit_translation || tlb_valid);
+  assign early_access   = ac_access != ACC_NONE &&
+    (omit_translation || (tlb_valid && !tlb_exc_pending));
 
   always_comb begin
     asw_addr  = 'bx;
@@ -303,13 +380,15 @@ module mmu
       end
 
       ST_UPDATE: begin
-        if (sp_r)
+        if (sp_r) begin
           asw_addr  = l1_pte_addr;
-        else
+          asw_wdata = l1_updated_pte;
+        end else begin
           asw_addr  = l0_pte_addr;
-        asw_wdata = updated_pte;
-        asw_size  = PTELENB_LOG;
-        asw_wen   = needs_update;
+          asw_wdata = l0_updated_pte;
+        end
+        asw_size = PTELENB_LOG;
+        asw_wen  = 1;
       end
 
       ST_ACCESS: begin
