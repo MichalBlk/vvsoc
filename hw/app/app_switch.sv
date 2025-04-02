@@ -1,4 +1,4 @@
-//`default_nettype none
+`default_nettype none
 
 `include "isa_pkg.svh"
 `include "soc_pkg.svh"
