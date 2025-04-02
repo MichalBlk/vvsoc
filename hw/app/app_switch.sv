@@ -50,6 +50,7 @@ module app_switch
   assign msw_nsign   = ac_nsign;
 
   always_comb begin
+    ac_rdata  = 'bx;
     ac_stall  = 0;
 
     dbgc_wen  = 0;
