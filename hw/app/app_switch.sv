@@ -1,4 +1,4 @@
-`default_nettype none
+//`default_nettype none
 
 `include "isa_pkg.svh"
 `include "soc_pkg.svh"
@@ -50,6 +50,7 @@ module app_switch
   assign msw_nsign   = ac_nsign;
 
   always_comb begin
+    ac_rdata  = 'bx;
     ac_stall  = 0;
 
     dbgc_wen  = 0;
@@ -79,10 +80,8 @@ module app_switch
     endcase
   end
 
-/*
   always_ff @(posedge clk)
     if ((ac_ren || ac_wen) && dev != DEV_VCD && dev != DEV_VGD && dev != DEV_DBGC &&
       dev != DEV_CLINT && dev != DEV_MMEM)
       $display("[ASW] Unknown device %h!", dev);
-*/
 endmodule
