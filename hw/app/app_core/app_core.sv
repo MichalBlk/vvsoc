@@ -1,4 +1,4 @@
-`default_nettype none
+//`default_nettype none
 
 `include "isa_pkg.svh"
 `include "soc_pkg.svh"
@@ -136,7 +136,6 @@ module app_core
   logic                    csrrf_mret;
   logic                    csrrf_sret;
   logic [XLEN - 1:0]       csrrf_rdata;
-  logic                    csrrf_ren;
 
   assign __opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
   assign __funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
@@ -252,7 +251,7 @@ module app_core
       rs1_data   = rf_rdata1;
       rs2_data   = rf_rdata2;
       csr_rdata  = csrrf_rdata;
-      mem_addr   = rs1_data + imm;
+      mem_addr   = _opcode == OPCODE_AMO ? rs1_data : rs1_data + imm;
       mul        = iv_mul;
       div        = iv_div;
       mret       = iv_mret;
@@ -345,10 +344,8 @@ module app_core
           else
             rd_data1 = div_res;
 
-        OPCODE_AMO: begin
-          mem_addr = rs1_data_r;
+        OPCODE_AMO:
           rd_data1 = !amo_sc_succ;
-        end
 
         OPCODE_SYSTEM:
           if (funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET))
