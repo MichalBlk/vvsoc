@@ -34,6 +34,16 @@ module virtio_switch
   output logic                      vmgr_ren,
   output logic                      vmgr_wen,
 
+  input  logic [XLEN - 1:0]         vcd_rdata,
+  output logic [VCD_ADDRLEN - 1:0]  vcd_addr,
+  output logic [XLEN - 1:0]         vcd_wdata,
+  output logic                      vcd_wen,
+
+  input  logic [XLEN - 1:0]         vgd_rdata,
+  output logic [VGD_ADDRLEN - 1:0]  vgd_addr,
+  output logic [XLEN - 1:0]         vgd_wdata,
+  output logic                      vgd_wen,
+
   input  logic [XLEN - 1:0]         msw_rdata,
   input  logic                      msw_stall,
   output logic [XLEN - 1:0]         msw_addr,
@@ -55,22 +65,35 @@ module virtio_switch
   assign vmgr_addr  = vc_addr;
   assign vmgr_wdata = vc_wdata;
 
+  assign vcd_addr    = vc_addr;
+  assign vcd_wdata   = vc_wdata;
+
+  assign vgd_addr    = vc_addr;
+  assign vgd_wdata   = vc_wdata;
+
   assign msw_addr   = vc_addr;
   assign msw_wdata  = vc_wdata;
   assign msw_size   = vc_size;
   assign msw_nsign  = vc_nsign;
 
   always_comb begin
+    vc_rdata = 'bx;
+    vc_stall = 0;
+
     vmem_ren = 0;
     vmem_wen = 0;
 
     vmgr_ren = 0;
     vmgr_wen = 0;
 
+    vcd_wen  = 0;
+
+    vgd_wen  = 0;
+
     msw_ren  = 0;
     msw_wen  = 0;
 
-    case (dev)
+    unique0 case (dev)
       DEV_VMEM: begin
         vc_rdata = vmem_rdata;
         vc_stall = vmem_stall;
@@ -87,7 +110,19 @@ module virtio_switch
         vmgr_wen = vc_wen;
       end
 
-      default: begin
+      DEV_VCD: begin
+        vc_rdata = vcd_rdata;
+
+        vcd_wen  = vc_wen;
+      end
+
+      DEV_VGD: begin
+        vc_rdata = vgd_rdata;
+
+        vgd_wen  = vc_wen;
+      end
+
+      DEV_MMEM: begin
         vc_rdata = msw_rdata;
         vc_stall = msw_stall;
 
@@ -96,10 +131,4 @@ module virtio_switch
       end
     endcase
   end
-/*
-  always_ff @(posedge clk)
-    if ((vc_ren || vc_wen) && dev != DEV_VMEM && dev != DEV_VMGR &&
-      dev != DEV_VCD && dev != DEV_VGD && dev != DEV_MMEM)
-      $display("[VSW] Unknown device %h!", dev);
-*/
 endmodule

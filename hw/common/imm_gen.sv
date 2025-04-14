@@ -24,8 +24,10 @@ module imm_gen
     inst[IMM_J1SH+:IMM_J1LEN], 1'b0});
   assign imm_CSR = inst[RS1SH+:REGCNT_LOG];
 
-  always_comb
-    case (inst[OPCODESH+:OPCODELEN])
+  always_comb begin
+    imm = 'bx;
+
+    unique0 case (inst[OPCODESH+:OPCODELEN])
       OPCODE_LUI:    imm = imm_U;
       OPCODE_AUIPC:  imm = imm_U;
       OPCODE_JAL:    imm = imm_J;
@@ -35,6 +37,6 @@ module imm_gen
       OPCODE_STORE:  imm = imm_S;
       OPCODE_OP_IMM: imm = imm_I;
       OPCODE_SYSTEM: imm = imm_CSR;
-      default:       imm = 'bx;
     endcase
+  end
 endmodule

@@ -47,7 +47,7 @@ module reg_file
     for (int i = 0; i < REGCNT; i++)
       x[i] = x_r[i];
 
-    if (red_redge)
+    unique0 if (red_redge)
       x[REG_A0] = srstarg;
     else if (wen && waddr)
       x[waddr] = wdata;
@@ -59,12 +59,11 @@ module reg_file
         x_r[i] <= 0;
 
       x_r[REG_A0] <= RSTARG;
-    end else if (!nsrst) begin
+    end else if (!nsrst)
       for (int i = 0; i < REGCNT; i++)
         x_r[i] <= 0;
-    end else begin
+    else
       for (int i = 0; i < REGCNT; i++)
         x_r[i] <= x[i];
-    end
   end
 endmodule

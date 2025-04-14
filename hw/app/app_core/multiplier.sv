@@ -23,12 +23,14 @@ module multiplier
   assign res_uu = ac_src1  * ac_src2;
   assign res_su = signed'({src1_s[XLEN - 1], src1_s}) * signed'({1'b0, ac_src2});
 
-  always_comb
-    case (ac_funct3)
+  always_comb begin
+    ac_res = 'bx;
+
+    unique0 case (ac_funct3)
       FUNCT3_MUL:    ac_res = res_ss[0+:XLEN];
       FUNCT3_MULH:   ac_res = res_ss[XLEN+:XLEN];
       FUNCT3_MULHSU: ac_res = res_su[XLEN+:XLEN];
       FUNCT3_MULHU:  ac_res = res_uu[XLEN+:XLEN];
-      default:       ac_res = 'bx;
     endcase
+  end
 endmodule

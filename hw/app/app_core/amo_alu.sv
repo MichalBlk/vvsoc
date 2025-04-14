@@ -16,8 +16,10 @@ module amo_alu
   assign src1_s = ac_src1;
   assign src2_s = ac_src2;
 
-  always_comb
-    case (ac_funct5)
+  always_comb begin
+    ac_res = 'bx;
+
+    unique0 case (ac_funct5)
       FUNCT5_AMO_SWAP: ac_res = ac_src1;
       FUNCT5_AMO_ADD:  ac_res = ac_src1 + ac_src2;
       FUNCT5_AMO_XOR:  ac_res = ac_src1 ^ ac_src2;
@@ -27,6 +29,6 @@ module amo_alu
       FUNCT5_AMO_MAX:  ac_res = (src1_s > src2_s ? ac_src1 : ac_src2);
       FUNCT5_AMO_MINU: ac_res = (ac_src1 < ac_src2 ? ac_src1 : ac_src2);
       FUNCT5_AMO_MAXU: ac_res = (ac_src1 > ac_src2 ? ac_src1 : ac_src2);
-      default:         ac_res = 'bx;
     endcase
+  end
 endmodule

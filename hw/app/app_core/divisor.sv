@@ -17,7 +17,8 @@ module divisor
   typedef enum logic [1:0] {
     ST_IDLE,
     ST_BUSY,
-    ST_SPECIAL
+    ST_SPECIAL,
+    ST_FINISH
   } state_t;
 
   state_t                state, state_r;
@@ -61,11 +62,11 @@ module divisor
   always_comb begin
     state = state_r;
 
-    if (state_r == ST_IDLE && ac_start)
-      state = special ? ST_SPECIAL : ST_BUSY;
+    unique0 if (state_r == ST_IDLE && ac_start)
+      state = special ? ST_FINISH : ST_BUSY;
     else if (state_r == ST_BUSY && !cnt_r)
       state = ST_IDLE;
-    else if (state_r == ST_SPECIAL)
+    else if (state_r == ST_FINISH)
       state = ST_IDLE;
   end
 
@@ -104,7 +105,7 @@ module divisor
     q   = q_r;
     acc = acc_r;
 
-    if (state_r == ST_IDLE && ac_start) begin
+    unique0 if (state_r == ST_IDLE && ac_start) begin
       q   = src1_u;
       acc = 0;
     end else if (state_r == ST_BUSY) begin
@@ -121,21 +122,23 @@ module divisor
   /*
    * Application core signals
    */
-  always_comb
-    case (ac_funct3)
+  always_comb begin
+    ac_res = 'bx;
+
+    unique0 case (ac_funct3)
       FUNCT3_DIV:
         if (zero)
           ac_res = ALL;
         else if (ovf)
           ac_res = MAXPW;
         else
-          ac_res = diff_signs ? ~q + 1 : q;
+          ac_res = diff_signs ? ~q_r + 1 : q_r;
 
       FUNCT3_DIVU:
         if (zero)
           ac_res = ALL;
         else
-          ac_res = q;
+          ac_res = q_r;
 
       FUNCT3_REM:
         if (zero)
@@ -143,16 +146,15 @@ module divisor
         else if (ovf)
           ac_res = 0;
         else
-          ac_res = sign_src1 ? ~acc + 1 : acc;
+          ac_res = sign_src1 ? ~acc_r + 1 : acc_r;
 
       FUNCT3_REMU:
         if (zero)
           ac_res = ac_src1;
         else
-          ac_res = acc;
-
-      default: ac_res = 'bx;
+          ac_res = acc_r;
     endcase
+  end
 
-  assign ac_stall = state != ST_IDLE;
+  assign ac_stall = (state_r == ST_IDLE && ac_start) || state_r == ST_BUSY;
 endmodule

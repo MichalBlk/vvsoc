@@ -76,15 +76,17 @@ package soc_pkg;
   parameter VMGR_REG_VGA_UPDATE     = 'h8;
   parameter VMGR_REG_FINISH         = 'hc;
 
-  parameter VMGR_FINISH_SUCCESS     = 0;
-  parameter VMGR_FINISH_FAILURE     = 1;
+  typedef enum logic {
+    VMGR_EXIT_SUCCESS,
+    VMGR_EXIT_FAILURE
+  } vmgr_exit_code_t;
 
   parameter VMGR_DEVCNT             = 2;
   parameter VMGR_DEVLEN             = $clog2(VMGR_DEVCNT);
 
   typedef enum logic [VMGR_DEVLEN - 1:0] {
-    VMGR_DEV_VCD = VMGR_DEVLEN'(0),
-    VMGR_DEV_VGD = VMGR_DEVLEN'(1)
+    VMGR_DEV_VCD,
+    VMGR_DEV_VGD
   } vmgr_dev_t;
 
   parameter VMGR_MAXQUEUECNT        = 2;

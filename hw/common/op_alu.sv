@@ -19,8 +19,10 @@ module op_alu
   assign src2_s = src2;
   assign shamt  = src2;
 
-  always_comb
-    case (funct3)
+  always_comb begin
+    res = 'bx;
+
+    unique0 case (funct3)
       FUNCT3_ADD, FUNCT3_SUB: res = funct7 ? src1 - src2 : src1 + src2;
       FUNCT3_SLT:             res = src1_s < src2_s;
       FUNCT3_SLTU:            res = src1 < src2;
@@ -30,4 +32,5 @@ module op_alu
       FUNCT3_SLL:             res = src1 << shamt;
       FUNCT3_SRL, FUNCT3_SRA: res = funct7 ? src1_s >>> shamt : src1_s >> shamt;
     endcase
+  end
 endmodule

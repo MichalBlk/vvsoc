@@ -144,6 +144,7 @@ module csr_reg_file
   logic [XLEN_LOG - 1:0] intr_code;
   logic                  intr_deleg;
   logic                  exc_deleg;
+  logic [XLEN - 1:0]     _mip;
   logic [XLEN - 1:0]     trap_m_mstatus;
   logic [XLEN - 1:0]     trap_s_mstatus;
   logic [XLEN - 1:0]     mret_mstatus;
@@ -189,6 +190,14 @@ module csr_reg_file
 
   assign intr_deleg     = priv_r != PRIV_M && ((mideleg_r >> intr_code) & 1);
   assign exc_deleg      = priv_r != PRIV_M && ((medeleg_r >> ac_exc_code) & 1);
+
+  always_comb begin
+    _mip = mip_r;
+
+    _mip[MTI]  = clint_intr_pending;
+    _mip[PD0I] = vcd_intr_pending;
+    _mip[PD1I] = vgd_intr_pending;
+  end
 
   assign _csr_m_mstatus = ac_wdata & MSTATUS_MASK;
 
@@ -249,12 +258,10 @@ module csr_reg_file
     instret    = instret_r;
 
     if (ac_com) begin
-      mip[MTI]  = clint_intr_pending;
-      mip[PD0I] = vcd_intr_pending;
-      mip[PD1I] = vgd_intr_pending;
+      mip     = _mip;
 
-      cycle     = cycle_r + 1;
-      instret   = instret_r + 1;
+      cycle   = cycle_r + 1;
+      instret = instret_r + 1;
 
       if (ac_exc_pending) begin
         if (exc_deleg) begin
@@ -280,7 +287,7 @@ module csr_reg_file
       end else if (ac_csr)
         case (ac_addr)
           CSR_SSTATUS:    mstatus    = (mstatus_r & ~MSTATUS_SMASK) | (ac_wdata & MSTATUS_SMASK);
-          CSR_SIE:        mie        = (mie & ~mideleg_r) | (ac_wdata & mideleg_r);
+          CSR_SIE:        mie        = (mie_r & ~mideleg_r) | (ac_wdata & mideleg_r);
           CSR_STVEC:      stvec      = ac_wdata & ~((1 << TVEC_MODELEN) - 1);
           CSR_SCOUNTEREN: scounteren = ac_wdata & COUNTEREN_MASK;
           CSR_SSCRATCH:   sscratch   = ac_wdata;
@@ -299,7 +306,7 @@ module csr_reg_file
           CSR_MEPC:       mepc       = ac_wdata & ~((1 << ILENB_LOG) - 1);
           CSR_MCAUSE:     mcause     = ac_wdata;
           CSR_MTVAL:      mtval      = ac_wdata;
-          CSR_MIP:        mip        = (mip & ~MIP_MASK) | (ac_wdata & MIP_MASK);
+          CSR_MIP:        mip        = (_mip & ~MIP_MASK) | (ac_wdata & MIP_MASK);
 
           CSR_MCYCLE:     cycle[0+:XLEN]      = ac_wdata;
           CSR_MINSTRET:   instret[0+:XLEN]    = ac_wdata;
