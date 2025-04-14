@@ -16,14 +16,16 @@ module branch_alu
   assign src1_s = src1;
   assign src2_s = src2;
 
-  always_comb
-    case (funct3)
+  always_comb begin
+    res = 'bx;
+
+    unique0 case (funct3)
       FUNCT3_BEQ:  res = src1 == src2;
       FUNCT3_BNE:  res = src1 != src2;
       FUNCT3_BLT:  res = src1_s < src2_s;
       FUNCT3_BGE:  res = src1_s >= src2_s;
       FUNCT3_BLTU: res = src1 < src2;
       FUNCT3_BGEU: res = src1 >= src2;
-      default:     res = 'bx;
     endcase
+  end
 endmodule

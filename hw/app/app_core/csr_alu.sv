@@ -11,14 +11,16 @@ module csr_alu
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
   output logic [XLEN - 1:0]      ac_res
 );
-  always_comb
-    case (ac_funct3)
+  always_comb begin
+    ac_res = 'bx;
+
+    unique0 case (ac_funct3)
       FUNCT3_CSRRW:  ac_res = ac_src;
       FUNCT3_CSRRS:  ac_res = ac_csr | ac_src;
       FUNCT3_CSRRC:  ac_res = ac_csr & ~ac_src;
       FUNCT3_CSRRWI: ac_res = ac_imm;
       FUNCT3_CSRRSI: ac_res = ac_csr | ac_imm;
       FUNCT3_CSRRCI: ac_res = ac_csr & ~ac_imm;
-      default:       ac_res = 'bx;
     endcase
+  end
 endmodule

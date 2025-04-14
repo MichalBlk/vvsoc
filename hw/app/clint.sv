@@ -25,7 +25,7 @@ module clint
    * Reading
    */
   always_comb
-    case (asw_addr)
+    unique0 case (asw_addr)
       CLINT_REG_MTIMECMP:  asw_rdata = mtimecmp_r;
       CLINT_REG_MTIMECMPH: asw_rdata = mtimecmp_r[XLEN+:XLEN];
       CLINT_REG_MTIME:     asw_rdata = mtime_r;
@@ -41,7 +41,7 @@ module clint
     mtimecmp = mtimecmp_r;
 
     if (asw_wen)
-      case (asw_addr)
+      unique0 case (asw_addr)
         CLINT_REG_MTIMECMP:  mtimecmp[0+:XLEN]    = asw_wdata;
         CLINT_REG_MTIMECMPH: mtimecmp[XLEN+:XLEN] = asw_wdata;
         CLINT_REG_MTIME:     mtime[0+:XLEN]       = asw_wdata;

@@ -36,6 +36,12 @@ module top
 
   logic [XLEN - 1:0]             asw_ac_rdata;
   logic                          asw_ac_stall;
+  logic [VCD_ADDRLEN - 1:0]      asw_vcd_addr;
+  logic [XLEN - 1:0]             asw_vcd_wdata;
+  logic                          asw_vcd_wen;
+  logic [VGD_ADDRLEN - 1:0]      asw_vgd_addr;
+  logic [XLEN - 1:0]             asw_vgd_wdata;
+  logic                          asw_vgd_wen;
   logic [BLEN - 1:0]             asw_dbgc_wdata;
   logic                          asw_dbgc_wen;
   logic [CLINT_ADDRLEN - 1:0]    asw_clint_addr;
@@ -58,27 +64,21 @@ module top
   logic                          msw_mmem_nsign;
   logic                          msw_mmem_ren;
   logic                          msw_mmem_wen;
-  logic [VCD_ADDRLEN - 1:0]      msw_vcd_addr;
-  logic [XLEN - 1:0]             msw_vcd_wdata;
-  logic                          msw_vcd_ren;
-  logic                          msw_vcd_wen;
-  logic [VGD_ADDRLEN - 1:0]      msw_vgd_addr;
-  logic [XLEN - 1:0]             msw_vgd_wdata;
-  logic                          msw_vgd_ren;
-  logic                          msw_vgd_wen;
 
   logic [XLEN - 1:0]             mmem_msw_rdata;
   logic                          mmem_msw_stall;
 
   logic                          vcd_ac_intr_pending;
-  logic [XLEN - 1:0]             vcd_msw_rdata;
+  logic [XLEN - 1:0]             vcd_asw_rdata;
+  logic [XLEN - 1:0]             vcd_vsw_rdata;
   logic [VCD_QUEUECNT - 1:0]     vcd_vmgr_queue_rdy;
   logic [VCD_QUEUECNT_LOG - 1:0] vcd_vmgr_queue_num;
   logic                          vcd_vmgr_notify;
   logic                          vcd_vmgr_drvok;
 
   logic                          vgd_ac_intr_pending;
-  logic [XLEN - 1:0]             vgd_msw_rdata;
+  logic [XLEN - 1:0]             vgd_asw_rdata;
+  logic [XLEN - 1:0]             vgd_vsw_rdata;
   logic [VGD_QUEUECNT - 1:0]     vgd_vmgr_queue_rdy;
   logic [VGD_QUEUECNT_LOG - 1:0] vgd_vmgr_queue_num;
   logic                          vgd_vmgr_notify;
@@ -96,6 +96,12 @@ module top
   logic [XLEN - 1:0]             vsw_vmgr_wdata;
   logic                          vsw_vmgr_ren;
   logic                          vsw_vmgr_wen;
+  logic [VCD_ADDRLEN - 1:0]      vsw_vcd_addr;
+  logic [XLEN - 1:0]             vsw_vcd_wdata;
+  logic                          vsw_vcd_wen;
+  logic [VGD_ADDRLEN - 1:0]      vsw_vgd_addr;
+  logic [XLEN - 1:0]             vsw_vgd_wdata;
+  logic                          vsw_vgd_wen;
   logic [XLEN - 1:0]             vsw_msw_addr;
   logic [XLEN - 1:0]             vsw_msw_wdata;
   logic [XLENB_LOG - 1:0]        vsw_msw_size;
@@ -198,6 +204,14 @@ module top
     .ac_wen      (ac_asw_wen),
     .ac_rdata    (asw_ac_rdata),
     .ac_stall    (asw_ac_stall),
+    .vcd_rdata   (vcd_asw_rdata),
+    .vcd_addr    (asw_vcd_addr),
+    .vcd_wdata   (asw_vcd_wdata),
+    .vcd_wen     (asw_vcd_wen),
+    .vgd_rdata   (vgd_asw_rdata),
+    .vgd_addr    (asw_vgd_addr),
+    .vgd_wdata   (asw_vgd_wdata),
+    .vgd_wen     (asw_vgd_wen),
     .dbgc_wdata  (asw_dbgc_wdata),
     .dbgc_wen    (asw_dbgc_wen),
     .clint_rdata (clint_asw_rdata),
@@ -239,17 +253,7 @@ module top
     .mmem_size  (msw_mmem_size),
     .mmem_nsign (msw_mmem_nsign),
     .mmem_ren   (msw_mmem_ren),
-    .mmem_wen   (msw_mmem_wen),
-    .vcd_rdata  (vcd_msw_rdata),
-    .vcd_addr   (msw_vcd_addr),
-    .vcd_wdata  (msw_vcd_wdata),
-    .vcd_ren    (msw_vcd_ren),
-    .vcd_wen    (msw_vcd_wen),
-    .vgd_rdata  (vgd_msw_rdata),
-    .vgd_addr   (msw_vgd_addr),
-    .vgd_wdata  (msw_vgd_wdata),
-    .vgd_ren    (msw_vgd_ren),
-    .vgd_wen    (msw_vgd_wen)
+    .mmem_wen   (msw_mmem_wen)
   );
 
   memory #(
@@ -271,12 +275,14 @@ module top
     .clk             (clk),
     .nrst            (nrst),
     .ac_intr_pending (vcd_ac_intr_pending),
-    .msw_addr        (msw_vcd_addr),
-    .msw_wdata       (msw_vcd_wdata),
-    .msw_ren         (msw_vcd_ren),
-    .msw_wen         (msw_vcd_wen),
-    .msw_rdata       (vcd_msw_rdata),
-    .vmgr_busy       (vmgr_busy),
+    .asw_addr        (asw_vcd_addr),
+    .asw_wdata       (asw_vcd_wdata),
+    .asw_wen         (asw_vcd_wen),
+    .asw_rdata       (vcd_asw_rdata),
+    .vsw_addr        (vsw_vcd_addr),
+    .vsw_wdata       (vsw_vcd_wdata),
+    .vsw_wen         (vsw_vcd_wen),
+    .vsw_rdata       (vcd_vsw_rdata),
     .vmgr_used       (vmgr_vcd_used),
     .vmgr_queue_rdy  (vcd_vmgr_queue_rdy),
     .vmgr_queue_num  (vcd_vmgr_queue_num),
@@ -288,12 +294,14 @@ module top
     .clk             (clk),
     .nrst            (nrst),
     .ac_intr_pending (vgd_ac_intr_pending),
-    .msw_addr        (msw_vgd_addr),
-    .msw_wdata       (msw_vgd_wdata),
-    .msw_ren         (msw_vgd_ren),
-    .msw_wen         (msw_vgd_wen),
-    .msw_rdata       (vgd_msw_rdata),
-    .vmgr_busy       (vmgr_busy),
+    .asw_addr        (asw_vgd_addr),
+    .asw_wdata       (asw_vgd_wdata),
+    .asw_wen         (asw_vgd_wen),
+    .asw_rdata       (vgd_asw_rdata),
+    .vsw_addr        (vsw_vgd_addr),
+    .vsw_wdata       (vsw_vgd_wdata),
+    .vsw_wen         (vsw_vgd_wen),
+    .vsw_rdata       (vgd_vsw_rdata),
     .vmgr_used       (vmgr_vgd_used),
     .vmgr_queue_rdy  (vgd_vmgr_queue_rdy),
     .vmgr_queue_num  (vgd_vmgr_queue_num),
@@ -325,6 +333,14 @@ module top
     .vmgr_wdata (vsw_vmgr_wdata),
     .vmgr_ren   (vsw_vmgr_ren),
     .vmgr_wen   (vsw_vmgr_wen),
+    .vcd_rdata  (vcd_vsw_rdata),
+    .vcd_addr   (vsw_vcd_addr),
+    .vcd_wdata  (vsw_vcd_wdata),
+    .vcd_wen    (vsw_vcd_wen),
+    .vgd_rdata  (vgd_vsw_rdata),
+    .vgd_addr   (vsw_vgd_addr),
+    .vgd_wdata  (vsw_vgd_wdata),
+    .vgd_wen    (vsw_vgd_wen),
     .msw_rdata  (msw_vsw_rdata),
     .msw_stall  (msw_vsw_stall),
     .msw_addr   (vsw_msw_addr),
@@ -351,38 +367,38 @@ module top
   );
 
   virtio_manager VIRTIO_MANAGER(
-    .clk              (clk),
-    .nrst             (nrst),
-    .ac_stallable     (ac_vmgr_stallable),
-    .uart_rx_byte     (uart_vmgr_rx_byte),
-    .uart_rx_ready    (uart_vmgr_rx_ready),
-    .uart_tx_busy     (uart_vmgr_tx_busy),
-    .uart_tx_byte     (vmgr_uart_tx_byte),
-    .uart_tx_start    (vmgr_uart_tx_start),
-    .vga_x            (vga_vmgr_x),
-    .vga_y            (vga_vmgr_y),
-    .vga_r            (vmgr_vga_r),
-    .vga_g            (vmgr_vga_g),
-    .vga_b            (vmgr_vga_b),
-    .vc_nsrst         (vmgr_vc_nsrst),
-    .vc_srstarg       (vmgr_vc_srstarg),
-    .vsw_addr         (vsw_vmgr_addr),
-    .vsw_wdata        (vsw_vmgr_wdata),
-    .vsw_ren          (vsw_vmgr_ren),
-    .vsw_wen          (vsw_vmgr_wen),
-    .vsw_rdata        (vmgr_vsw_rdata),
-    .vsw_stall        (vmgr_vsw_stall),
-    .vcd_queue_rdy    (vcd_vmgr_queue_rdy),
-    .vcd_queue_num    (vcd_vmgr_queue_num),
-    .vcd_drvok        (vcd_vmgr_drvok),
-    .vcd_notify       (vcd_vmgr_notify),
-    .vcd_used         (vmgr_vcd_used),
-    .vgd_queue_rdy    (vgd_vmgr_queue_rdy),
-    .vgd_queue_num    (vgd_vmgr_queue_num),
-    .vgd_drvok        (vgd_vmgr_drvok),
-    .vgd_notify       (vgd_vmgr_notify),
-    .vgd_used         (vmgr_vgd_used),
-    .busy             (vmgr_busy)
+    .clk           (clk),
+    .nrst          (nrst),
+    .ac_stallable  (ac_vmgr_stallable),
+    .uart_rx_byte  (uart_vmgr_rx_byte),
+    .uart_rx_ready (uart_vmgr_rx_ready),
+    .uart_tx_busy  (uart_vmgr_tx_busy),
+    .uart_tx_byte  (vmgr_uart_tx_byte),
+    .uart_tx_start (vmgr_uart_tx_start),
+    .vga_x         (vga_vmgr_x),
+    .vga_y         (vga_vmgr_y),
+    .vga_r         (vmgr_vga_r),
+    .vga_g         (vmgr_vga_g),
+    .vga_b         (vmgr_vga_b),
+    .vc_nsrst      (vmgr_vc_nsrst),
+    .vc_srstarg    (vmgr_vc_srstarg),
+    .vsw_addr      (vsw_vmgr_addr),
+    .vsw_wdata     (vsw_vmgr_wdata),
+    .vsw_ren       (vsw_vmgr_ren),
+    .vsw_wen       (vsw_vmgr_wen),
+    .vsw_rdata     (vmgr_vsw_rdata),
+    .vsw_stall     (vmgr_vsw_stall),
+    .vcd_queue_rdy (vcd_vmgr_queue_rdy),
+    .vcd_queue_num (vcd_vmgr_queue_num),
+    .vcd_drvok     (vcd_vmgr_drvok),
+    .vcd_notify    (vcd_vmgr_notify),
+    .vcd_used      (vmgr_vcd_used),
+    .vgd_queue_rdy (vgd_vmgr_queue_rdy),
+    .vgd_queue_num (vgd_vmgr_queue_num),
+    .vgd_drvok     (vgd_vmgr_drvok),
+    .vgd_notify    (vgd_vmgr_notify),
+    .vgd_used      (vmgr_vgd_used),
+    .busy          (vmgr_busy)
   );
 
   memory #(

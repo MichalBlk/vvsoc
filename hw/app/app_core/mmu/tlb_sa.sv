@@ -92,7 +92,7 @@ module tlb_sa
       line_nxt[i]   = line_nxt_r[i];
     end
 
-    if (mmu_wen) begin
+    unique0 if (mmu_wen) begin
       if (!free)
         line_nxt[set_idx] = line_nxt[set_idx] + 1;
 

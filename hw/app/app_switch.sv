@@ -18,6 +18,16 @@ module app_switch
   output logic [XLEN - 1:0]          ac_rdata,
   output logic                       ac_stall,
 
+  input  logic [XLEN - 1:0]          vcd_rdata,
+  output logic [VCD_ADDRLEN - 1:0]   vcd_addr,
+  output logic [XLEN - 1:0]          vcd_wdata,
+  output logic                       vcd_wen,
+
+  input  logic [XLEN - 1:0]          vgd_rdata,
+  output logic [VGD_ADDRLEN - 1:0]   vgd_addr,
+  output logic [XLEN - 1:0]          vgd_wdata,
+  output logic                       vgd_wen,
+
   output logic [BLEN - 1:0]          dbgc_wdata,
   output logic                       dbgc_wen,
 
@@ -39,6 +49,12 @@ module app_switch
 
   assign dev         = dev_t'(ac_addr[ADDR_DEVSH+:DEVLEN]);
 
+  assign vcd_addr    = ac_addr;
+  assign vcd_wdata   = ac_wdata;
+
+  assign vgd_addr    = ac_addr;
+  assign vgd_wdata   = ac_wdata;
+
   assign dbgc_wdata  = ac_wdata;
 
   assign clint_addr  = ac_addr;
@@ -53,6 +69,10 @@ module app_switch
     ac_rdata  = 'bx;
     ac_stall  = 0;
 
+    vcd_wen   = 0;
+
+    vgd_wen   = 0;
+
     dbgc_wen  = 0;
 
     clint_wen = 0;
@@ -60,7 +80,19 @@ module app_switch
     msw_ren   = 0;
     msw_wen   = 0;
 
-    case (dev)
+    unique0 case (dev)
+      DEV_VCD: begin
+        ac_rdata = vcd_rdata;
+
+        vcd_wen  = ac_wen;
+      end
+
+      DEV_VGD: begin
+        ac_rdata = vgd_rdata;
+
+        vgd_wen  = ac_wen;
+      end
+
       DEV_DBGC:
         dbgc_wen = ac_wen;
 
@@ -70,7 +102,7 @@ module app_switch
         clint_wen = ac_wen;
       end
 
-      default: begin
+      DEV_MMEM: begin
         ac_rdata = msw_rdata;
         ac_stall = msw_stall;
 
@@ -79,11 +111,4 @@ module app_switch
       end
     endcase
   end
-
-/*
-  always_ff @(posedge clk)
-    if ((ac_ren || ac_wen) && dev != DEV_VCD && dev != DEV_VGD && dev != DEV_DBGC &&
-      dev != DEV_CLINT && dev != DEV_MMEM)
-      $display("[ASW] Unknown device %h!", dev);
-*/
 endmodule

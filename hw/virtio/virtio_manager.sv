@@ -56,14 +56,16 @@ module virtio_manager
   localparam VMGR_VGA_FRAME_FIFO_ADDRLEN = $clog2(VMGR_VGA_FRAME_FIFOSZ);
   localparam VMGR_VGA_FRAME_FIFO_CNTLEN  = $clog2(VMGR_VGA_FRAME_FIFOSZ + 1);
 
-  typedef enum logic {
+  typedef enum logic [1:0] {
     ST_IDLE,
-    ST_BUSY
+    ST_BUSY,
+    ST_FINISH
   } state_t;
 
   state_t                                   state, state_r;
   vmgr_dev_t                                dev, dev_r;
   logic [VMGR_MAXQUEUECNT_LOG - 1:0]        pend_queue_num, pend_queue_num_r;
+  vmgr_exit_code_t                          exit_code, exit_code_r;
   logic [VMGR_DELAY_CNTLEN - 1:0]           delay_cnt, delay_cnt_r;
   logic                                     finished;
 
@@ -112,9 +114,9 @@ module virtio_manager
 
     if (uart_rx_fifo_cnt_r && vsw_ren && vsw_addr == VMGR_REG_UART_RX) begin
       uart_rx_fifo_head = uart_rx_fifo_head_r + 1;
-      if (!uart_rx_ready) begin
+      if (!uart_rx_ready)
         uart_rx_fifo_cnt = uart_rx_fifo_cnt_r - 1;
-      end else begin
+      else begin
         uart_rx_fifo[uart_rx_fifo_tail_r] = uart_rx_byte;
         uart_rx_fifo_tail                 = uart_rx_fifo_tail_r + 1;
       end
@@ -243,8 +245,8 @@ module virtio_manager
   /*
    * VirtIO core signals
    */
-  assign vc_nsrst   = !(state != ST_BUSY);
-  assign vc_srstarg = {dev, pend_queue_num};
+  assign vc_nsrst   = !(state_r == ST_IDLE);
+  assign vc_srstarg = {dev_r, pend_queue_num_r};
 
   /*
    * VirtIO switch signals
@@ -258,12 +260,14 @@ module virtio_manager
   /*
    * VirtIO console signals
    */
-  assign vcd_used = finished && dev_r == VMGR_DEV_VCD && vsw_wdata == VMGR_FINISH_SUCCESS;
+  assign vcd_used = state_r == ST_FINISH && dev_r == VMGR_DEV_VCD &&
+    exit_code_r == VMGR_EXIT_SUCCESS;
 
   /*
    * VirtIO GPU signals
    */
-  assign vgd_used = finished && dev_r == VMGR_DEV_VGD && vsw_wdata == VMGR_FINISH_SUCCESS;
+  assign vgd_used = state_r == ST_FINISH && dev_r == VMGR_DEV_VGD &&
+    exit_code_r == VMGR_EXIT_SUCCESS;
 
   /*
    * Queue notifications
@@ -277,33 +281,35 @@ module virtio_manager
     queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] == {VMGR_QUEUE_NOTIF_CNTLEN{1'b1}};
 
   always_comb begin
-    for (int i = 0; i < VMGR_DEVCNT; i++) begin
+    for (int i = 0; i < VMGR_DEVCNT; i++)
       for (int j = 0; j < VMGR_MAXQUEUECNT; j++)
         queue_notif_cnt[i][j] = queue_notif_cnt_r[i][j];
-    end
 
-    if (vcd_notify && !vcd_notif_cnt_max)
-      queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] = queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
+    unique0 case (state_r)
+      ST_IDLE: begin
+        if (vcd_notify && !vcd_notif_cnt_max)
+          queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
+            queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
 
-    if (vgd_notify && !vgd_notif_cnt_max)
-      queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] = queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
+        if (vgd_notify && !vgd_notif_cnt_max)
+          queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] =
+            queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
+      end
 
-    if (finished)
-      queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt[dev_r][pend_queue_num_r] - 1;
+      ST_FINISH:
+        queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt[dev_r][pend_queue_num_r] - 1;
+    endcase
   end
 
-  always_ff @(posedge clk, negedge nrst) begin
+  always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      for (int i = 0; i < VMGR_DEVCNT; i++) begin
+      for (int i = 0; i < VMGR_DEVCNT; i++)
         for (int j = 0; j < VMGR_MAXQUEUECNT; j++)
           queue_notif_cnt_r[i][j] <= 0;
-      end
     else
-      for (int i = 0; i < VMGR_DEVCNT; i++) begin
+      for (int i = 0; i < VMGR_DEVCNT; i++)
         for (int j = 0; j < VMGR_MAXQUEUECNT; j++)
           queue_notif_cnt_r[i][j] <= queue_notif_cnt[i][j];
-      end
-  end
 
   /*
    * VirtIO console queues
@@ -344,7 +350,7 @@ module virtio_manager
     dev            = dev_r;
     pend_queue_num = pend_queue_num_r;
 
-    if (state_r == ST_IDLE && state == ST_BUSY) begin
+    if (state_r == ST_IDLE) begin
       if (vcd_pending) begin
         dev            = VMGR_DEV_VCD;
         pend_queue_num = vcd_pend_queue_num;
@@ -361,19 +367,31 @@ module virtio_manager
   end
 
   /*
+   * Exit code handling
+   */
+  always_comb begin
+    exit_code = exit_code_r;
+
+    if (state_r == ST_BUSY && finished)
+      exit_code = vmgr_exit_code_t'(vsw_wdata);
+  end
+
+  always_ff @(posedge clk)
+    exit_code_r <= exit_code;
+
+  /*
    * Delay counter
    */
   always_comb begin
     delay_cnt = delay_cnt_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         if (delay_cnt_r)
           delay_cnt = delay_cnt_r - 1;
 
-      ST_BUSY:
-        if (finished)
-          delay_cnt = VMGR_DELAY_CYCLES - 1;
+      ST_FINISH:
+        delay_cnt = VMGR_DELAY_CYCLES - 1;
     endcase
   end
 
@@ -393,13 +411,17 @@ module virtio_manager
   always_comb begin
     state = state_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         if (ac_stallable && !delay_cnt_r && pending)
           state = ST_BUSY;
+
       ST_BUSY:
         if (finished)
-          state = ST_IDLE;
+          state = ST_FINISH;
+
+      ST_FINISH:
+        state = ST_IDLE;
     endcase
   end
 
@@ -408,7 +430,6 @@ module virtio_manager
       state_r <= ST_IDLE;
     else begin
       state_r <= state;
-
 /*
       if (state_r == ST_IDLE && state == ST_BUSY) begin
         if (dev == VMGR_DEV_VCD) begin
@@ -424,14 +445,13 @@ module virtio_manager
           else
             $display("[VMGR] waking up for coursor");
         end
-      end else if (state_r == ST_BUSY && state == ST_IDLE)
-        if (dev_r == VMGR_DEV_VGD)
-          $display("[VMGR] finished, result=%d", vsw_wdata);
+      end else if (state_r == ST_BUSY && state == ST_FINISH)
+        $display("[VMGR] finished, result=%d", vsw_wdata);
 */
     end
 
   /*
    * Other signals
    */
-  assign busy = state == ST_BUSY;
+  assign busy = state_r == ST_BUSY;
 endmodule

@@ -30,11 +30,13 @@ module app_core
   output logic                   vmgr_stallable
 );
   typedef enum logic [2:0] {
-    ST_IF_DEC,
+    ST_IF,
+    ST_DEC,
     ST_EXE1,
     ST_MEM1,
     ST_EXE2,
     ST_MEM2,
+    ST_WB,
     ST_COM
   } state_t;
 
@@ -45,44 +47,42 @@ module app_core
   logic                    resv_valid, resv_valid_r;
 
   logic [ILEN - 1:0]       inst, inst_r;
-  logic [OPCODELEN - 1:0]  _opcode;
   logic [OPCODELEN - 1:0]  opcode;
+  logic [REGCNT_LOG - 1:0] rs1;
+  logic [REGCNT_LOG - 1:0] rs2;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
   logic [FUNCT5LEN - 1:0]  funct5;
   logic [FUNCT7LEN - 1:0]  funct7;
   logic [FUNCT12LEN - 1:0] funct12;
-  logic [XLENB_LOG - 1:0]  _mem_size;
   logic [XLENB_LOG - 1:0]  mem_size;
   logic [XLEN - 1:0]       imm, imm_r;
   logic [XLEN - 1:0]       rs1_data, rs1_data_r;
   logic [XLEN - 1:0]       rs2_data, rs2_data_r;
   logic [XLEN - 1:0]       csr_rdata, csr_rdata_r;
-  logic [XLEN - 1:0]       csr_wdata;
-  logic [XLEN - 1:0]       rd_data1, rd_data1_r;
+  logic [XLEN - 1:0]       csr_wdata, csr_wdata_r;
+  logic [XLEN - 1:0]       rd_data, rd_data_r;
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
   logic [XLEN - 1:0]       amo_rmw_data, amo_rmw_data_r;
   logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
+  logic                    ecall, ecall_r;
+  logic                    ebreak, ebreak_r;
   logic                    mul, mul_r;
   logic                    div, div_r;
-  logic                    mret, mret_r;
-  logic                    sret, sret_r;
   logic                    sfence_vma, sfence_vma_r;
   logic                    tkn, tkn_r;
-  logic                    fast, fast_r;
   logic                    amo_sc_succ;
   logic                    load_amo_lr;
   logic                    store_amo_sc_succ;
   logic                    amo_rmw;
+  logic                    mem_access;
   logic [XLEN - 1:0]       mem_data, mem_data_r;
   exc_t                    exc_code, exc_code_r;
   logic                    exc_pending, exc_pending_r;
+  logic                    dec_exc_pending;
+  logic                    exe_exc_pending;
   logic [XLEN - 1:0]       tval, tval_r;
 
-  logic                    iv_mul;
-  logic                    iv_div;
-  logic                    iv_ecall;
-  logic                    iv_ebreak;
   logic                    iv_mret;
   logic                    iv_sret;
   logic                    iv_sfence_vma;
@@ -108,67 +108,62 @@ module app_core
   logic                    mmu_exc_pending;
   logic                    mmu_stall;
 
-  logic                    stall;
-
   /*
-   * Stalling
+   * Instruction fetch stage
    */
-  assign stall = vmgr_busy || mmu_stall;
-
-  /*
-   * Instruction fetch and decode stage
-   */
-  logic [OPCODELEN - 1:0]  __opcode;
-  logic [FUNCT3LEN - 1:0]  __funct3;
-  logic [FUNCT12LEN - 1:0] __funct12;
-  logic [REGCNT_LOG - 1:0] _rs1;
-  logic [REGCNT_LOG - 1:0] _rs2;
+  logic [OPCODELEN - 1:0]  _opcode;
   logic [FUNCT3LEN - 1:0]  _funct3;
-  logic [FUNCT5LEN - 1:0]  _funct5;
-  logic [FUNCT7LEN - 1:0]  _funct7;
   logic [FUNCT12LEN - 1:0] _funct12;
   logic                    fence;
   logic                    wfi;
-  logic [XLEN - 1:0]       rf_rdata1;
-  logic [XLEN - 1:0]       rf_rdata2;
-  logic [XLEN - 1:0]       ig_imm;
-  logic                    csrrf_csr;
-  logic                    csrrf_mret;
-  logic                    csrrf_sret;
-  logic [XLEN - 1:0]       csrrf_rdata;
 
-  assign __opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
-  assign __funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
-  assign __funct12 = mmu_rdata[FUNCT12SH+:FUNCT12LEN];
-  assign fence     = __opcode == OPCODE_MISC_MEM &&
-    (__funct3 == FUNCT3_FENCE || __funct3 == FUNCT3_FENCEI);
-  assign wfi       = __opcode == OPCODE_SYSTEM && __funct3 == FUNCT3_PRIV && __funct12 == FUNCT12_WFI;
+  assign _opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
+  assign _funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
+  assign _funct12 = mmu_rdata[FUNCT12SH+:FUNCT12LEN];
+  assign fence    = _opcode == OPCODE_MISC_MEM &&
+    (_funct3 == FUNCT3_FENCE || _funct3 == FUNCT3_FENCEI);
+  assign wfi      = _opcode == OPCODE_SYSTEM && _funct3 == FUNCT3_PRIV && _funct12 == FUNCT12_WFI;
 
-  assign _opcode   = inst[OPCODESH+:OPCODELEN];
-  assign _rs1      = inst[RS1SH+:REGCNT_LOG];
-  assign _rs2      = inst[RS2SH+:REGCNT_LOG];
-  assign _funct3   = inst[FUNCT3SH+:FUNCT3LEN];
-  assign _funct5   = inst[FUNCT5SH+:FUNCT5LEN];
-  assign _funct7   = inst[FUNCT7SH+:FUNCT7LEN];
-  assign _funct12  = inst[FUNCT12SH+:FUNCT12LEN];
+  always_comb begin
+    inst = inst_r;
 
-  assign _mem_size = _funct3[FUNCT3_SIZESH+:XLENB_LOG];
+    if (state_r == ST_IF)
+      inst = fence || wfi ? NOP : mmu_rdata;
+  end
 
-  assign opcode    = inst_r[OPCODESH+:OPCODELEN];
-  assign rd        = inst_r[RDSH+:REGCNT_LOG];
-  assign funct3    = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct5    = inst_r[FUNCT5SH+:FUNCT5LEN];
-  assign funct7    = inst_r[FUNCT7SH+:FUNCT7LEN];
-  assign funct12   = inst_r[FUNCT12SH+:FUNCT12LEN];
+  always_ff @(posedge clk)
+    inst_r <= inst;
 
-  assign mem_size  = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+  /*
+   * Decode stage
+   */
+  logic [XLEN - 1:0] rf_rdata1;
+  logic [XLEN - 1:0] rf_rdata2;
+  logic [XLEN - 1:0] ig_imm;
+  logic              csrrf_csr;
+  logic [XLEN - 1:0] csrrf_rdata;
+  logic              iv_ecall;
+  logic              iv_ebreak;
+  logic              iv_mul;
+  logic              iv_div;
+
+  assign opcode   = inst_r[OPCODESH+:OPCODELEN];
+  assign rs1      = inst_r[RS1SH+:REGCNT_LOG];
+  assign rs2      = inst_r[RS2SH+:REGCNT_LOG];
+  assign rd       = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3   = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct5   = inst_r[FUNCT5SH+:FUNCT5LEN];
+  assign funct7   = inst_r[FUNCT7SH+:FUNCT7LEN];
+  assign funct12  = inst_r[FUNCT12SH+:FUNCT12LEN];
+
+  assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   inst_verifier INST_VERIFIER(
-    .ac_opcode     (_opcode),
-    .ac_funct3     (_funct3),
-    .ac_funct5     (_funct5),
-    .ac_funct7     (_funct7),
-    .ac_funct12    (_funct12),
+    .ac_opcode     (opcode),
+    .ac_funct3     (funct3),
+    .ac_funct5     (funct5),
+    .ac_funct7     (funct7),
+    .ac_funct12    (funct12),
     .ac_mul        (iv_mul),
     .ac_div        (iv_div),
     .ac_ecall      (iv_ecall),
@@ -185,8 +180,8 @@ module app_core
     .clk     (clk),
     .nrst    (nrst),
     .nsrst   (1),
-    .raddr1  (_rs1),
-    .raddr2  (_rs2),
+    .raddr1  (rs1),
+    .raddr2  (rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
@@ -195,23 +190,21 @@ module app_core
     .rdata2  (rf_rdata2)
   );
 
-  assign csrrf_mret = state_r == ST_IF_DEC ? iv_mret : mret_r;
-  assign csrrf_sret = state_r == ST_IF_DEC ? iv_sret : sret_r;
-  assign csrrf_csr  = _opcode == OPCODE_SYSTEM && _funct3 != FUNCT3_PRIV;
+  assign csrrf_csr = opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV;
 
   csr_reg_file CSR_REG_FILE(
     .clk                (clk),
     .nrst               (nrst),
-    .ac_addr            (csr_addr_t'(_funct12)),
-    .ac_wdata           (csr_wdata),
+    .ac_addr            (csr_addr_t'(funct12)),
+    .ac_wdata           (csr_wdata_r),
     .ac_pc              (pc_r),
     .ac_target_pc       (csrrf_target_pc),
     .ac_exc_code        (exc_code_r),
     .ac_exc_pending     (exc_pending_r),
     .ac_tval            (tval_r),
     .ac_csr             (csrrf_csr),
-    .ac_mret            (csrrf_mret),
-    .ac_sret            (csrrf_sret),
+    .ac_mret            (iv_mret),
+    .ac_sret            (iv_sret),
     .ac_com             (csrrf_com),
     .ac_mtime           (clint_mtime),
     .ac_rdata           (csrrf_rdata),
@@ -227,63 +220,57 @@ module app_core
   );
 
   imm_gen IMM_GEN(
-    .inst (inst),
+    .inst (inst_r),
     .imm  (ig_imm)
   );
 
   always_comb begin
-    inst       = inst_r;
     imm        = imm_r;
     rs1_data   = rs1_data_r;
     rs2_data   = rs2_data_r;
     csr_rdata  = csr_rdata_r;
-    mem_addr   = mem_addr_r;
+    ecall      = ecall_r;
+    ebreak     = ebreak_r;
     mul        = mul_r;
     div        = div_r;
-    mret       = mret_r;
-    sret       = sret_r;
     sfence_vma = sfence_vma_r;
-    fast       = fast_r;
 
-    if (state_r == ST_IF_DEC && !stall) begin
-      inst       = fence || wfi ? NOP : mmu_rdata;
+    if (state_r == ST_DEC) begin
       imm        = ig_imm;
       rs1_data   = rf_rdata1;
       rs2_data   = rf_rdata2;
       csr_rdata  = csrrf_rdata;
-      mem_addr   = _opcode == OPCODE_AMO ? rs1_data : rs1_data + imm;
+      ecall      = iv_ecall;
+      ebreak     = iv_ebreak;
       mul        = iv_mul;
       div        = iv_div;
-      mret       = iv_mret;
-      sret       = iv_sret;
       sfence_vma = iv_sfence_vma;
-      fast       = _opcode == OPCODE_LUI || _opcode == OPCODE_AUIPC || _opcode == OPCODE_OP_IMM ||
-        (_opcode == OPCODE_OP && !iv_mul && !iv_div);
     end
   end
 
   always_ff @(posedge clk) begin
-    inst_r       <= inst;
     imm_r        <= imm;
     rs1_data_r   <= rs1_data;
     rs2_data_r   <= rs2_data;
     csr_rdata_r  <= csr_rdata;
-    mem_addr_r   <= mem_addr;
+    ecall_r      <= ecall;
+    ebreak_r     <= ebreak;
     mul_r        <= mul;
     div_r        <= div;
-    mret_r       <= mret;
-    sret_r       <= sret;
     sfence_vma_r <= sfence_vma;
-    fast_r       <= fast;
   end
 
   /*
    * Execute stage 1
    */
-  logic              bralu_res;
-  logic [XLEN - 1:0] mul_res;
-  logic              div_start;
-  logic [XLEN - 1:0] div_res;
+  logic [XLEN - 1:0]      opalu_src2;
+  logic [FUNCT7LEN - 1:0] opalu_funct7;
+  logic [XLEN - 1:0]      opalu_res;
+  logic                   bralu_res;
+  logic [XLEN - 1:0]      csralu_res;
+  logic [XLEN - 1:0]      mul_res;
+  logic                   div_start;
+  logic [XLEN - 1:0]      div_res;
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign load_amo_lr       = opcode == OPCODE_LOAD ||
@@ -292,11 +279,32 @@ module app_core
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
   assign amo_rmw           = opcode == OPCODE_AMO && funct5 != FUNCT5_AMO_LR && funct5 != FUNCT5_AMO_SC;
 
+  assign mem_access        = load_amo_lr || store_amo_sc_succ || amo_rmw;
+
+  assign opalu_src2        = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
+  assign opalu_funct7      = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
+
+  op_alu OP_ALU(
+    .src1   (rs1_data_r),
+    .src2   (opalu_src2),
+    .funct3 (funct3),
+    .funct7 (opalu_funct7),
+    .res    (opalu_res)
+  );
+
   branch_alu BRANCH_ALU(
     .src1   (rs1_data_r),
     .src2   (rs2_data_r),
     .funct3 (funct3),
     .res    (bralu_res)
+  );
+
+  csr_alu CSR_ALU(
+    .ac_csr    (csr_rdata_r),
+    .ac_src    (rs1_data_r),
+    .ac_imm    (imm_r),
+    .ac_funct3 (funct3),
+    .ac_res    (csralu_res)
   );
 
   multiplier MULTIPLIER(
@@ -306,7 +314,7 @@ module app_core
     .ac_res    (mul_res)
   );
 
-  assign div_start = state_r == ST_EXE1 && pv_state_r == ST_IF_DEC && div_r;
+  assign div_start = state_r == ST_EXE1 && pv_state_r == ST_DEC && div_r;
 
   divisor DIVISOR(
     .clk       (clk),
@@ -320,42 +328,65 @@ module app_core
   );
 
   always_comb begin
-    rd_data1 = rd_data1_r;
-    jmp_pc   = jmp_pc_r;
+    csr_wdata = csr_wdata_r;
+    rd_data   = rd_data_r;
+    mem_addr  = mem_addr_r;
+    jmp_pc    = jmp_pc_r;
 
-    if (state_r == ST_EXE1 && !stall)
-      case (opcode)
+    if (state_r == ST_EXE1) begin
+      csr_wdata = csralu_res;
+
+      unique0 case (opcode)
+        OPCODE_LUI:
+          rd_data = imm_r;
+
+        OPCODE_AUIPC:
+          rd_data = pc_r + imm_r;
+
         OPCODE_JAL: begin
-          jmp_pc   = pc_r + imm_r;
-          rd_data1 = pc_r + ILENB;
+          jmp_pc  = pc_r + imm_r;
+          rd_data = pc_r + ILENB;
         end
 
         OPCODE_JALR: begin
-          jmp_pc   = rs1_data_r + imm_r;
-          rd_data1 = pc_r + ILENB;
+          jmp_pc  = rs1_data_r + imm_r;
+          rd_data = pc_r + ILENB;
         end
 
         OPCODE_BRANCH:
           jmp_pc = pc_r + imm_r;
 
+        OPCODE_LOAD, OPCODE_STORE:
+          mem_addr = rs1_data_r + imm_r;
+
+        OPCODE_OP_IMM:
+          rd_data = opalu_res;
+
         OPCODE_OP:
           if (mul_r)
-            rd_data1 = mul_res;
+            rd_data = mul_res;
+          else if (div_r)
+            rd_data = div_res;
           else
-            rd_data1 = div_res;
+            rd_data = opalu_res;
 
-        OPCODE_AMO:
-          rd_data1 = !amo_sc_succ;
+        OPCODE_AMO: begin
+          mem_addr = rs1_data_r;
+          rd_data  = !amo_sc_succ;
+        end
 
         OPCODE_SYSTEM:
           if (funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET))
             jmp_pc = csr_rdata_r;
       endcase
+    end
   end
 
   always_ff @(posedge clk) begin
-    rd_data1_r <= rd_data1;
-    jmp_pc_r   <= jmp_pc;
+    csr_wdata_r <= csr_wdata;
+    rd_data_r   <= rd_data;
+    mem_addr_r  <= mem_addr;
+    jmp_pc_r    <= jmp_pc;
   end
 
   /*
@@ -364,7 +395,7 @@ module app_core
   always_comb begin
     mem_data = mem_data_r;
 
-    if (state_r == ST_MEM1 && !stall)
+    if (state_r == ST_MEM1)
       mem_data = mmu_rdata;
   end
 
@@ -394,93 +425,67 @@ module app_core
     amo_rmw_data_r <= amo_rmw_data;
 
   /*
-   * Completion stage
+   * Write back stage
    */
-  logic [XLEN - 1:0]      opalu_src2;
-  logic [FUNCT7LEN - 1:0] opalu_funct7;
-  logic [XLEN - 1:0]      opalu_res;
-  logic [XLEN - 1:0]      csralu_res;
-  logic [XLEN - 1:0]      rd_data2;
+  always_comb begin
+    rf_wdata = rd_data_r;
 
-  assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
-  assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
-
-  op_alu OP_ALU(
-    .src1   (rs1_data_r),
-    .src2   (opalu_src2),
-    .funct3 (funct3),
-    .funct7 (opalu_funct7),
-    .res    (opalu_res)
-  );
-
-  csr_alu CSR_ALU(
-    .ac_csr    (csr_rdata_r),
-    .ac_src    (rs1_data_r),
-    .ac_imm    (imm_r),
-    .ac_funct3 (funct3),
-    .ac_res    (csralu_res)
-  );
-
-  assign csr_wdata = csralu_res;
-
-  always_comb
-    case (opcode)
-      OPCODE_LUI:               rd_data2 = imm_r;
-      OPCODE_AUIPC:             rd_data2 = pc_r + imm_r;
-      OPCODE_OP_IMM, OPCODE_OP: rd_data2 = opalu_res;
-      default:                  rd_data2 = 'bx;
-    endcase
-
-  always_comb
-    if (load_amo_lr || amo_rmw)
+    unique0 if (load_amo_lr || amo_rmw)
       rf_wdata = mem_data_r;
     else if (opcode == OPCODE_SYSTEM)
       rf_wdata = csr_rdata_r;
-    else if (fast_r)
-      rf_wdata = rd_data2;
-    else
-      rf_wdata = rd_data1_r;
+  end
 
-  assign rf_wen = state_r == ST_COM && !exc_pending_r &&
+  assign rf_wen = state_r == ST_WB &&
     (opcode == OPCODE_LUI || opcode == OPCODE_AUIPC || opcode == OPCODE_JAL ||
      opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
      opcode == OPCODE_OP || opcode == OPCODE_AMO ||
      (opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV));
 
+  always_comb begin
+    resv_addr  = resv_addr_r;
+    resv_valid = resv_valid_r;
+
+    if (state_r == ST_WB && opcode == OPCODE_AMO) begin
+      unique0 if (funct5 == FUNCT5_AMO_SC)
+        resv_valid = 0;
+      else if (funct5 == FUNCT5_AMO_LR) begin
+        resv_addr  = mem_addr_r;
+        resv_valid = 1;
+      end
+    end
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst)
+      resv_valid_r <= 0;
+    else begin
+      resv_addr_r  <= resv_addr;
+      resv_valid_r <= resv_valid;
+    end
+
+  /*
+   * Completion stage
+   */
   assign csrrf_target_pc = tkn_r ? jmp_pc_r : pc_r + ILENB;
   assign csrrf_com       = state_r == ST_COM;
 
   always_comb begin
-    pc         = pc_r;
-    resv_addr  = resv_addr_r;
-    resv_valid = resv_valid_r;
+    pc = pc_r;
 
     if (state_r == ST_COM) begin
       if (exc_pending_r || csrrf_intr_handling)
         pc = csrrf_tvec;
       else
         pc = csrrf_target_pc;
-
-      if (!exc_pending_r && opcode == OPCODE_AMO) begin
-        if (funct5 == FUNCT5_AMO_SC)
-          resv_valid = 0;
-        else if (funct5 == FUNCT5_AMO_LR) begin
-          resv_addr  = mem_addr_r;
-          resv_valid = 1;
-        end
-      end
     end
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst) begin
-      pc_r         <= AC_RESET_PC;
-      resv_valid_r <= 0;
-    end else begin
-      pc_r         <= pc;
-      resv_addr_r  <= resv_addr;
-      resv_valid_r <= resv_valid;
-    end
+    if (!nrst)
+      pc_r <= AC_RESET_PC;
+    else
+      pc_r <= pc;
 
   /*
    * Flow transfer control
@@ -488,23 +493,22 @@ module app_core
   always_comb begin
     tkn = tkn_r;
 
-    if (!stall)
-      case (state_r)
-        ST_IF_DEC:
-          tkn = 0;
+    unique0 case (state_r)
+      ST_IF:
+        tkn = 0;
 
-        ST_EXE1:
-          case (opcode)
-            OPCODE_JAL, OPCODE_JALR:
-              tkn = 1;
+      ST_EXE1:
+        case (opcode)
+          OPCODE_JAL, OPCODE_JALR:
+            tkn = 1;
 
-            OPCODE_BRANCH:
-              tkn = bralu_res;
+          OPCODE_BRANCH:
+            tkn = bralu_res;
 
-            OPCODE_SYSTEM:
-              tkn = funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET);
-          endcase
-      endcase
+          OPCODE_SYSTEM:
+            tkn = funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET);
+        endcase
+    endcase
   end
 
   always_ff @(posedge clk)
@@ -518,71 +522,69 @@ module app_core
 
   assign ill_inst             = !iv_valid || (iv_mret && csrrf_priv != PRIV_M) ||
     (iv_sret && csrrf_priv == PRIV_U) || (iv_sfence_vma && csrrf_priv == PRIV_U);
-  assign mem_access_unaligned = (mem_addr & ((1 << _mem_size) - 1)) != 0;
+  assign mem_access_unaligned = (mem_addr & ((1 << mem_size) - 1)) != 0;
+
+  assign dec_exc_pending      = ill_inst || csrrf_ill;
+  assign exe_exc_pending      = ecall_r || ebreak_r || (tkn && jmp_pc[ILENB_LOG - 1:0]) ||
+    (mem_access && mem_access_unaligned);
 
   always_comb begin
     exc_code    = exc_code_r;
     exc_pending = exc_pending_r;
     tval        = tval_r;
 
-    if (!stall)
-      case (state_r)
-        ST_IF_DEC:
-          if (mmu_exc_pending) begin
-            exc_code    = mmu_exc_code;
-            exc_pending = 1;
-            tval        = pc_r;
-          end else if (ill_inst || csrrf_ill) begin
-            exc_code    = CAUSE_ILLEGAL_INSTRUCTION;
-            exc_pending = 1;
-            tval        = inst;
-          end else if (iv_ecall) begin
-            exc_code    = exc_t'(CAUSE_USER_ECALL + csrrf_priv);
-            exc_pending = 1;
-            tval        = 0;
-          end else if (iv_ebreak) begin
-            exc_code    = CAUSE_BREAKPOINT;
-            exc_pending = 1;
-            tval        = pc_r;
-          end else if (mem_access_unaligned) begin
-            if (_opcode == OPCODE_LOAD) begin
-              exc_code    = CAUSE_MISALIGNED_LOAD;
-              exc_pending = 1;
-              tval        = mem_addr;
-            end else if (_opcode == OPCODE_STORE) begin
-              exc_code    = CAUSE_MISALIGNED_STORE_AMO;
-              exc_pending = 1;
-              tval        = mem_addr;
-            end
-          end
-
-        ST_EXE1:
-          if (tkn && jmp_pc[ILENB_LOG - 1:0]) begin
-            exc_code    = CAUSE_MISALIGNED_FETCH;
-            exc_pending = 1;
-            tval        = jmp_pc;
-          end else if (mem_access_unaligned) begin
-            if (load_amo_lr) begin
-              exc_code    = CAUSE_MISALIGNED_LOAD;
-              exc_pending = 1;
-              tval        = mem_addr_r;
-            end else if (store_amo_sc_succ || amo_rmw) begin
-              exc_code    = CAUSE_MISALIGNED_STORE_AMO;
-              exc_pending = 1;
-              tval        = mem_addr_r;
-            end
-          end
-
-        ST_MEM1, ST_MEM2:
-          if (mmu_exc_pending) begin
-            exc_code    = mmu_exc_code;
-            exc_pending = 1;
-            tval        = mem_addr_r;
-          end
-
-        ST_COM:
+    unique0 case (state_r)
+      ST_IF:
+        if (mmu_exc_pending) begin
+          exc_code    = mmu_exc_code;
+          exc_pending = 1;
+          tval        = pc_r;
+        end else
           exc_pending = 0;
-      endcase
+
+      ST_DEC:
+        if (dec_exc_pending) begin
+          exc_code    = CAUSE_ILLEGAL_INSTRUCTION;
+          exc_pending = 1;
+          tval        = inst_r;
+        end
+
+      ST_EXE1:
+        unique0 if (ecall_r) begin
+          exc_code    = exc_t'(CAUSE_USER_ECALL + csrrf_priv);
+          exc_pending = 1;
+          tval        = 0;
+        end else if (ebreak_r) begin
+          exc_code    = CAUSE_BREAKPOINT;
+          exc_pending = 1;
+          tval        = pc_r;
+        end else if (tkn && jmp_pc[ILENB_LOG - 1:0]) begin
+          exc_code    = CAUSE_MISALIGNED_FETCH;
+          exc_pending = 1;
+          tval        = jmp_pc;
+        end else if (mem_access_unaligned) begin
+          if (load_amo_lr) begin
+            exc_code    = CAUSE_MISALIGNED_LOAD;
+            exc_pending = 1;
+            tval        = mem_addr;
+          end else if (store_amo_sc_succ || amo_rmw) begin
+            exc_code    = CAUSE_MISALIGNED_STORE_AMO;
+            exc_pending = 1;
+            tval        = mem_addr;
+          end
+        end
+
+      ST_MEM1, ST_MEM2:
+        if (mmu_exc_pending) begin
+          exc_code    = mmu_exc_code;
+          exc_pending = 1;
+          tval        = mem_addr_r;
+        end else
+          exc_pending = 0;
+
+      ST_COM:
+        exc_pending = 0;
+    endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -597,39 +599,48 @@ module app_core
   /*
    * State transitions
    */
-  logic mem_access;
-
-  assign mem_access = load_amo_lr || store_amo_sc_succ || amo_rmw;
-
   always_comb begin
     state    = state_r;
     pv_state = state_r;
 
-    if (!stall) begin
-      if (state_r == ST_COM)
-        state = ST_IF_DEC;
-      else if (exc_pending)
-        state = ST_COM;
-      else if (state_r == ST_IF_DEC) begin
-        if (fast)
-          state = ST_COM;
-        else if (_opcode == OPCODE_LOAD || _opcode == OPCODE_STORE)
-          state = ST_MEM1;
-        else
-          state = ST_EXE1;
-      end else if (state_r == ST_EXE1) begin
-        if (!div_stall)
-          state = mem_access ? ST_MEM1 : ST_COM;
-      end else if (state_r == ST_MEM1 && !amo_rmw)
-        state = ST_COM;
-      else
-        state = state_t'(state_r + 1);
-    end
+    case (state_r)
+      ST_IF:
+        if (!mmu_stall)
+          state = mmu_exc_pending ? ST_COM : ST_DEC;
+
+      ST_DEC:
+        state = dec_exc_pending ? ST_COM : ST_EXE1;
+
+      ST_EXE1:
+        if (!vmgr_busy && !div_stall) begin
+          if (exe_exc_pending)
+            state = ST_COM;
+          else
+            state = mem_access ? ST_MEM1 : ST_WB;
+        end
+
+      ST_MEM1:
+        if (!mmu_stall) begin
+          if (mmu_exc_pending)
+            state = ST_COM;
+          else
+            state = amo_rmw ? ST_EXE2 : ST_WB;
+        end
+
+      ST_MEM2:
+        if (!mmu_stall)
+          state = mmu_exc_pending ? ST_COM : ST_WB;
+
+      ST_COM:
+        state = ST_IF;
+
+      default: state = state_t'(state_r + 1);
+    endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst) begin
-      state_r    <= ST_IF_DEC;
+      state_r    <= ST_IF;
       pv_state_r <= ST_COM;
     end else begin
       state_r    <= state;
@@ -639,7 +650,7 @@ module app_core
   /*
    * TLB flushing
    */
-  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
+  assign mmu_tlb_flush = state_r == ST_WB && sfence_vma_r;
 
   /*
    * MMU
@@ -650,16 +661,16 @@ module app_core
   logic                   mmu_nsign;
   access_t                mmu_access;
 
-  assign mmu_vaddr = state_r == ST_IF_DEC ? pc_r : mem_addr_r;
+  assign mmu_vaddr = state_r == ST_IF ? pc_r : mem_addr_r;
   assign mmu_wdata = state_r == ST_MEM1 ? rs2_data_r : amo_rmw_data_r;
-  assign mmu_size  = state_r == ST_IF_DEC ? ILENB_LOG : mem_size;
+  assign mmu_size  = state_r == ST_IF ? ILENB_LOG : mem_size;
   assign mmu_nsign = funct3[FUNCT3_NSIGNSH];
 
   always_comb begin
     mmu_access = ACC_NONE;
 
-    case (state_r)
-      ST_IF_DEC:
+    unique0 case (state_r)
+      ST_IF:
         mmu_access = ACC_FETCH;
 
       ST_MEM1:
@@ -702,5 +713,5 @@ module app_core
   /*
    * VirtIO manager signals
    */
-  assign vmgr_stallable = state_r == ST_EXE1;
+  assign vmgr_stallable = state_r == ST_DEC && !iv_div && !dec_exc_pending;
 endmodule

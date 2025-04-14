@@ -34,107 +34,36 @@ module main_switch
   output logic [XLENB_LOG - 1:0]    mmem_size,
   output logic                      mmem_nsign,
   output logic                      mmem_ren,
-  output logic                      mmem_wen,
-
-  input  logic [XLEN - 1:0]         vcd_rdata,
-  output logic [VCD_ADDRLEN - 1:0]  vcd_addr,
-  output logic [XLEN - 1:0]         vcd_wdata,
-  output logic                      vcd_ren,
-  output logic                      vcd_wen,
-
-  input  logic [XLEN - 1:0]         vgd_rdata,
-  output logic [VGD_ADDRLEN - 1:0]  vgd_addr,
-  output logic [XLEN - 1:0]         vgd_wdata,
-  output logic                      vgd_ren,
-  output logic                      vgd_wen
+  output logic                      mmem_wen
 );
-  logic [XLEN - 1:0] addr;
-  dev_t              dev;
+  assign asw_rdata = mmem_rdata;
 
-  assign addr = vmgr_busy ? vsw_addr : asw_addr;
-  assign dev  = dev_t'(addr[ADDR_DEVSH+:DEVLEN]);
+  assign vsw_rdata = mmem_rdata;
 
   always_comb begin
-    asw_rdata  = 'bx;
-    asw_stall  = 0;
+    asw_stall = 0;
 
-    vsw_rdata  = 'bx;
-    vsw_stall  = 0;
+    vsw_rdata = 'bx;
+    vsw_stall = 0;
 
-    mmem_addr  = 'bx;
-    mmem_wdata = 'bx;
-    mmem_size  = 'bx;
-    mmem_nsign = 'bx;
-    mmem_ren   = 0;
-    mmem_wen   = 0;
+    if (vmgr_busy) begin
+      vsw_stall = mmem_stall;
 
-    vcd_addr   = 'bx;
-    vcd_wdata  = 'bx;
-    vcd_ren    = 0;
-    vcd_wen    = 0;
+      mmem_addr  = vsw_addr;
+      mmem_wdata = vsw_wdata;
+      mmem_size  = vsw_size;
+      mmem_nsign = vsw_nsign;
+      mmem_ren   = vsw_ren;
+      mmem_wen   = vsw_wen;
+    end else begin
+      asw_stall = mmem_stall;
 
-    vgd_addr   = 'bx;
-    vgd_wdata  = 'bx;
-    vgd_ren    = 0;
-    vgd_wen    = 0;
-
-    case (dev)
-      DEV_VCD:
-        if (vmgr_busy) begin
-          vsw_rdata = vcd_rdata;
-
-          vcd_addr  = vsw_addr;
-          vcd_wdata = vsw_wdata;
-          vcd_ren   = vsw_ren;
-          vcd_wen   = vsw_wen;
-        end else begin
-          asw_rdata  = vcd_rdata;
-
-          vcd_addr   = asw_addr;
-          vcd_wdata  = asw_wdata;
-          vcd_ren    = asw_ren;
-          vcd_wen    = asw_wen;
-        end
-
-      DEV_VGD:
-        if (vmgr_busy) begin
-          vsw_rdata = vgd_rdata;
-
-          vgd_addr  = vsw_addr;
-          vgd_wdata = vsw_wdata;
-          vgd_ren   = vsw_ren;
-          vgd_wen   = vsw_wen;
-        end else begin
-          asw_rdata  = vgd_rdata;
-
-          vgd_addr   = asw_addr;
-          vgd_wdata  = asw_wdata;
-          vgd_ren    = asw_ren;
-          vgd_wen    = asw_wen;
-        end
-
-      default:
-        if (vmgr_busy) begin
-          vsw_rdata  = mmem_rdata;
-          vsw_stall  = mmem_stall;
-
-          mmem_addr  = vsw_addr;
-          mmem_wdata = vsw_wdata;
-          mmem_size  = vsw_size;
-          mmem_nsign = vsw_nsign;
-          mmem_ren   = vsw_ren;
-          mmem_wen   = vsw_wen;
-        end else begin
-          asw_rdata  = mmem_rdata;
-          asw_stall  = mmem_stall;
-
-          mmem_addr  = asw_addr;
-          mmem_wdata = asw_wdata;
-          mmem_size  = asw_size;
-          mmem_nsign = asw_nsign;
-          mmem_ren   = asw_ren;
-          mmem_wen   = asw_wen;
-        end
-    endcase
+      mmem_addr  = asw_addr;
+      mmem_wdata = asw_wdata;
+      mmem_size  = asw_size;
+      mmem_nsign = asw_nsign;
+      mmem_ren   = asw_ren;
+      mmem_wen   = asw_wen;
+    end
   end
 endmodule

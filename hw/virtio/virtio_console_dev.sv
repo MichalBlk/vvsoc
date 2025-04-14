@@ -14,13 +14,16 @@ module virtio_console_dev
 
   output logic                          ac_intr_pending,
 
-  input  logic [VCD_ADDRLEN - 1:0]      msw_addr,
-  input  logic [XLEN - 1:0]             msw_wdata,
-  input  logic                          msw_ren,
-  input  logic                          msw_wen,
-  output logic [XLEN - 1:0]             msw_rdata,
+  input  logic [VCD_ADDRLEN - 1:0]      asw_addr,
+  input  logic [XLEN - 1:0]             asw_wdata,
+  input  logic                          asw_wen,
+  output logic [XLEN - 1:0]             asw_rdata,
 
-  input  logic                          vmgr_busy,
+  input  logic [VCD_ADDRLEN - 1:0]      vsw_addr,
+  input  logic [XLEN - 1:0]             vsw_wdata,
+  input  logic                          vsw_wen,
+  output logic [XLEN - 1:0]             vsw_rdata,
+
   input  logic                          vmgr_used,
   output logic [VCD_QUEUECNT - 1:0]     vmgr_queue_rdy,
   output logic [VCD_QUEUECNT_LOG - 1:0] vmgr_queue_num,
@@ -37,44 +40,44 @@ module virtio_console_dev
   logic [XLEN - 1:0]         device_features_sel, device_features_sel_r;
   logic [XLEN - 1:0]         interrupt_status, interrupt_status_r;
 
-  logic [VCD_ADDRLENW - 1:0] addrw;
+  logic [VCD_ADDRLENW - 1:0] vsw_addrw;
 
-  assign addrw = msw_addr >> XLENB_LOG;
+  assign vsw_addrw = vsw_addr >> XLENB_LOG;
 
   /*
    * Reading
    */
-  always_comb
-    if (vmgr_busy)
-      msw_rdata = virtqueue_r[addrw];
-    else
-      case (msw_addr)
-        VIRTIO_REG_MAGIC_VALUE:      msw_rdata = VIRTIO_MAGIC_VALUE;
-        VIRTIO_REG_VERSION:          msw_rdata = VIRTIO_VERSION;
-        VIRTIO_REG_DEVICE_ID:        msw_rdata = VIRTIO_DEVICE_ID_CONSOLE;
-        VIRTIO_REG_VENDOR_ID:        msw_rdata = VIRTIO_VENDOR_ID_QEMU;
+  always_comb begin
+    vsw_rdata = virtqueue_r[vsw_addrw];
+    asw_rdata = 0;
 
-        VIRTIO_REG_DEVICE_FEATURES:
-          msw_rdata = VCD_FEATURES[device_features_sel_r * XLEN+:XLEN];
+    unique0 case (asw_addr)
+      VIRTIO_REG_MAGIC_VALUE:      asw_rdata = VIRTIO_MAGIC_VALUE;
+      VIRTIO_REG_VERSION:          asw_rdata = VIRTIO_VERSION;
+      VIRTIO_REG_DEVICE_ID:        asw_rdata = VIRTIO_DEVICE_ID_CONSOLE;
+      VIRTIO_REG_VENDOR_ID:        asw_rdata = VIRTIO_VENDOR_ID_QEMU;
 
-        VIRTIO_REG_QUEUE_NUM_MAX:    msw_rdata = VCD_QUEUENUMMAX;
+      VIRTIO_REG_DEVICE_FEATURES:
+        if (device_features_sel_r)
+          asw_rdata = VCD_FEATURES[XLEN+:XLEN];
+        else
+          asw_rdata = VCD_FEATURES[0+:XLEN];
 
-        VIRTIO_REG_QUEUE_READY:
-          msw_rdata = virtqueue_r[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_READY_OFFW];
+      VIRTIO_REG_QUEUE_NUM_MAX:    asw_rdata = VCD_QUEUENUMMAX;
 
-        VIRTIO_REG_INTERRUPT_STATUS: msw_rdata = interrupt_status_r;
-        VIRTIO_REG_STATUS:           msw_rdata = status_r;
+      VIRTIO_REG_QUEUE_READY:
+        if (queue_sel_r)
+          asw_rdata = virtqueue_r[VIRTQUEUESZW + VIRTQUEUE_READY_OFFW];
+        else
+          asw_rdata = virtqueue_r[VIRTQUEUE_READY_OFFW];
 
-        VIRTIO_REG_SHM_LEN_LOW, VIRTIO_REG_SHM_LEN_HIGH:
-          msw_rdata = {XLEN{1'b1}};
+      VIRTIO_REG_INTERRUPT_STATUS: asw_rdata = interrupt_status_r;
+      VIRTIO_REG_STATUS:           asw_rdata = status_r;
 
-        default:                     msw_rdata = 0;
-      endcase
-/*
-  always_ff @(posedge clk)
-    if (!vmgr_busy && msw_ren)
-      $display("[VCD] reading register %h", msw_addr);
-*/
+      VIRTIO_REG_SHM_LEN_LOW, VIRTIO_REG_SHM_LEN_HIGH:
+        asw_rdata = {XLEN{1'b1}};
+    endcase
+  end
 
   /*
    * Writing
@@ -88,46 +91,57 @@ module virtio_console_dev
     device_features_sel = device_features_sel_r;
     interrupt_status    = interrupt_status_r;
 
-    if (msw_wen) begin
-      if (vmgr_busy)
-        virtqueue[addrw] = msw_wdata;
-      else
-        case (msw_addr)
-          VIRTIO_REG_DEVICE_FEATURES_SEL:
-            device_features_sel = msw_wdata;
+    unique0 if (vsw_wen)
+      virtqueue[vsw_addrw] = vsw_wdata;
+    else if (asw_wen)
+      unique0 case (asw_addr)
+        VIRTIO_REG_DEVICE_FEATURES_SEL:
+          device_features_sel = asw_wdata;
 
-          VIRTIO_REG_QUEUE_SELECT:
-            queue_sel = msw_wdata;
+        VIRTIO_REG_QUEUE_SELECT:
+          queue_sel = asw_wdata;
 
-          VIRTIO_REG_QUEUE_READY:
-            virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_READY_OFFW] = msw_wdata;
+        VIRTIO_REG_QUEUE_READY:
+          if (queue_sel_r)
+            virtqueue[VIRTQUEUESZW + VIRTQUEUE_READY_OFFW] = asw_wdata;
+          else
+            virtqueue[VIRTQUEUE_READY_OFFW] = asw_wdata;
 
-          VIRTIO_REG_INTERRUPT_ACK:
-            interrupt_status = interrupt_status_r & ~msw_wdata;
+        VIRTIO_REG_INTERRUPT_ACK:
+          interrupt_status = interrupt_status_r & ~asw_wdata;
 
-          VIRTIO_REG_STATUS: begin
-            status = msw_wdata;
+        VIRTIO_REG_STATUS: begin
+          status = asw_wdata;
 
-            if (!msw_wdata) begin
-              for (int i = 0; i < VIRTQUEUE_TOTALSZW; i++)
-                virtqueue[i] = 0;
+          if (!asw_wdata) begin
+            for (int i = 0; i < VIRTQUEUE_TOTALSZW; i++)
+              virtqueue[i] = 0;
 
-              queue_sel           = 0;
-              device_features_sel = 0;
-              interrupt_status    = 0;
-            end
+            queue_sel           = 0;
+            device_features_sel = 0;
+            interrupt_status    = 0;
           end
+        end
 
-          VIRTIO_REG_QUEUE_DESC_LOW:
-            virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_DESC_OFFW] = msw_wdata;
+        VIRTIO_REG_QUEUE_DESC_LOW:
+          if (queue_sel_r)
+            virtqueue[VIRTQUEUESZW + VIRTQUEUE_DESC_OFFW] = asw_wdata;
+          else
+            virtqueue[VIRTQUEUE_DESC_OFFW] = asw_wdata;
 
-          VIRTIO_REG_QUEUE_DRIVER_LOW:
-            virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_DRIVER_OFFW] = msw_wdata;
+        VIRTIO_REG_QUEUE_DRIVER_LOW:
+          if (queue_sel_r)
+            virtqueue[VIRTQUEUESZW + VIRTQUEUE_DRIVER_OFFW] = asw_wdata;
+          else
+            virtqueue[VIRTQUEUE_DRIVER_OFFW] = asw_wdata;
 
-          VIRTIO_REG_QUEUE_DEVICE_LOW:
-            virtqueue[queue_sel_r * VIRTQUEUESZW + VIRTQUEUE_DEVICE_OFFW] = msw_wdata;
-        endcase
-    end else if (vmgr_used)
+        VIRTIO_REG_QUEUE_DEVICE_LOW:
+          if (queue_sel_r)
+            virtqueue[VIRTQUEUESZW + VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
+          else
+            virtqueue[VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
+      endcase
+    else if (vmgr_used)
       interrupt_status = interrupt_status_r | (1 << VIRTIO_INTERRUPT_USED_BUFSH);
   end
 
@@ -148,15 +162,6 @@ module virtio_console_dev
       queue_sel_r           <= queue_sel;
       device_features_sel_r <= device_features_sel;
       interrupt_status_r    <= interrupt_status;
-/*
-      if (!vmgr_busy && msw_wen)
-        $display("[VCD] writing value %h to register %h", msw_wdata, msw_addr);
-
-      if (vmgr_used)
-        $display("[VCD] rising interrupt");
-      else if (ac_intr_pending && !interrupt_status)
-        $display("[VCD] clearing interrupt");
-*/
     end
 
   /*
@@ -169,7 +174,7 @@ module virtio_console_dev
    */
   assign vmgr_queue_rdy = {virtqueue_r[VIRTQUEUESZW + VIRTQUEUE_READY_OFFW] != 0,
     virtqueue_r[VIRTQUEUE_READY_OFFW] != 0};
-  assign vmgr_queue_num = msw_wdata;
-  assign vmgr_notify    = !vmgr_busy && msw_wen && msw_addr == VIRTIO_REG_QUEUE_NOTIFY;
+  assign vmgr_queue_num = asw_wdata;
+  assign vmgr_notify    = asw_wen && asw_addr == VIRTIO_REG_QUEUE_NOTIFY;
   assign vmgr_drvok     = status_r[VIRTIO_STATUS_DRIVER_OKSH];
 endmodule

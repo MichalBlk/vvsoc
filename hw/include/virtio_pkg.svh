@@ -84,7 +84,6 @@ package virtio_pkg;
 
   parameter VIRTIO_GPU_CTRL_QUEUE_NUM   = 0;
   parameter VIRTIO_GPU_CURS_QUEUE_NUM   = 1;
-
 endpackage
 
 `endif /* !__VIRTIO_PKG_H__ */
