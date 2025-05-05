@@ -2,6 +2,7 @@
 
 `include "isa_pkg.svh"
 `include "soc_pkg.svh"
+`include "board.svh"
 
 module top
   import isa_pkg::*;
@@ -139,6 +140,7 @@ module top
   logic [VGA_POSLEN - 1:0]       vga_vmgr_x;
   logic [VGA_POSLEN - 1:0]       vga_vmgr_y;
 
+`ifdef SIM
   initial begin
     $display("[TOP] Loading kernel...");
     $readmemh("kernel.mif", MAIN_MEMORY.mem, MMEM_KERNEL_OFFW);
@@ -157,6 +159,7 @@ module top
 
     $display("[TOP] Images loaded successfully");
   end
+`endif
 
   dbg_console DBG_CONSOLE(
     .clk       (clk),
@@ -256,7 +259,8 @@ module top
     .mmem_wen   (msw_mmem_wen)
   );
 
-  memory #(
+`ifdef SIM
+  sim_memory #(
     .SZ    (MMEMSZ)
   ) MAIN_MEMORY(
     .clk   (clk),
@@ -270,6 +274,7 @@ module top
     .rdata (mmem_msw_rdata),
     .stall (mmem_msw_stall)
   );
+`endif
 
   virtio_console_dev VIRTIO_CONSOLE_DEV(
     .clk             (clk),
@@ -401,7 +406,8 @@ module top
     .busy          (vmgr_busy)
   );
 
-  memory #(
+`ifdef SIM
+  sim_memory #(
     .SZ    (VMEMSZ)
   ) VIRTIO_MEMORY(
     .clk   (clk),
@@ -415,6 +421,23 @@ module top
     .rdata (vmem_vsw_rdata),
     .stall (vmem_vsw_stall)
   );
+`else
+  memory #(
+    .SZ    (VMEMSZ),
+    .MIF   ("virtio.mif")
+  ) VIRTIO_MEMORY(
+    .clk   (clk),
+    .nrst  (nrst),
+    .addr  (vsw_vmem_addr),
+    .wdata (vsw_vmem_wdata),
+    .size  (vsw_vmem_size),
+    .nsign (vsw_vmem_nsign),
+    .ren   (vsw_vmem_ren),
+    .wen   (vsw_vmem_wen),
+    .rdata (vmem_vsw_rdata),
+    .stall (vmem_vsw_stall)
+  );
+`endif
 
   uart UART(
     .clk           (clk),
