@@ -1,14 +1,16 @@
+/*
+ * NOTE: this memory module is only used for simulation.
+ */
 `default_nettype none
 
 `include "isa_pkg.svh"
 
-module memory
+module sim_memory
   import isa_pkg::*;
 #(
-  parameter        SZ      = 4096,
-  parameter string MIF     = "file.mif",
+  parameter  SZ      = 4096,
 
-  localparam       ADDRLEN = $clog2(SZ)
+  localparam ADDRLEN = $clog2(SZ)
 )(
   input  logic                   clk,
   input  logic                   nrst,
@@ -26,23 +28,21 @@ module memory
   localparam ADDRWLEN = $clog2(SZW);
 
   typedef enum logic {
-    ST_IDLE,
-    ST_BUSY
+    ST_READ,
+    ST_WRITE
   } state_t;
 
   logic [XLEN - 1:0]     mem [SZW - 1:0];
 
   state_t                state, state_r;
-  logic [XLEN - 1:0]     data_r;
+  logic [XLEN - 1:0]     cdata, cdata_r;
+  logic [XLEN - 1:0]     ndata, ndata_r;
+  logic [ADDRWLEN - 1:0] addrw, addrw_r;
+  logic [XLEN_LOG - 1:0] addrbit, addrbit_r;
+  logic [XLEN_LOG:0]     sizebit, sizebit_r;
+  logic [XLEN - 1:0]     mask, mask_r;
 
-  logic [ADDRWLEN - 1:0] addrw;
-  logic [XLEN_LOG - 1:0] addrbit;
-  logic [XLEN_LOG:0]     sizebit;
-  logic [XLEN - 1:0]     mask;
   logic [XLEN - 1:0]     value;
-
-  initial
-    $readmemh(MIF, mem);
 
   /*
    * Address and size calculation
@@ -52,22 +52,30 @@ module memory
   assign sizebit = 1 << (size + BLEN_LOG);
   assign mask    = (1 << sizebit) - 1;
 
-  /*
-   * Memory
-   */
-  always_ff @(posedge clk)
-    data_r <= mem[addrw];
+  always_ff @(posedge clk) begin
+    addrw_r   <= addrw;
+    addrbit_r <= addrbit;
+    sizebit_r <= sizebit;
+    mask_r    <= mask;
+  end
 
-  always_ff @(posedge clk)
-    if (state_r == ST_BUSY && wen)
-      mem[addrw] <= value;
+  /*
+   * Data
+   */
+  assign cdata = state_r == ST_WRITE && addrw == addrw_r ? value : mem[addrw];
+  assign ndata = wdata;
+
+  always_ff @(posedge clk) begin
+    cdata_r <= cdata;
+    ndata_r <= ndata;
+  end
 
   /*
    * Reading
    */
   logic [XLEN - 1:0] shdata;
 
-  assign shdata = (data_r >> addrbit) & mask;
+  assign shdata = (cdata >> addrbit) & mask;
 
   always_comb
     if (!nsign && (shdata >> (sizebit - 1)))
@@ -78,16 +86,21 @@ module memory
   /*
    * Writing
    */
-  assign value = (data_r & ~(mask << addrbit)) | ((wdata & mask) << addrbit);
+  assign value = (cdata_r & ~(mask_r << addrbit_r)) | ((ndata_r & mask_r) << addrbit_r);
+
+  always_ff @(posedge clk) begin
+    if (state_r == ST_WRITE)
+      mem[addrw_r] <= value;
+  end
 
   /*
    * State transitions
    */
-  assign state = state_r == ST_IDLE && (ren || wen) ? ST_BUSY : ST_IDLE;
+  assign state = wen ? ST_WRITE : ST_READ;
 
   always_ff @(posedge clk, negedge nrst) begin
     if (!nrst)
-      state_r <= ST_IDLE;
+      state_r <= ST_READ;
     else
       state_r <= state;
   end
@@ -95,5 +108,5 @@ module memory
   /*
    * Other signals
    */
-  assign stall = state == ST_BUSY;
+  assign stall = 0;
 endmodule
