@@ -11,14 +11,16 @@ package isa_pkg;
   /*
    * Register size
    */
-  parameter XLEN      = 32;
-  parameter XLENB     = XLEN / BLEN;
-  parameter XLEN_LOG  = $clog2(XLEN);
-  parameter XLENB_LOG = $clog2(XLENB);
+  parameter XLEN       = 32;
+  parameter XLENB      = XLEN / BLEN;
+  parameter XLEN_LOG   = $clog2(XLEN);
+  parameter XLENB_LOG  = $clog2(XLENB);
 
-  parameter DXLEN     = 2 * XLEN;
-  parameter ALL       = {XLEN{1'b1}};
-  parameter MAXPW     = 1 << (XLEN - 1);
+  parameter DXLEN      = 2 * XLEN;
+  parameter DXLENB     = DXLEN / BLEN;
+  parameter DXLENB_LOG = $clog2(DXLENB);
+  parameter ALL        = {XLEN{1'b1}};
+  parameter MAXPW      = 1 << (XLEN - 1);
 
   /*
    * Register count

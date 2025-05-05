@@ -5,5 +5,6 @@
  * Target board selection
  */
 `define SIM
+//`define NEXYS_A7
 
 `endif /* !__BOARD_SVH__ */

@@ -4,17 +4,43 @@
 `include "soc_pkg.svh"
 `include "board.svh"
 
+`ifndef SIM
+`include "dram_pkg.svh"
+`endif
+
 module top
   import isa_pkg::*;
   import soc_pkg::*;
+`ifndef SIM
+  import dram_pkg::*;
+`endif
 (
   input  logic                      clk,
-  input  logic                      vga_clk,
   input  logic                      nrst,
+
+`ifdef NEXYS_A7
+  input  logic                      dram_clk,
+
+  inout  logic [DDR2_DQLEN - 1:0]   ddr2_dq,
+  inout  logic [DDR2_DQSLEN - 1:0]  ddr2_dqs_n,
+  inout  logic [DDR2_DQSLEN - 1:0]  ddr2_dqs_p,
+  output logic [DDR2_ADDRLEN - 1:0] ddr2_addr,
+  output logic [DDR2_BALEN - 1:0]   ddr2_ba,
+  output logic                      ddr2_ras_n,
+  output logic                      ddr2_cas_n,
+  output logic                      ddr2_we_n,
+  output logic                      ddr2_ck_p,
+  output logic                      ddr2_ck_n,
+  output logic                      ddr2_cke,
+  output logic                      ddr2_cs_n,
+  output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
+  output logic                      ddr2_odt,
+`endif
 
   input  logic                      rx,
   output logic                      tx,
 
+  input  logic                      vga_clk,
   output logic [VGA_POSLEN - 1:0]   x,
   output logic [VGA_POSLEN - 1:0]   y,
   output logic [VGA_COLORLEN - 1:0] r,
@@ -273,6 +299,34 @@ module top
     .wen   (msw_mmem_wen),
     .rdata (mmem_msw_rdata),
     .stall (mmem_msw_stall)
+  );
+`elsif NEXYS_A7
+  main_memory MAIN_MEMORY(
+    .clk        (clk),
+    .dram_clk   (dram_clk),
+    .nrst       (nrst),
+    .msw_addr   (msw_mmem_addr),
+    .msw_wdata  (msw_mmem_wdata),
+    .msw_size   (msw_mmem_size),
+    .msw_nsign  (msw_mmem_nsign),
+    .msw_ren    (msw_mmem_ren),
+    .msw_wen    (msw_mmem_wen),
+    .msw_rdata  (mmem_msw_rdata),
+    .msw_stall  (mmem_msw_stall),
+    .ddr2_addr  (ddr2_addr),
+    .ddr2_ba    (ddr2_ba),
+    .ddr2_cas_n (ddr2_cas_n),
+    .ddr2_ck_n  (ddr2_ck_n),
+    .ddr2_ck_p  (ddr2_ck_p),
+    .ddr2_cke   (ddr2_cke),
+    .ddr2_ras_n (ddr2_ras_n),
+    .ddr2_we_n  (ddr2_we_n),
+    .ddr2_dq    (ddr2_dq),
+    .ddr2_dqs_n (ddr2_dqs_n),
+    .ddr2_dqs_p (ddr2_dqs_p),
+    .ddr2_cs_n  (ddr2_cs_n),
+    .ddr2_dm    (ddr2_dm),
+    .ddr2_odt   (ddr2_odt)
   );
 `endif
 
