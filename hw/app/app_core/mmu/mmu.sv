@@ -308,9 +308,9 @@ module mmu
         else
           state = ST_L1;
       end
-    else if (state_r == ST_FINISH)
+    end else if (state_r == ST_FINISH)
       state = ST_TLB;
-    end else if (!asw_stall) begin
+    else if (!asw_stall) begin
       state = state_t'(state_r + 1);
 
       unique0 case (state_r)
@@ -353,7 +353,7 @@ module mmu
     {PTELENB_LOG{1'b0}}};
 
   always_comb begin
-    asw_addr  = 'bx;
+    asw_addr  = 0;
     asw_wdata = 'bx;
     asw_size  = 'bx;
     asw_ren   = 0;
