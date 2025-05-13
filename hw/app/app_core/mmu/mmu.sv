@@ -338,7 +338,7 @@ module mmu
   assign ac_rdata       = data_r;
   assign ac_exc_code    = exc_code_r;
   assign ac_exc_pending = exc_pending_r;
-  assign ac_stall       = ac_access != ACC_NONE && state_r != ST_FINISH;
+  assign ac_stall       = state_r != ST_FINISH;
 
   /*
    * Application switch signals
@@ -353,13 +353,16 @@ module mmu
     {PTELENB_LOG{1'b0}}};
 
   always_comb begin
-    asw_addr  = 0;
+    asw_addr  = 'bx;
     asw_wdata = 'bx;
     asw_size  = 'bx;
     asw_ren   = 0;
     asw_wen   = 0;
 
     unique0 case (state_r)
+      ST_TLB, ST_FINISH:
+        asw_addr = 0;
+
       ST_L1: begin
         asw_addr = l1_pte_addr;
         asw_size = PTELENB_LOG;
