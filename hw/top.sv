@@ -1,19 +1,13 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
-`include "soc_pkg.svh"
+`include "isa.svh"
+`include "soc.svh"
 `include "board.svh"
-
-`ifndef SIM
-`include "dram_pkg.svh"
-`endif
 
 module top
   import isa_pkg::*;
   import soc_pkg::*;
-`ifndef SIM
-  import dram_pkg::*;
-`endif
+  import board_pkg::*;
 (
   input  logic                      clk,
   input  logic                      nrst,

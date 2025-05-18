@@ -1,13 +1,13 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
-`include "soc_pkg.svh"
-`include "dram_pkg.svh"
+`include "isa.svh"
+`include "soc.svh"
+`include "board.svh"
 
 module main_memory
   import isa_pkg::*;
   import soc_pkg::*;
-  import dram_pkg::*;
+  import board_pkg::*;
 (
   input  logic                      clk,
   input  logic                      dram_clk,

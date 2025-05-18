@@ -1,8 +1,8 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
+`include "isa.svh"
 
-module memory
+module sim_memory
   import isa_pkg::*;
 #(
   parameter  SZ      = 4096,
@@ -74,12 +74,11 @@ module memory
 
   assign shdata = (cdata >> addrbit) & mask;
 
-  always_comb begin
+  always_comb
     if (!nsign && (shdata >> (sizebit - 1)))
       rdata = shdata | ~mask;
     else
       rdata = shdata;
-  end
 
   /*
    * Writing
@@ -87,10 +86,8 @@ module memory
   assign value = (cdata_r & ~(mask_r << addrbit_r)) | ((ndata_r & mask_r) << addrbit_r);
 
   always_ff @(posedge clk) begin
-    if (state_r == ST_WRITE) begin
-     // $display("[MMEM] wiriting %x to %x", value, addrw_r);
+    if (state_r == ST_WRITE)
       mem[addrw_r] <= value;
-    end
   end
 
   /*

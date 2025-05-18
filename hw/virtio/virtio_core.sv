@@ -1,7 +1,7 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
-`include "soc_pkg.svh"
+`include "isa.svh"
+`include "soc.svh"
 
 module virtio_core
   import isa_pkg::*;

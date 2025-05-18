@@ -1,5 +1,5 @@
-`ifndef __VIRTIO_PKG_H__
-`define __VIRTIO_PKG_H__
+`ifndef __VIRTIO_SVH__
+`define __VIRTIO_SVH__
 
 package virtio_pkg;
   /*
@@ -84,6 +84,7 @@ package virtio_pkg;
 
   parameter VIRTIO_GPU_CTRL_QUEUE_NUM   = 0;
   parameter VIRTIO_GPU_CURS_QUEUE_NUM   = 1;
+
 endpackage
 
-`endif /* !__VIRTIO_PKG_H__ */
+`endif /* !__VIRTIO_SVH__ */
