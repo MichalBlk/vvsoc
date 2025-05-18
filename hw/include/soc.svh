@@ -22,7 +22,6 @@ package soc_pkg;
     DEV_VMGR  = DEVLEN'(2),
     DEV_VCD   = DEVLEN'(3),
     DEV_VGD   = DEVLEN'(4),
-    DEV_BMEM  = DEVLEN'(5),
     DEV_DBGC  = DEVLEN'(6),
     DEV_CLINT = DEVLEN'(7),
     DEV_MMEM  = DEVLEN'(8)
