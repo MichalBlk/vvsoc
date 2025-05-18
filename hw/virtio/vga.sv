@@ -1,6 +1,6 @@
 `default_nettype none
 
-`include "soc_pkg.svh"
+`include "soc.svh"
 
 module vga
   import soc_pkg::*;

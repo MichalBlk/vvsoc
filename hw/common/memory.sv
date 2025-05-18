@@ -1,6 +1,6 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
+`include "isa.svh"
 
 module memory
   import isa_pkg::*;
@@ -95,5 +95,5 @@ module memory
   /*
    * Other signals
    */
-  assign stall = state == ST_BUSY;
+  assign stall = state != ST_IDLE;
 endmodule

@@ -1,5 +1,5 @@
-`ifndef __ISA_PKG_SVH__
-`define __ISA_PKG_SVH__
+`ifndef __ISA_SVH__
+`define __ISA_SVH__
 
 package isa_pkg;
   /*
@@ -430,4 +430,4 @@ package isa_pkg;
   parameter REG_A0 = 10;
 endpackage
 
-`endif /* !__ISA_PKG_SVH__ */
+`endif /* !__ISA_SVH__ */

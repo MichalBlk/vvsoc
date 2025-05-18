@@ -1,7 +1,8 @@
-`ifndef __SOC_PKG_SVH__
-`define __SOC_PKG_SVH__
+`ifndef __SOC_SVH__
+`define __SOC_SVH__
 
-`include "virtio_pkg.svh"
+`include "virtio.svh"
+`include "board.svh"
 
 package soc_pkg;
   import isa_pkg::XLEN;
@@ -21,26 +22,11 @@ package soc_pkg;
     DEV_VMGR  = DEVLEN'(2),
     DEV_VCD   = DEVLEN'(3),
     DEV_VGD   = DEVLEN'(4),
+    DEV_BMEM  = DEVLEN'(5),
     DEV_DBGC  = DEVLEN'(6),
     DEV_CLINT = DEVLEN'(7),
     DEV_MMEM  = DEVLEN'(8)
   } dev_t;
-
-  /*
-   * Main memory
-   */
-  parameter MMEMSZ           = 'h3200000;
-  parameter MMEM_ADDRLEN     = $clog2(MMEMSZ);
-
-  parameter MMEM_KERNEL_OFF  = 'h0000000;
-  parameter MMEM_FW_OFF      = 'h1000000;
-  parameter MMEM_DTB_OFF     = 'h1100000;
-  parameter MMEM_INITRD_OFF  = 'h2000000;
-
-  parameter MMEM_KERNEL_OFFW = MMEM_KERNEL_OFF >> XLENB_LOG;
-  parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
-  parameter MMEM_DTB_OFFW    = MMEM_DTB_OFF >> XLENB_LOG;
-  parameter MMEM_INITRD_OFFW = MMEM_INITRD_OFF >> XLENB_LOG;
 
   /*
    * Application core
@@ -129,6 +115,22 @@ package soc_pkg;
   parameter CLINT_REG_MTIMEH    = 'hbffc;
 
   /*
+   * Main memory
+   */
+  parameter MMEMSZ           = 'h3200000;
+  parameter MMEM_ADDRLEN     = $clog2(MMEMSZ);
+
+  parameter MMEM_KERNEL_OFF  = 'h0000000;
+  parameter MMEM_FW_OFF      = 'h1000000;
+  parameter MMEM_DTB_OFF     = 'h1100000;
+  parameter MMEM_INITRD_OFF  = 'h2000000;
+
+  parameter MMEM_KERNEL_OFFW = MMEM_KERNEL_OFF >> XLENB_LOG;
+  parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
+  parameter MMEM_DTB_OFFW    = MMEM_DTB_OFF >> XLENB_LOG;
+  parameter MMEM_INITRD_OFFW = MMEM_INITRD_OFF >> XLENB_LOG;
+
+  /*
    * UART
    */
   parameter UART_BAUD_RATE = 115200;
@@ -163,4 +165,4 @@ package soc_pkg;
   parameter CLK_FREQ = 50000000;
 endpackage
 
-`endif /* !__SOC_PKG_SVH__ */
+`endif /* !__SOC_SVH__ */

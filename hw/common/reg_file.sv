@@ -1,6 +1,6 @@
 `default_nettype none
 
-`include "isa_pkg.svh"
+`include "isa.svh"
 
 module reg_file
   import isa_pkg::*;
