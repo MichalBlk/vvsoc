@@ -43,6 +43,9 @@ module top
   output logic                      hsync,
   output logic                      vsync
 );
+  logic [XLEN - 1:0]             bmem_asw_rdata;
+  logic                          bmem_asw_stall;
+
   logic [XLEN - 1:0]             clint_asw_rdata;
   logic [CNTLEN - 1:0]           clint_ac_mtime;
   logic                          clint_ac_intr_pending;
@@ -63,6 +66,12 @@ module top
   logic [VGD_ADDRLEN - 1:0]      asw_vgd_addr;
   logic [XLEN - 1:0]             asw_vgd_wdata;
   logic                          asw_vgd_wen;
+  logic [BMEM_ADDRLEN - 1:0]     asw_bmem_addr;
+  logic [XLEN - 1:0]             asw_bmem_wdata;
+  logic [XLENB_LOG - 1:0]        asw_bmem_size;
+  logic                          asw_bmem_nsign;
+  logic                          asw_bmem_ren;
+  logic                          asw_bmem_wen;
   logic [BLEN - 1:0]             asw_dbgc_wdata;
   logic                          asw_dbgc_wen;
   logic [CLINT_ADDRLEN - 1:0]    asw_clint_addr;
@@ -187,6 +196,24 @@ module top
     .asw_wen   (asw_dbgc_wen)
   );
 
+`ifndef SIM
+  memory #(
+    .SZ    (BMEMSZ),
+    .MIF   ("bootloader.mif")
+  ) BOOT_MEMORY(
+    .clk   (clk),
+    .nrst  (nrst),
+    .addr  (asw_bmem_addr),
+    .wdata (asw_bmem_wdata),
+    .size  (asw_bmem_size),
+    .nsign (asw_bmem_nsign),
+    .ren   (asw_bmem_ren),
+    .wen   (asw_bmem_wen),
+    .rdata (bmem_asw_rdata),
+    .stall (bmem_asw_stall)
+  );
+`endif
+
   clint CLINT(
     .clk             (clk),
     .nrst            (nrst),
@@ -235,6 +262,14 @@ module top
     .vgd_addr    (asw_vgd_addr),
     .vgd_wdata   (asw_vgd_wdata),
     .vgd_wen     (asw_vgd_wen),
+    .bmem_rdata  (bmem_asw_rdata),
+    .bmem_stall  (bmem_asw_stall),
+    .bmem_addr   (asw_bmem_addr),
+    .bmem_wdata  (asw_bmem_wdata),
+    .bmem_size   (asw_bmem_size),
+    .bmem_nsign  (asw_bmem_nsign),
+    .bmem_ren    (asw_bmem_ren),
+    .bmem_wen    (asw_bmem_wen),
     .dbgc_wdata  (asw_dbgc_wdata),
     .dbgc_wen    (asw_dbgc_wen),
     .clint_rdata (clint_asw_rdata),
