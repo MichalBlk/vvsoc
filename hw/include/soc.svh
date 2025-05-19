@@ -22,6 +22,7 @@ package soc_pkg;
     DEV_VMGR  = DEVLEN'(2),
     DEV_VCD   = DEVLEN'(3),
     DEV_VGD   = DEVLEN'(4),
+    DEV_BMEM  = DEVLEN'(5),
     DEV_DBGC  = DEVLEN'(6),
     DEV_CLINT = DEVLEN'(7),
     DEV_MMEM  = DEVLEN'(8)
@@ -30,7 +31,11 @@ package soc_pkg;
   /*
    * Application core
    */
+`ifdef SIM
   parameter AC_RESET_PC = (XLEN'(DEV_MMEM) << ADDR_DEVSH) | MMEM_FW_OFF;
+`else
+  parameter AC_RESET_PC = XLEN'(DEV_BMEM) << ADDR_DEVSH;
+`endif
 
   /*
    * TLB
@@ -102,6 +107,12 @@ package soc_pkg;
   parameter         VGD_QUEUENUMMAX     = 8;
   parameter         VGD_QUEUENUMMAX_LOG = $clog2(VCD_QUEUENUMMAX);
   parameter longint VGD_FEATURES        = 1 << VIRTIO_F_VERSION_1SH;
+
+  /*
+   * Boot memory
+   */
+  parameter BMEMSZ       = 4 * PAGESZ;
+  parameter BMEM_ADDRLEN = $clog2(BMEMSZ);
 
   /*
    * CLINT

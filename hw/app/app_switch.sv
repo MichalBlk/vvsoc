@@ -28,6 +28,15 @@ module app_switch
   output logic [XLEN - 1:0]          vgd_wdata,
   output logic                       vgd_wen,
 
+  input  logic [XLEN - 1:0]          bmem_rdata,
+  input  logic                       bmem_stall,
+  output logic [BMEM_ADDRLEN- 1:0]   bmem_addr,
+  output logic [XLEN - 1:0]          bmem_wdata,
+  output logic [XLENB_LOG - 1:0]     bmem_size,
+  output logic                       bmem_nsign,
+  output logic                       bmem_ren,
+  output logic                       bmem_wen,
+
   output logic [BLEN - 1:0]          dbgc_wdata,
   output logic                       dbgc_wen,
 
@@ -55,6 +64,11 @@ module app_switch
   assign vgd_addr    = ac_addr;
   assign vgd_wdata   = ac_wdata;
 
+  assign bmem_addr   = ac_addr;
+  assign bmem_wdata  = ac_wdata;
+  assign bmem_size   = ac_size;
+  assign bmem_nsign  = ac_nsign;
+
   assign dbgc_wdata  = ac_wdata;
 
   assign clint_addr  = ac_addr;
@@ -72,6 +86,9 @@ module app_switch
     vcd_wen   = 0;
 
     vgd_wen   = 0;
+
+    bmem_ren  = 0;
+    bmem_wen  = 0;
 
     dbgc_wen  = 0;
 
@@ -91,6 +108,14 @@ module app_switch
         ac_rdata = vgd_rdata;
 
         vgd_wen  = ac_wen;
+      end
+
+      DEV_BMEM: begin
+        ac_rdata = bmem_rdata;
+        ac_stall = bmem_stall;
+
+        bmem_ren = ac_ren;
+        bmem_wen = ac_wen;
       end
 
       DEV_DBGC:
