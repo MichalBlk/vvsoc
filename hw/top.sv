@@ -196,6 +196,7 @@ module top
     .asw_wen   (asw_dbgc_wen)
   );
 
+`ifndef SIM
   memory #(
     .SZ    (BMEMSZ),
     .MIF   ("bootloader.mif")
@@ -211,6 +212,7 @@ module top
     .rdata (bmem_asw_rdata),
     .stall (bmem_asw_stall)
   );
+`endif
 
   clint CLINT(
     .clk             (clk),
