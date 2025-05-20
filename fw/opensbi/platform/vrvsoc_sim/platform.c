@@ -1,9 +1,3 @@
-/*
- * SPDX-License-Identifier: BSD-2-Clause
- *
- * Copyright (c) 2019 Western Digital Corporation or its affiliates.
- */
-
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_encoding.h>
 #include <sbi/sbi_string.h>
@@ -16,7 +10,7 @@
 #define VRVSOC_HART_COUNT 1
 #define VRVSOC_DBGC_ADDR 0x60000000
 #define VRVSOC_CLINT_ADDR 0x70000000
-#define VRVSOC_ACLINT_MTIMER_FREQ 50000000
+#define VRVSOC_ACLINT_MTIMER_FREQ 90000000
 #define VRVSOC_ACLINT_MTIMER_ADDR (VRVSOC_CLINT_ADDR + CLINT_MTIMER_OFFSET)
 #define VRVSOC_INTR_PD0 16
 #define VRVSOC_INTR_PD1 17
@@ -32,8 +26,7 @@ static struct aclint_mtimer_data mtimer = {
   .has_64bit_mmio = false,
 };
 
-static void dbgc_putc(char c)
-{
+static void dbgc_putc(char c) {
   *((volatile char *)VRVSOC_DBGC_ADDR) = c;
 }
 
@@ -41,8 +34,7 @@ struct sbi_console_device console = {
   .console_putc = dbgc_putc,
 };
 
-static int platform_console_init(void)
-{
+static int platform_console_init(void) {
   const char *name = "DBG console";
   size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
   sbi_memcpy(console.name, name, size);
@@ -50,14 +42,12 @@ static int platform_console_init(void)
   return 0;
 }
 
-static int platform_irqchip_init(bool coldboot)
-{
+static int platform_irqchip_init(bool coldboot) {
   csr_set(CSR_MIDELEG, (1 << VRVSOC_INTR_PD0) | (1 << VRVSOC_INTR_PD1));
   return 0;
 }
 
-static int platform_timer_init(bool coldboot)
-{
+static int platform_timer_init(bool coldboot) {
   int ret;
 
   if (coldboot) {

@@ -1,9 +1,3 @@
-/*
- * SPDX-License-Identifier: BSD-2-Clause
- *
- * Copyright (c) 2019 Western Digital Corporation or its affiliates.
- */
-
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_encoding.h>
 #include <sbi/sbi_string.h>
@@ -16,7 +10,7 @@
 #define VRVSOC_HART_COUNT 1
 #define VRVSOC_VCD_ADDR 0x30000000
 #define VRVSOC_CLINT_ADDR 0x70000000
-#define VRVSOC_ACLINT_MTIMER_FREQ 50000000
+#define VRVSOC_ACLINT_MTIMER_FREQ 90000000
 #define VRVSOC_ACLINT_MTIMER_ADDR (VRVSOC_CLINT_ADDR + CLINT_MTIMER_OFFSET)
 #define VRVSOC_INTR_PD0 16
 #define VRVSOC_INTR_PD1 17
@@ -88,8 +82,7 @@ static inline void vc_wr(int reg, int val) {
   *(volatile int *)(VRVSOC_VCD_ADDR + reg) = val;
 }
 
-static void vc_putc(char c)
-{
+static void vc_putc(char c) {
   vc_c = c;
   vc_avr.idx++;
   vc_wr(VIRTIO_REG_QUEUE_NOTIFY, VIRTIO_CONSOLE_TX_QUEUE_NUM);
@@ -103,8 +96,7 @@ struct sbi_console_device console = {
   .console_putc = vc_putc,
 };
 
-static int platform_console_init(void)
-{
+static int platform_console_init(void) {
   const char *name = "VirtIO console";
   size_t size = MIN(sbi_strlen(name), sizeof(console.name) - 1);
   sbi_memcpy(console.name, name, size);
@@ -129,14 +121,12 @@ static int platform_console_init(void)
   return 0;
 }
 
-static int platform_irqchip_init(bool coldboot)
-{
+static int platform_irqchip_init(bool coldboot) {
   csr_set(CSR_MIDELEG, (1 << VRVSOC_INTR_PD0) | (1 << VRVSOC_INTR_PD1));
   return 0;
 }
 
-static int platform_timer_init(bool coldboot)
-{
+static int platform_timer_init(bool coldboot) {
   int ret;
 
   if (coldboot) {
