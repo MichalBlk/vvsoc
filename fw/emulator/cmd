@@ -1,4 +1,0 @@
-riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -I../include -O3 -c start.S -o start.o
-riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -I../include -O3 -c trap.S -o trap.o
-riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -I../include -O3 -c main.c -o main.o
-riscv32-mimiker-elf-gcc -ffreestanding -nostdlib -T linker.ld -O3 start.o trap.o main.o -o emulator
