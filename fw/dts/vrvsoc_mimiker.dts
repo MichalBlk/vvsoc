@@ -5,15 +5,15 @@
   #size-cells = <1>;
 
   chosen {
-    bootargs = "earlycon=sbi console=hvc0 root=/dev/ram";
+    bootargs = "init=/bin/ksh";
     linux,initrd-start = <0x82000000>;
-    linux,initrd-end = <0x8264f400>;
+    linux,initrd-end = <0x82300000>;
   };
 
   cpus {
     #address-cells = <1>;
     #size-cells = <0>;
-    timebase-frequency = <80000000>;
+    timebase-frequency = <90000000>;
 
     cpu@0 {
       device_type = "cpu";
@@ -21,7 +21,7 @@
       riscv,isa = "rv32ima";
       mmu-type = "riscv,sv32";
       reg = <0>;
-      clock-frequency = <80000000>;
+      clock-frequency = <90000000>;
       status = "okay";
 
       hlic: interrupt-controller {
@@ -34,7 +34,7 @@
 
   memory@80000000 {
     device_type = "memory";
-    reg = <0x80000000 0x3200000>;
+    reg = <0x80000000 0x31000>;
   };
 
   reserved-memory {
@@ -43,7 +43,7 @@
     ranges;
 
     opensbi@81000000 {
-      reg = <0x81000000 0x100000>;
+      reg = <0x80001000 0x30000>;
     };
   };
 
@@ -57,12 +57,6 @@
       compatible = "virtio,mmio";
       reg = <0x30000000 0x200>;
       interrupts-extended = <&hlic 0x10>;
-    };
-
-    virtio@40000000 {
-      compatible = "virtio,mmio";
-      reg = <0x40000000 0x200>;
-      interrupts-extended = <&hlic 0x11>;
     };
 
     clint@70000000 {
