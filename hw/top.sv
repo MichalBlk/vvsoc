@@ -52,6 +52,10 @@ module top
   logic [XLEN - 1:0]             bmem_asw_rdata;
   logic                          bmem_asw_stall;
 
+  logic                          dbgc_asw_stall;
+  logic [BLEN - 1:0]             dbgc_vmgr_byte;
+  logic                          dbgc_vmgr_wen;
+
   logic [XLEN - 1:0]             clint_asw_rdata;
   logic [CNTLEN - 1:0]           clint_ac_mtime;
   logic                          clint_ac_intr_pending;
@@ -158,6 +162,7 @@ module top
   logic                          vc_vsw_ren;
   logic                          vc_vsw_wen;
 
+  logic                          vmgr_dbgc_stall;
   logic [BLEN - 1:0]             vmgr_uart_tx_byte;
   logic                          vmgr_uart_tx_start;
   logic [VGA_COLORLEN - 1:0]     vmgr_vga_r;
@@ -203,9 +208,13 @@ module top
 `endif
 
   dbg_console DBG_CONSOLE(
-    .clk       (clk),
-    .asw_wdata (asw_dbgc_wdata),
-    .asw_wen   (asw_dbgc_wen)
+    .clk        (clk),
+    .asw_wdata  (asw_dbgc_wdata),
+    .asw_wen    (asw_dbgc_wen),
+    .asw_stall  (dbgc_asw_stall),
+    .vmgr_byte  (dbgc_vmgr_byte),
+    .vmgr_wen   (dbgc_vmgr_wen),
+    .vmgr_stall (vmgr_dbgc_stall)
   );
 
 `ifndef SIM
@@ -311,6 +320,7 @@ module top
     .bmem_wen    (asw_bmem_wen),
     .dbgc_wdata  (asw_dbgc_wdata),
     .dbgc_wen    (asw_dbgc_wen),
+    .dbgc_stall  (dbgc_asw_stall),
     .clint_rdata (clint_asw_rdata),
     .clint_addr  (asw_clint_addr),
     .clint_wdata (asw_clint_wdata),
@@ -502,6 +512,9 @@ module top
     .clk           (clk),
     .nrst          (nrst),
     .ac_stallable  (ac_vmgr_stallable),
+    .dbgc_byte     (dbgc_vmgr_byte),
+    .dbgc_wen      (dbgc_vmgr_wen),
+    .dbgc_stall    (vmgr_dbgc_stall),
     .uart_rx_byte  (uart_vmgr_rx_byte),
     .uart_rx_ready (uart_vmgr_rx_ready),
     .uart_tx_busy  (uart_vmgr_tx_busy),

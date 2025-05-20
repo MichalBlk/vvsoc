@@ -14,6 +14,10 @@ module virtio_manager
 
   input  logic                          ac_stallable,
 
+  input  logic [BLEN - 1:0]             dbgc_byte,
+  input  logic                          dbgc_wen,
+  output logic                          dbgc_stall,
+
   input  logic [BLEN - 1:0]             uart_rx_byte,
   input  logic                          uart_rx_ready,
   input  logic                          uart_tx_busy,
@@ -144,8 +148,8 @@ module virtio_manager
   /*
    * UART transmitting
    */
-  assign uart_tx_byte  = vsw_wdata;
-  assign uart_tx_start = vsw_wen && vsw_addr == VMGR_REG_UART_TX;
+  assign uart_tx_byte  = dbgc_wen ? dbgc_byte : vsw_wdata;
+  assign uart_tx_start = dbgc_wen || (vsw_wen && vsw_addr == VMGR_REG_UART_TX);
 
   /*
    * VGA frame updates
@@ -241,6 +245,11 @@ module virtio_manager
   assign vga_r = vga_rdy_r ? vga_frame_fifo_r[vga_frame_fifo_head_r][vga_y][vga_x] : 0;
   assign vga_g = vga_rdy_r ? vga_frame_fifo_g[vga_frame_fifo_head_r][vga_y][vga_x] : 0;
   assign vga_b = vga_rdy_r ? vga_frame_fifo_b[vga_frame_fifo_head_r][vga_y][vga_x] : 'hff;
+
+  /*
+   * Debug console signals
+   */
+  assign dbgc_stall = dbgc_wen && uart_tx_busy;
 
   /*
    * VirtIO core signals
