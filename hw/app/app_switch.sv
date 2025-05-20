@@ -39,6 +39,7 @@ module app_switch
 
   output logic [BLEN - 1:0]          dbgc_wdata,
   output logic                       dbgc_wen,
+  output logic                       dbgc_stall,
 
   input  logic [XLEN - 1:0]          clint_rdata,
   output logic [CLINT_ADDRLEN - 1:0] clint_addr,
@@ -129,8 +130,11 @@ module app_switch
         bmem_wen = ac_wen;
       end
 
-      DEV_DBGC:
+      DEV_DBGC: begin
+        ac_stall = dbgc_stall;
+
         dbgc_wen = ac_wen;
+      end
 
       DEV_CLINT: begin
         ac_rdata  = clint_rdata;
