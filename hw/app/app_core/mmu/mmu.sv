@@ -299,31 +299,40 @@ module mmu
   always_comb begin
     state = state_r;
 
-    if (state_r == ST_TLB) begin
-      if (ac_access != ACC_NONE) begin
-        if (omit_translation)
-          state = ST_ACCESS;
-        else if (tlb_valid)
-          state = tlb_ill ? ST_FINISH : ST_ACCESS;
-        else
-          state = ST_L1;
-      end
-    end else if (state_r == ST_FINISH)
-      state = ST_TLB;
-    else if (!asw_stall) begin
-      state = state_t'(state_r + 1);
+    unique0 case (state_r)
+      ST_TLB:
+        if (ac_access != ACC_NONE) begin
+          if (omit_translation)
+            state = ST_ACCESS;
+          else if (tlb_valid)
+            state = tlb_ill ? ST_FINISH : ST_ACCESS;
+          else
+            state = ST_L1;
+        end
 
-      unique0 case (state_r)
-        ST_L1:
+      ST_L1:
+        if (!asw_stall) begin
           if (l1_exc_pending)
             state = ST_FINISH;
           else
             state = l1_sp ? ST_UPDATE : ST_L0;
+        end
 
-        ST_L0:
+      ST_L0:
+        if (!asw_stall)
           state = l0_exc_pending ? ST_FINISH : ST_UPDATE;
-      endcase
-    end
+
+      ST_UPDATE:
+        if ((sp_r && !l1_needs_update) || (!sp_r && !l0_needs_update) || !asw_stall)
+          state = ST_ACCESS;
+
+      ST_ACCESS:
+        if (!asw_stall)
+          state = ST_FINISH;
+
+      ST_FINISH:
+        state = ST_TLB;
+    endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -360,9 +369,6 @@ module mmu
     asw_wen   = 0;
 
     unique0 case (state_r)
-      ST_TLB, ST_FINISH:
-        asw_addr = 0;
-
       ST_L1: begin
         asw_addr = l1_pte_addr;
         asw_size = PTELENB_LOG;
