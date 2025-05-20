@@ -14,6 +14,7 @@ module top
 
 `ifdef NEXYS_A7
   input  logic                      dram_clk,
+  input  logic                      fl_clk,
 
   inout  logic [DDR2_DQLEN - 1:0]   ddr2_dq,
   inout  logic [DDR2_DQSLEN - 1:0]  ddr2_dqs_n,
@@ -29,6 +30,11 @@ module top
   output logic                      ddr2_cs_n,
   output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
   output logic                      ddr2_odt,
+
+  input  logic                      fl_miso,
+  output logic                      fl_mosi,
+  output logic                      fl_sclk,
+  output logic                      fl_ncs,
 `endif
 
   input  logic                      rx,
@@ -49,6 +55,9 @@ module top
   logic [XLEN - 1:0]             clint_asw_rdata;
   logic [CNTLEN - 1:0]           clint_ac_mtime;
   logic                          clint_ac_intr_pending;
+
+  logic [XLEN - 1:0]             fl_asw_rdata;
+  logic                          fl_asw_stall;
 
   logic [XLEN - 1:0]             ac_asw_addr;
   logic [XLEN - 1:0]             ac_asw_wdata;
@@ -77,6 +86,9 @@ module top
   logic [CLINT_ADDRLEN - 1:0]    asw_clint_addr;
   logic [XLEN - 1:0]             asw_clint_wdata;
   logic                          asw_clint_wen;
+  logic [FL_ADDRLEN - 1:0]       asw_fl_addr;
+  logic                          asw_fl_nsign;
+  logic                          asw_fl_ren;
   logic [XLEN - 1:0]             asw_msw_addr;
   logic [XLEN - 1:0]             asw_msw_wdata;
   logic [XLENB_LOG - 1:0]        asw_msw_size;
@@ -225,6 +237,33 @@ module top
     .ac_intr_pending (clint_ac_intr_pending)
   );
 
+`ifdef SIM
+  flash FLASH(
+    .clk       (clk),
+    .nrst      (nrst),
+    .asw_addr  (asw_fl_addr),
+    .asw_nsign (asw_fl_nsign),
+    .asw_ren   (asw_fl_ren),
+    .asw_rdata (fl_asw_rdata),
+    .asw_stall (fl_asw_stall)
+  );
+`elsif NEXYS_A7
+  flash FLASH(
+    .clk       (clk),
+    .fl_clk    (fl_clk),
+    .nrst      (nrst),
+    .asw_addr  (asw_fl_addr),
+    .asw_nsign (asw_fl_nsign),
+    .asw_ren   (asw_fl_ren),
+    .asw_rdata (fl_asw_rdata),
+    .asw_stall (fl_asw_stall),
+    .miso      (fl_miso),
+    .mosi      (fl_mosi),
+    .sclk      (fl_sclk),
+    .ncs       (fl_ncs)
+  );
+`endif
+
   app_core APP_CORE(
     .clk                (clk),
     .nrst               (nrst),
@@ -276,6 +315,11 @@ module top
     .clint_addr  (asw_clint_addr),
     .clint_wdata (asw_clint_wdata),
     .clint_wen   (asw_clint_wen),
+    .fl_rdata    (fl_asw_rdata),
+    .fl_stall    (fl_asw_stall),
+    .fl_addr     (asw_fl_addr),
+    .fl_nsign    (asw_fl_nsign),
+    .fl_ren      (asw_fl_ren),
     .msw_rdata   (msw_asw_rdata),
     .msw_stall   (msw_asw_stall),
     .msw_addr    (asw_msw_addr),

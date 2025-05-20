@@ -25,7 +25,8 @@ package soc_pkg;
     DEV_BMEM  = DEVLEN'(5),
     DEV_DBGC  = DEVLEN'(6),
     DEV_CLINT = DEVLEN'(7),
-    DEV_MMEM  = DEVLEN'(8)
+    DEV_MMEM  = DEVLEN'(8),
+    DEV_FL    = DEVLEN'(15)
   } dev_t;
 
   /*
@@ -139,6 +140,12 @@ package soc_pkg;
   parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
   parameter MMEM_DTB_OFFW    = MMEM_DTB_OFF >> XLENB_LOG;
   parameter MMEM_INITRD_OFFW = MMEM_INITRD_OFF >> XLENB_LOG;
+
+  /*
+   * Flash memory
+   */
+  parameter FLSZ       = 'h1000000;
+  parameter FL_ADDRLEN = $clog2(FLSZ);
 
   /*
    * UART

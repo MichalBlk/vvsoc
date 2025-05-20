@@ -45,6 +45,12 @@ module app_switch
   output logic [XLEN - 1:0]          clint_wdata,
   output logic                       clint_wen,
 
+  input  logic [XLEN - 1:0]          fl_rdata,
+  input  logic                       fl_stall,
+  output logic [FL_ADDRLEN- 1:0]     fl_addr,
+  output logic                       fl_nsign,
+  output logic                       fl_ren,
+
   input  logic [XLEN - 1:0]          msw_rdata,
   input  logic                       msw_stall,
   output logic [XLEN - 1:0]          msw_addr,
@@ -74,6 +80,9 @@ module app_switch
   assign clint_addr  = ac_addr;
   assign clint_wdata = ac_wdata;
 
+  assign fl_addr     = ac_addr;
+  assign fl_nsign    = ac_nsign;
+
   assign msw_addr    = ac_addr;
   assign msw_wdata   = ac_wdata;
   assign msw_size    = ac_size;
@@ -93,6 +102,8 @@ module app_switch
     dbgc_wen  = 0;
 
     clint_wen = 0;
+
+    fl_ren    = 0;
 
     msw_ren   = 0;
     msw_wen   = 0;
@@ -125,6 +136,13 @@ module app_switch
         ac_rdata  = clint_rdata;
 
         clint_wen = ac_wen;
+      end
+
+      DEV_FL: begin
+        ac_rdata = fl_rdata;
+        ac_stall = fl_stall;
+
+        fl_ren   = ac_ren;
       end
 
       DEV_MMEM: begin
