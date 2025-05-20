@@ -27,7 +27,6 @@
 
 #define VMGR_ARG_QN_MASK 0x1
 #define VMGR_ARG_DEV_SH 1
-
 /*
  * VirtIO console device
  */
@@ -66,7 +65,7 @@
 /*
  * Flash
  */
-#define FL_FW_START 0xf0000000
+#define FL_OPENSBI_START 0xf0000000
 #define FL_DTB_START 0xf0020000
 #define FL_KERNEL_START 0xf0021000
 #define FL_INITRD_START 0xf0421000
@@ -76,7 +75,7 @@
  */
 #define MMEM_START 0x80000000
 
-#define MMEM_FW_START 0x81000000
+#define MMEM_OPENSBI_START 0x81000000
 #define MMEM_DTB_START 0x81100000
 #define MMEM_KERNEL_START 0x80000000
 #define MMEM_INITRD_START 0x82000000
@@ -84,7 +83,7 @@
 /*
  * Images
  */
-#define FW_SIZE 0x20000
+#define OPENSBI_SIZE 0x20000
 #define DTB_SIZE 0x1000
 #define KERNEL_SIZE 0x400000
 #define INITRD_SIZE 0x700000

@@ -186,8 +186,8 @@ module top
     $display("[TOP] Loading kernel...");
     $readmemh("kernel.mif", MAIN_MEMORY.mem, MMEM_KERNEL_OFFW);
 
-    $display("[TOP] Loading firmware...");
-    $readmemh("fw.mif", MAIN_MEMORY.mem, MMEM_FW_OFFW);
+    $display("[TOP] Loading OpenSBI...");
+    $readmemh("opensbi.mif", MAIN_MEMORY.mem, MMEM_OPENSBI_OFFW);
 
     $display("[TOP] Loading dtb...");
     $readmemh("vrvsoc.mif", MAIN_MEMORY.mem, MMEM_DTB_OFFW);

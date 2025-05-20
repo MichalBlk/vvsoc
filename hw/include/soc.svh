@@ -33,7 +33,7 @@ package soc_pkg;
    * Application core
    */
 `ifdef SIM
-  parameter AC_RESET_PC = (XLEN'(DEV_MMEM) << ADDR_DEVSH) | MMEM_FW_OFF;
+  parameter AC_RESET_PC = (XLEN'(DEV_MMEM) << ADDR_DEVSH) | MMEM_OPENSBI_OFF;
 `else
   parameter AC_RESET_PC = XLEN'(DEV_BMEM) << ADDR_DEVSH;
 `endif
@@ -128,18 +128,18 @@ package soc_pkg;
   /*
    * Main memory
    */
-  parameter MMEMSZ           = 'h3200000;
-  parameter MMEM_ADDRLEN     = $clog2(MMEMSZ);
+  parameter MMEMSZ            = 'h3200000;
+  parameter MMEM_ADDRLEN      = $clog2(MMEMSZ);
 
-  parameter MMEM_KERNEL_OFF  = 'h0000000;
-  parameter MMEM_FW_OFF      = 'h1000000;
-  parameter MMEM_DTB_OFF     = 'h1100000;
-  parameter MMEM_INITRD_OFF  = 'h2000000;
+  parameter MMEM_KERNEL_OFF   = 'h0000000;
+  parameter MMEM_OPENSBI_OFF  = 'h1000000;
+  parameter MMEM_DTB_OFF      = 'h1100000;
+  parameter MMEM_INITRD_OFF   = 'h2000000;
 
-  parameter MMEM_KERNEL_OFFW = MMEM_KERNEL_OFF >> XLENB_LOG;
-  parameter MMEM_FW_OFFW     = MMEM_FW_OFF >> XLENB_LOG;
-  parameter MMEM_DTB_OFFW    = MMEM_DTB_OFF >> XLENB_LOG;
-  parameter MMEM_INITRD_OFFW = MMEM_INITRD_OFF >> XLENB_LOG;
+  parameter MMEM_KERNEL_OFFW  = MMEM_KERNEL_OFF >> XLENB_LOG;
+  parameter MMEM_OPENSBI_OFFW = MMEM_OPENSBI_OFF >> XLENB_LOG;
+  parameter MMEM_DTB_OFFW     = MMEM_DTB_OFF >> XLENB_LOG;
+  parameter MMEM_INITRD_OFFW  = MMEM_INITRD_OFF >> XLENB_LOG;
 
   /*
    * Flash memory
