@@ -127,7 +127,7 @@ module divisor
 
     unique0 case (ac_funct3)
       FUNCT3_DIV:
-        if (zero)
+        unique if (zero)
           ac_res = ALL;
         else if (ovf)
           ac_res = MAXPW;
@@ -141,7 +141,7 @@ module divisor
           ac_res = q_r;
 
       FUNCT3_REM:
-        if (zero)
+        unique if (zero)
           ac_res = ac_src1;
         else if (ovf)
           ac_res = 0;
