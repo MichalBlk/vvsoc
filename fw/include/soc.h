@@ -22,13 +22,12 @@
 #define VMGR_FINISH_SUCCESS 0
 #define VMGR_FINISH_FAILURE 1
 
-typedef enum {
-  VMGR_DEV_VCD,
-  VMGR_DEV_VGD
-} vmgr_dev_t;
+#define VMGR_DEV_VCD 0
+#define VMGR_DEV_VGD 1
 
 #define VMGR_ARG_QN_MASK 0x1
 #define VMGR_ARG_DEV_SH 1
+
 /*
  * VirtIO console device
  */
@@ -47,8 +46,13 @@ typedef enum {
 #define VGA_HEIGHT 480
 
 /*
+ * Boot memory
+ */
+#define BMEM_START 0x50000000
+
+/*
  * Debug console
- 
+ */
 #define DBGC_START 0x60000000
 
 /*
@@ -60,13 +64,29 @@ typedef enum {
 #define CLINT_REG_MTIME 0xbff8
 
 /*
+ * Flash
+ */
+#define FL_FW_START 0xf0000000
+#define FL_DTB_START 0xf0020000
+#define FL_KERNEL_START 0xf0021000
+#define FL_INITRD_START 0xf0421000
+
+/*
  * Main memory
  */
 #define MMEM_START 0x80000000
 
-#define EMU_START 0x80100000
-#define EMU_END 0x80200000
+#define MMEM_FW_START 0x81000000
+#define MMEM_DTB_START 0x81100000
+#define MMEM_KERNEL_START 0x80000000
+#define MMEM_INITRD_START 0x82000000
 
-#define DTB_START 0x80200000
+/*
+ * Images
+ */
+#define FW_SIZE 0x20000
+#define DTB_SIZE 0x1000
+#define KERNEL_SIZE 0x400000
+#define INITRD_SIZE 0x700000
 
 #endif /* !__SOC_H__ */
