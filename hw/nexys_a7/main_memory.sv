@@ -51,6 +51,7 @@ module main_memory
   logic [XLEN - 1:0]         rdata, rdata_r;
   logic [XLEN - 1:0]         wdata, wdata_r;
   logic [XLENB_LOG - 1:0]    size, size_r;
+  logic                      sign, sign_r;
   logic                      ren, ren_r;
   logic                      wen, wen_r;
 
@@ -87,21 +88,24 @@ module main_memory
   );
 
   /*
-   * Address/size selection
+   * Input buffering
    */
   always_comb begin
     addr = addr_r;
     size = size_r;
+    sign = sign_r;
 
     if (state_r == ST_IDLE) begin
       addr = msw_addr;
       size = msw_size;
+      sign = !msw_nsign;
     end
   end
 
   always_ff @(posedge clk) begin
     addr_r <= addr;
     size_r <= size;
+    sign_r <= sign;
   end
 
   /*
@@ -114,7 +118,7 @@ module main_memory
   assign mask    = (1 << sizebit) - 1;
 
   always_comb
-    if (!msw_nsign && (rdata_r >> (sizebit - 1)))
+    if (sign_r && (rdata_r >> (sizebit - 1)))
       msw_rdata = rdata_r | ~mask;
     else
       msw_rdata = rdata_r & mask;
@@ -123,7 +127,7 @@ module main_memory
     rdata = rdata_r;
     ren   = ren_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_READ:
         if (dram_on)
           ren = 1;
@@ -152,7 +156,7 @@ module main_memory
     wdata = wdata_r;
     wen   = wen_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         wdata = msw_wdata;
 
@@ -179,7 +183,7 @@ module main_memory
   always_comb begin
     state = state_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         if (msw_ren)
           state = ST_READ;
@@ -216,5 +220,5 @@ module main_memory
   /*
    * Other main switch signals
    */
-  assign msw_stall = state != ST_IDLE;
+  assign msw_stall = state_r != ST_FINISH;
 endmodule
