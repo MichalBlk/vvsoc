@@ -37,9 +37,9 @@ module app_switch
   output logic                       bmem_ren,
   output logic                       bmem_wen,
 
+  input  logic                       dbgc_stall,
   output logic [BLEN - 1:0]          dbgc_wdata,
   output logic                       dbgc_wen,
-  output logic                       dbgc_stall,
 
   input  logic [XLEN - 1:0]          clint_rdata,
   output logic [CLINT_ADDRLEN - 1:0] clint_addr,

@@ -13,7 +13,7 @@
   cpus {
     #address-cells = <1>;
     #size-cells = <0>;
-    timebase-frequency = <90000000>;
+    timebase-frequency = <80000000>;
 
     cpu@0 {
       device_type = "cpu";
@@ -21,7 +21,7 @@
       riscv,isa = "rv32ima";
       mmu-type = "riscv,sv32";
       reg = <0>;
-      clock-frequency = <90000000>;
+      clock-frequency = <80000000>;
       status = "okay";
 
       hlic: interrupt-controller {
@@ -34,7 +34,7 @@
 
   memory@80000000 {
     device_type = "memory";
-    reg = <0x80000000 0x31000>;
+    reg = <0x80000000 0x3200000>;
   };
 
   reserved-memory {
@@ -43,7 +43,7 @@
     ranges;
 
     opensbi@81000000 {
-      reg = <0x80001000 0x30000>;
+      reg = <0x81000000 0x100000>;
     };
   };
 
