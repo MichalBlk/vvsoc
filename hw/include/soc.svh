@@ -59,7 +59,11 @@ package soc_pkg;
    * VirtIO manager
    */
   parameter VMGR_ADDRLEN            = 4;
+`ifdef SIM
   parameter VMGR_UART_RX_FIFOSZ     = 64;
+`else
+  parameter VMGR_UART_RX_FIFOSZ     = 256;
+`endif
   parameter VMGR_VGA_FRAME_FIFOSZ   = 4;
 
   parameter VMGR_REG_UART_RX        = 'h0;
