@@ -43,7 +43,6 @@ module main_switch
   always_comb begin
     asw_stall = 0;
 
-    vsw_rdata = 'bx;
     vsw_stall = 0;
 
     if (vmgr_busy) begin

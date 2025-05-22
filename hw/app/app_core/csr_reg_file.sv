@@ -188,8 +188,8 @@ module csr_reg_file
       intr_code = STI;
   end
 
-  assign intr_deleg     = priv_r != PRIV_M && ((mideleg_r >> intr_code) & 1);
-  assign exc_deleg      = priv_r != PRIV_M && ((medeleg_r >> ac_exc_code) & 1);
+  assign intr_deleg = priv_r != PRIV_M && ((mideleg_r >> intr_code) & 1);
+  assign exc_deleg  = priv_r != PRIV_M && ((medeleg_r >> ac_exc_code) & 1);
 
   always_comb begin
     _mip = mip_r;

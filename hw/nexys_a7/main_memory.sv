@@ -47,11 +47,13 @@ module main_memory
   } state_t;
 
   state_t                    state, state_r;
+
   logic [MMEM_ADDRLEN - 1:0] addr, addr_r;
-  logic [XLEN - 1:0]         rdata, rdata_r;
-  logic [XLEN - 1:0]         wdata, wdata_r;
   logic [XLENB_LOG - 1:0]    size, size_r;
   logic                      sign, sign_r;
+
+  logic [XLEN - 1:0]         rdata, rdata_r;
+  logic [XLEN - 1:0]         wdata, wdata_r;
   logic                      ren, ren_r;
   logic                      wen, wen_r;
 

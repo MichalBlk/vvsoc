@@ -54,6 +54,7 @@ module dram
   } cmd_t;
 
   state_t                   state, state_r;
+
   cmd_t                     cmd, cmd_r;
   logic                     en, en_r;
   logic                     finished, finished_r;
@@ -166,7 +167,7 @@ module dram
     rdata = rdata_r;
 
     if (mig_rvalid && ((state_r == ST_PREREAD && mig_rdy) || state_r == ST_READ) && !mig_rend)
-      case (mmem_size)
+      unique0 case (mmem_size)
         0:
           case (mmem_addr[DXLENB_LOG - 1:0])
             0: rdata = mig_rdata[7:0];
@@ -205,7 +206,7 @@ module dram
     cmd = cmd_r;
     en  = en_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         if (fs_ren) begin
           cmd = CMD_READ;
@@ -238,7 +239,7 @@ module dram
     wend  = wend_r;
     wren  = wren_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE:
         wren = 0;
 
@@ -246,7 +247,7 @@ module dram
         if (mig_wrdy) begin
           wdata = {mmem_wdata, mmem_wdata};
 
-          case (mmem_size)
+          unique0 case (mmem_size)
             0: begin
               wdata = {mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0],
                 mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0]};
@@ -262,7 +263,6 @@ module dram
                 7: wmask = 8'b01111111;
               endcase
             end
-
 
             1: begin
               wdata = {mmem_wdata[15:0], mmem_wdata[15:0], mmem_wdata[15:0], mmem_wdata[15:0]};
@@ -315,7 +315,7 @@ module dram
     state    = state_r;
     finished = finished_r;
 
-    case (state_r)
+    unique0 case (state_r)
       ST_IDLE: begin
         if (fs_ren)
           state = ST_PREREAD;

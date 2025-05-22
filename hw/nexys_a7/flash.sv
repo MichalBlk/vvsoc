@@ -30,8 +30,10 @@ module flash
   } state_t;
 
   state_t                  state, state_r;
+
   logic [FL_ADDRLEN - 1:0] addr, addr_r;
   logic                    sign, sign_r;
+
   logic [BLEN - 1:0]       rdata, rdata_r;
   logic                    ren, ren_r;
 

@@ -29,7 +29,7 @@ module app_core
   input  logic                   vmgr_busy,
   output logic                   vmgr_stallable
 );
-  typedef enum logic [2:0] {
+  typedef enum logic [3:0] {
     ST_IF,
     ST_DEC,
     ST_EXE1,
@@ -37,7 +37,8 @@ module app_core
     ST_EXE2,
     ST_MEM2,
     ST_WB,
-    ST_COM
+    ST_COM,
+    ST_VMGR_WAIT
   } state_t;
 
   state_t                  state, state_r;
@@ -45,6 +46,10 @@ module app_core
   logic [XLEN - 1:0]       pc, pc_r;
   logic [XLEN - 1:0]       resv_addr, resv_addr_r;
   logic                    resv_valid, resv_valid_r;
+
+  logic                    bclint_intr_pending, bclint_intr_pending_r;
+  logic                    bvcd_intr_pending, bvcd_intr_pending_r;
+  logic                    bvgd_intr_pending, bvgd_intr_pending_r;
 
   logic [ILEN - 1:0]       inst, inst_r;
   logic [OPCODELEN - 1:0]  opcode;
@@ -72,9 +77,9 @@ module app_core
   logic                    sfence_vma, sfence_vma_r;
   logic                    tkn, tkn_r;
   logic                    amo_sc_succ;
-  logic                    load_amo_lr;
+  logic                    load_amo_lr, load_amo_lr_r;
   logic                    store_amo_sc_succ;
-  logic                    amo_rmw;
+  logic                    amo_rmw, amo_rmw_r;
   logic                    mem_access;
   logic [XLEN - 1:0]       mem_data, mem_data_r;
   exc_t                    exc_code, exc_code_r;
@@ -107,6 +112,27 @@ module app_core
   exc_t                    mmu_exc_code;
   logic                    mmu_exc_pending;
   logic                    mmu_stall;
+
+  /*
+   * Input buffering
+   */
+  always_comb begin
+    bclint_intr_pending = bclint_intr_pending_r;
+    bvcd_intr_pending   = bvcd_intr_pending_r;
+    bvgd_intr_pending   = bvgd_intr_pending_r;
+
+    if (state_r == ST_IF) begin
+      bclint_intr_pending = clint_intr_pending;
+      bvcd_intr_pending   = vcd_intr_pending;
+      bvgd_intr_pending   = vgd_intr_pending;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    bclint_intr_pending_r <= bclint_intr_pending;
+    bvcd_intr_pending_r   <= bvcd_intr_pending;
+    bvgd_intr_pending_r   <= bvgd_intr_pending;
+  end
 
   /*
    * Instruction fetch stage
@@ -214,9 +240,9 @@ module app_core
     .ac_ill             (csrrf_ill),
     .ac_tvec            (csrrf_tvec),
     .ac_intr_handling   (csrrf_intr_handling),
-    .clint_intr_pending (clint_intr_pending),
-    .vcd_intr_pending   (vcd_intr_pending),
-    .vgd_intr_pending   (vgd_intr_pending)
+    .clint_intr_pending (bclint_intr_pending_r),
+    .vcd_intr_pending   (bvcd_intr_pending_r),
+    .vgd_intr_pending   (bvgd_intr_pending_r)
   );
 
   imm_gen IMM_GEN(
@@ -273,11 +299,8 @@ module app_core
   logic [XLEN - 1:0]      div_res;
 
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
-  assign load_amo_lr       = opcode == OPCODE_LOAD ||
-    (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_LR);
   assign store_amo_sc_succ = opcode == OPCODE_STORE ||
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
-  assign amo_rmw           = opcode == OPCODE_AMO && funct5 != FUNCT5_AMO_LR && funct5 != FUNCT5_AMO_SC;
 
   assign mem_access        = load_amo_lr || store_amo_sc_succ || amo_rmw;
 
@@ -314,7 +337,7 @@ module app_core
     .ac_res    (mul_res)
   );
 
-  assign div_start = state_r == ST_EXE1 && pv_state_r == ST_DEC && div_r;
+  assign div_start = state_r == ST_EXE1 && div_r;
 
   divisor DIVISOR(
     .clk       (clk),
@@ -328,10 +351,11 @@ module app_core
   );
 
   always_comb begin
-    csr_wdata = csr_wdata_r;
-    rd_data   = rd_data_r;
-    mem_addr  = mem_addr_r;
-    jmp_pc    = jmp_pc_r;
+    csr_wdata   = csr_wdata_r;
+    rd_data     = rd_data_r;
+    mem_addr    = mem_addr_r;
+    jmp_pc      = jmp_pc_r;
+    load_amo_lr = load_amo_lr_r;
 
     if (state_r == ST_EXE1) begin
       csr_wdata = csralu_res;
@@ -379,14 +403,19 @@ module app_core
           if (funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET))
             jmp_pc = csr_rdata_r;
       endcase
+
+      load_amo_lr = opcode == OPCODE_LOAD || (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_LR);
+      amo_rmw     = opcode == OPCODE_AMO && funct5 != FUNCT5_AMO_LR && funct5 != FUNCT5_AMO_SC;
     end
   end
 
   always_ff @(posedge clk) begin
-    csr_wdata_r <= csr_wdata;
-    rd_data_r   <= rd_data;
-    mem_addr_r  <= mem_addr;
-    jmp_pc_r    <= jmp_pc;
+    csr_wdata_r   <= csr_wdata;
+    rd_data_r     <= rd_data;
+    mem_addr_r    <= mem_addr;
+    jmp_pc_r      <= jmp_pc;
+    load_amo_lr_r <= load_amo_lr;
+    amo_rmw_r     <= amo_rmw;
   end
 
   /*
@@ -430,7 +459,7 @@ module app_core
   always_comb begin
     rf_wdata = rd_data_r;
 
-    unique0 if (load_amo_lr || amo_rmw)
+    unique0 if (load_amo_lr_r || amo_rmw_r)
       rf_wdata = mem_data_r;
     else if (opcode == OPCODE_SYSTEM)
       rf_wdata = csr_rdata_r;
@@ -521,7 +550,7 @@ module app_core
   logic mem_access_unaligned;
 
   assign ill_inst             = !iv_valid || (iv_mret && csrrf_priv != PRIV_M) ||
-    (iv_sret && csrrf_priv == PRIV_U) || (iv_sfence_vma && csrrf_priv == PRIV_U);
+    ((iv_sret || iv_sfence_vma) && csrrf_priv == PRIV_U);
   assign mem_access_unaligned = (mem_addr & ((1 << mem_size) - 1)) != 0;
 
   assign dec_exc_pending      = ill_inst || csrrf_ill;
@@ -612,19 +641,20 @@ module app_core
         state = dec_exc_pending ? ST_COM : ST_EXE1;
 
       ST_EXE1:
-        if (!vmgr_busy && !div_stall) begin
-          if (exe_exc_pending)
-            state = ST_COM;
-          else
-            state = mem_access ? ST_MEM1 : ST_WB;
-        end
+        if (exe_exc_pending)
+          state = ST_COM;
+        else if (div_r) begin
+          if (!div_stall)
+            state = ST_WB;
+        end else
+          state = mem_access ? ST_MEM1 : ST_WB;
 
       ST_MEM1:
         if (!mmu_stall) begin
           if (mmu_exc_pending)
             state = ST_COM;
           else
-            state = amo_rmw ? ST_EXE2 : ST_WB;
+            state = amo_rmw_r ? ST_EXE2 : ST_WB;
         end
 
       ST_MEM2:
@@ -632,7 +662,11 @@ module app_core
           state = mmu_exc_pending ? ST_COM : ST_WB;
 
       ST_COM:
-        state = ST_IF;
+        state = vmgr_busy ? ST_VMGR_WAIT : ST_IF;
+
+      ST_VMGR_WAIT:
+        if (!vmgr_busy)
+          state = ST_IF;
 
       default: state = state_t'(state_r + 1);
     endcase
@@ -674,7 +708,7 @@ module app_core
         mmu_access = ACC_FETCH;
 
       ST_MEM1:
-        if (load_amo_lr || amo_rmw)
+        if (load_amo_lr_r || amo_rmw_r)
           mmu_access = ACC_LOAD;
         else
           mmu_access = ACC_STORE;
@@ -713,5 +747,5 @@ module app_core
   /*
    * VirtIO manager signals
    */
-  assign vmgr_stallable = state_r == ST_DEC && !iv_div && !dec_exc_pending;
+  assign vmgr_stallable = state_r == ST_WB;
 endmodule
