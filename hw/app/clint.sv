@@ -24,14 +24,16 @@ module clint
   /*
    * Reading
    */
-  always_comb
-    unique0 case (asw_addr)
+  always_comb begin
+    asw_rdata = 'bx;
+
+    case (asw_addr)
       CLINT_REG_MTIMECMP:  asw_rdata = mtimecmp_r;
       CLINT_REG_MTIMECMPH: asw_rdata = mtimecmp_r[XLEN+:XLEN];
       CLINT_REG_MTIME:     asw_rdata = mtime_r;
       CLINT_REG_MTIMEH:    asw_rdata = mtime_r[XLEN+:XLEN];
-      default:             asw_rdata = 'bx;
     endcase
+  end
 
   /*
    * Writing

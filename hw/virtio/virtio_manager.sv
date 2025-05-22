@@ -249,7 +249,7 @@ module virtio_manager
   /*
    * Debug console signals
    */
-  assign dbgc_stall = dbgc_wen && uart_tx_busy;
+  assign dbgc_stall = uart_tx_busy;
 
   /*
    * VirtIO core signals
@@ -263,7 +263,7 @@ module virtio_manager
   assign finished  = vsw_wen && vsw_addr == VMGR_REG_FINISH;
 
   assign vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
-  assign vsw_stall = (vsw_wen && vsw_addr == VMGR_REG_UART_TX && uart_tx_busy) ||
+  assign vsw_stall = (vsw_addr == VMGR_REG_UART_TX && uart_tx_busy) ||
     (vga_flush && vga_stall);
 
   /*

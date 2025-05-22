@@ -7,8 +7,6 @@ module app_switch
   import isa_pkg::*;
   import soc_pkg::*;
 (
-  input  logic                       clk,
-
   input  logic [XLEN - 1:0]          ac_addr,
   input  logic [XLEN - 1:0]          ac_wdata,
   input  logic [XLENB_LOG - 1:0]     ac_size,

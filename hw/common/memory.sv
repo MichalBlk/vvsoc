@@ -33,15 +33,16 @@ module memory
   logic [XLEN - 1:0]      mem [SZW - 1:0];
 
   state_t                 state, state_r;
-  logic [ADDRWLEN - 1:0]  addrw, addrw_r;
-  logic [XLEN - 1:0]      data_r;
+
   logic [ADDRLEN - 1:0]   baddr, baddr_r;
   logic [XLEN - 1:0]      bwdata, bwdata_r;
   logic [XLENB_LOG - 1:0] bsize, bsize_r;
-  logic [XLEN - 1:0]      value, value_r;
   logic                   bsign, bsign_r;
   logic                   bwen, bwen_r;
 
+  logic [ADDRWLEN - 1:0]  addrw, addrw_r;
+  logic [XLEN - 1:0]      data_r;
+  logic [XLEN - 1:0]      value;
   logic [XLEN_LOG - 1:0]  addrbit;
   logic [XLEN_LOG:0]      sizebit;
   logic [XLEN - 1:0]      mask;

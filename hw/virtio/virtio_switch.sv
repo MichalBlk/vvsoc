@@ -7,8 +7,6 @@ module virtio_switch
   import isa_pkg::*;
   import soc_pkg::*;
 (
-  input  logic                      clk,
-
   input  logic [XLEN - 1:0]         vc_addr,
   input  logic [XLEN - 1:0]         vc_wdata,
   input  logic [XLENB_LOG - 1:0]    vc_size,

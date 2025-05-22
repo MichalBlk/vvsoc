@@ -293,7 +293,6 @@ module top
   );
 
   app_switch APP_SWITCH(
-    .clk         (clk),
     .ac_addr     (ac_asw_addr),
     .ac_wdata    (ac_asw_wdata),
     .ac_size     (ac_asw_size),
@@ -452,7 +451,6 @@ module top
   );
 
   virtio_switch VIRTIO_SWITCH(
-    .clk        (clk),
     .vc_addr    (vc_vsw_addr),
     .vc_wdata   (vc_vsw_wdata),
     .vc_size    (vc_vsw_size),

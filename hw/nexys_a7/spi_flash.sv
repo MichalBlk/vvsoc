@@ -42,6 +42,7 @@ module spi_flash
   } state_t;
 
   state_t                    state, state_r;
+
   logic [SPIFL_CNTLEN - 1:0] cnt, cnt_r;
   logic                      clk_cnt, clk_cnt_r;
   logic                      ready, ready_r;
