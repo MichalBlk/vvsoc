@@ -108,6 +108,8 @@ module app_core
   logic [XLEN - 1:0]       csrrf_tvec;
   logic                    csrrf_intr_handling;
 
+  logic                    mul_stall;
+
   logic                    div_stall;
 
   logic                    mmu_tlb_flush;
@@ -297,6 +299,7 @@ module app_core
   logic [XLEN - 1:0]      opalu_res;
   logic                   bralu_res;
   logic [XLEN - 1:0]      csralu_res;
+  logic                   mul_start;
   logic [XLEN - 1:0]      mul_res;
   logic                   div_start;
   logic [XLEN - 1:0]      div_res;
@@ -333,11 +336,17 @@ module app_core
     .ac_res    (csralu_res)
   );
 
+  assign mul_start = state_r == ST_EXE1 && mul_r;
+
   multiplier MULTIPLIER(
+    .clk       (clk),
+    .nrst      (nrst),
     .ac_src1   (rs1_data_r),
     .ac_src2   (rs2_data_r),
     .ac_funct3 (funct3),
-    .ac_res    (mul_res)
+    .ac_start  (mul_start),
+    .ac_res    (mul_res),
+    .ac_stall  (mul_stall)
   );
 
   assign div_start = state_r == ST_EXE1 && div_r;
@@ -648,6 +657,9 @@ module app_core
           state = ST_COM;
         else if (div_r) begin
           if (!div_stall)
+            state = ST_WB;
+        end else if (mul_r) begin
+          if (!mul_stall)
             state = ST_WB;
         end else
           state = mem_access ? ST_MEM1 : ST_WB;
