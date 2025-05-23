@@ -111,6 +111,8 @@ module top
   logic                          msw_mmem_ren;
   logic                          msw_mmem_wen;
 
+  logic [XLEN - 1:0]             mmem_ac_pte_rdata;
+  logic                          mmem_ac_pte_stall;
   logic [XLEN - 1:0]             mmem_msw_rdata;
   logic                          mmem_msw_stall;
 
@@ -286,6 +288,8 @@ module top
     .asw_nsign          (ac_asw_nsign),
     .asw_ren            (ac_asw_ren),
     .asw_wen            (ac_asw_wen),
+    .mmem_pte_rdata     (mmem_ac_pte_rdata),
+    .mmem_pte_stall     (mmem_ac_pte_stall),
     .vcd_intr_pending   (vcd_ac_intr_pending),
     .vgd_intr_pending   (vgd_ac_intr_pending),
     .vmgr_busy          (vmgr_busy),
@@ -368,6 +372,9 @@ module top
   );
 
 `ifdef SIM
+  assign mmem_ac_pte_rdata = mmem_msw_rdata;
+  assign mmem_ac_pte_stall = mmem_msw_stall;
+
   sim_memory #(
     .SZ    (MMEMSZ)
   ) MAIN_MEMORY(
@@ -384,31 +391,33 @@ module top
   );
 `elsif NEXYS_A7
   main_memory MAIN_MEMORY(
-    .clk        (clk),
-    .dram_clk   (dram_clk),
-    .nrst       (nrst),
-    .msw_addr   (msw_mmem_addr),
-    .msw_wdata  (msw_mmem_wdata),
-    .msw_size   (msw_mmem_size),
-    .msw_nsign  (msw_mmem_nsign),
-    .msw_ren    (msw_mmem_ren),
-    .msw_wen    (msw_mmem_wen),
-    .msw_rdata  (mmem_msw_rdata),
-    .msw_stall  (mmem_msw_stall),
-    .ddr2_addr  (ddr2_addr),
-    .ddr2_ba    (ddr2_ba),
-    .ddr2_cas_n (ddr2_cas_n),
-    .ddr2_ck_n  (ddr2_ck_n),
-    .ddr2_ck_p  (ddr2_ck_p),
-    .ddr2_cke   (ddr2_cke),
-    .ddr2_ras_n (ddr2_ras_n),
-    .ddr2_we_n  (ddr2_we_n),
-    .ddr2_dq    (ddr2_dq),
-    .ddr2_dqs_n (ddr2_dqs_n),
-    .ddr2_dqs_p (ddr2_dqs_p),
-    .ddr2_cs_n  (ddr2_cs_n),
-    .ddr2_dm    (ddr2_dm),
-    .ddr2_odt   (ddr2_odt)
+    .clk          (clk),
+    .dram_clk     (dram_clk),
+    .nrst         (nrst),
+    .ac_pte_rdata (mmem_ac_pte_rdata),
+    .ac_pte_stall (mmem_ac_pte_stall),
+    .msw_addr     (msw_mmem_addr),
+    .msw_wdata    (msw_mmem_wdata),
+    .msw_size     (msw_mmem_size),
+    .msw_nsign    (msw_mmem_nsign),
+    .msw_ren      (msw_mmem_ren),
+    .msw_wen      (msw_mmem_wen),
+    .msw_rdata    (mmem_msw_rdata),
+    .msw_stall    (mmem_msw_stall),
+    .ddr2_addr    (ddr2_addr),
+    .ddr2_ba      (ddr2_ba),
+    .ddr2_cas_n   (ddr2_cas_n),
+    .ddr2_ck_n    (ddr2_ck_n),
+    .ddr2_ck_p    (ddr2_ck_p),
+    .ddr2_cke     (ddr2_cke),
+    .ddr2_ras_n   (ddr2_ras_n),
+    .ddr2_we_n    (ddr2_we_n),
+    .ddr2_dq      (ddr2_dq),
+    .ddr2_dqs_n   (ddr2_dqs_n),
+    .ddr2_dqs_p   (ddr2_dqs_p),
+    .ddr2_cs_n    (ddr2_cs_n),
+    .ddr2_dm      (ddr2_dm),
+    .ddr2_odt     (ddr2_odt)
   );
 `endif
 

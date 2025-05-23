@@ -31,7 +31,10 @@ module mmu
   output logic [XLENB_LOG - 1:0] asw_size,
   output logic                   asw_nsign,
   output logic                   asw_ren,
-  output logic                   asw_wen
+  output logic                   asw_wen,
+
+  input  logic [XLEN - 1:0]      mmem_pte_rdata,
+  input  logic                   mmem_pte_stall
 );
   typedef enum logic [2:0] {
     ST_TLB,
@@ -180,7 +183,7 @@ module mmu
     l1_pte = l1_pte_r;
 
     if (state_r == ST_L1)
-      l1_pte = asw_rdata;
+      l1_pte = mmem_pte_rdata;
   end
 
   always_ff @(posedge clk)
@@ -202,7 +205,7 @@ module mmu
     l0_pte = l0_pte_r;
 
     if (state_r == ST_L0)
-      l0_pte = asw_rdata;
+      l0_pte = mmem_pte_rdata;
   end
 
   always_ff @(posedge clk)
@@ -362,7 +365,7 @@ module mmu
         end
 
       ST_L1:
-        if (!asw_stall) begin
+        if (!mmem_pte_stall) begin
           if (l1_exc_pending)
             state = ST_FINISH;
           else
@@ -370,11 +373,11 @@ module mmu
         end
 
       ST_L0:
-        if (!asw_stall)
+        if (!mmem_pte_stall)
           state = l0_exc_pending ? ST_FINISH : ST_UPDATE;
 
       ST_UPDATE:
-        if ((sp_r && !l1_needs_update) || (!sp_r && !l0_needs_update) || !asw_stall)
+        if ((sp_r && !l1_needs_update) || (!sp_r && !l0_needs_update) || !mmem_pte_stall)
           state = ST_ACCESS;
 
       ST_ACCESS:
