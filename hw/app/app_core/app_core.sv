@@ -45,7 +45,6 @@ module app_core
   } state_t;
 
   state_t                  state, state_r;
-  state_t                  pv_state, pv_state_r;
   logic [XLEN - 1:0]       pc, pc_r;
   logic [XLEN - 1:0]       resv_addr, resv_addr_r;
   logic                    resv_valid, resv_valid_r;
@@ -368,6 +367,7 @@ module app_core
     mem_addr    = mem_addr_r;
     jmp_pc      = jmp_pc_r;
     load_amo_lr = load_amo_lr_r;
+    amo_rmw     = amo_rmw_r;
 
     if (state_r == ST_EXE1) begin
       csr_wdata = csralu_res;
@@ -642,7 +642,6 @@ module app_core
    */
   always_comb begin
     state    = state_r;
-    pv_state = state_r;
 
     case (state_r)
       ST_IF:
@@ -688,13 +687,10 @@ module app_core
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst) begin
-      state_r    <= ST_IF;
-      pv_state_r <= ST_COM;
-    end else begin
-      state_r    <= state;
-      pv_state_r <= pv_state;
-    end
+    if (!nrst)
+      state_r <= ST_IF;
+    else
+      state_r <= state;
 
   /*
    * TLB flushing
