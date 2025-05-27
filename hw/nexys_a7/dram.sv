@@ -44,8 +44,7 @@ module dram
     ST_PREREAD,
     ST_READ,
     ST_PREWRITE,
-    ST_WRITE_L,
-    ST_WRITE_H
+    ST_WRITE
   } state_t;
 
   typedef enum logic [2:0] {
@@ -243,7 +242,7 @@ module dram
       ST_IDLE:
         wren = 0;
 
-      ST_WRITE_L:
+      ST_WRITE:
         if (mig_wrdy) begin
           wdata = {mmem_wdata, mmem_wdata};
 
@@ -285,16 +284,9 @@ module dram
             end
           endcase
 
-          wend = 0;
+          wend = 1;
           wren = 1;
         end 
-
-      ST_WRITE_H:
-        if (mig_wrdy) begin
-          wmask = 8'h00;
-          wend  = 1;
-          wren  = 1;
-        end
     endcase
   end
 
@@ -337,13 +329,9 @@ module dram
 
       ST_PREWRITE:
         if (mig_rdy)
-          state = ST_WRITE_L;
+          state = ST_WRITE;
 
-      ST_WRITE_L:
-        if (mig_wrdy)
-          state = ST_WRITE_H;
-
-      ST_WRITE_H:
+      ST_WRITE:
         if (mig_wrdy) begin
           state    = ST_IDLE;
           finished = 1;
