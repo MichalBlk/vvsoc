@@ -52,7 +52,7 @@ package soc_pkg;
   /*
    * VirtIO memory
    */
-  parameter VMEMSZ       = 4 * PAGESZ;
+  parameter VMEMSZ       = 2 * PAGESZ;
   parameter VMEM_ADDRLEN = $clog2(VMEMSZ);
 
   /*
@@ -115,7 +115,7 @@ package soc_pkg;
   /*
    * Boot memory
    */
-  parameter BMEMSZ       = 4 * PAGESZ;
+  parameter BMEMSZ       = PAGESZ;
   parameter BMEM_ADDRLEN = $clog2(BMEMSZ);
 
   /*
