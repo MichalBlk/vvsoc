@@ -170,7 +170,7 @@ static int vgd_handle_curs(void) {
 
 void __attribute__((__noreturn__)) process(int arg) {
   int rv, qn = arg & VMGR_ARG_QN_MASK;
-  vmgr_dev_t dev = arg >> VMGR_ARG_DEV_SH;
+  int dev = arg >> VMGR_ARG_DEV_SH;
   if (dev == VMGR_DEV_VCD) {
     if (qn == VIRTIO_CONSOLE_RX_QUEUE_NUM)
       rv = vcd_handle_rx();

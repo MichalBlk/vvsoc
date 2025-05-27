@@ -6,7 +6,7 @@
 /*
  * VirtIO memory
  */
-#define VMEMSZ 4 * PAGESZ
+#define VMEMSZ (4 * PAGESZ)
 #define VMEM_START 0x10000000
 
 /*
@@ -27,6 +27,7 @@
 
 #define VMGR_ARG_QN_MASK 0x1
 #define VMGR_ARG_DEV_SH 1
+
 /*
  * VirtIO console device
  */
@@ -41,8 +42,8 @@
 
 #define VGD_QUEUE_NUM_MAX 8
 
-#define VGA_WIDTH 640
-#define VGA_HEIGHT 480
+#define VGA_WIDTH 320
+#define VGA_HEIGHT 240
 
 /*
  * Boot memory

@@ -64,7 +64,6 @@ package soc_pkg;
 `else
   parameter VMGR_UART_RX_FIFOSZ     = 256;
 `endif
-  parameter VMGR_VGA_FRAME_FIFOSZ   = 4;
 
   parameter VMGR_REG_UART_RX        = 'h0;
   parameter VMGR_REG_UART_TX        = 'h4;
@@ -177,8 +176,9 @@ package soc_pkg;
   parameter VGA_V_SYNCEND   = VGA_V_SYNCSTART + VGA_V_SYNCWIDTH;
   parameter VGA_V_MAX       = VGA_V_ACTIVECNT + VGA_V_TOTALBCNT - 1;
 
+  parameter VGA_FRAMESZ     = VGA_WIDTH * VGA_HEIGHT / 4;
+  parameter VGA_FRAMESZ_LOG = $clog2(VGA_FRAMESZ);
   parameter VGA_POSLEN      = $clog2(VGA_H_MAX + 1);
-  parameter VGA_COLORLEN    = 8;
 
   /*
    * Clock

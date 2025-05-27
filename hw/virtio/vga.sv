@@ -4,37 +4,42 @@
 
 module vga
   import soc_pkg::*;
+  import board_pkg::*;
 (
-  input  logic                      vga_clk,
-  input  logic                      nrst,
+  input  logic                         vga_clk,
+  input  logic                         nrst,
 
-  output logic [VGA_POSLEN - 1:0]   x,
-  output logic [VGA_POSLEN - 1:0]   y,
-  output logic [VGA_COLORLEN - 1:0] r,
-  output logic [VGA_COLORLEN - 1:0] g,
-  output logic [VGA_COLORLEN - 1:0] b,
-  output logic                      hsync,
-  output logic                      vsync,
+  output logic [VGA_POSLEN - 1:0]      x,
+  output logic [VGA_POSLEN - 1:0]      y,
+  output logic [VGA_COLORLEN - 1:0]    r,
+  output logic [VGA_COLORLEN - 1:0]    g,
+  output logic [VGA_COLORLEN - 1:0]    b,
+  output logic                         hsync,
+  output logic                         vsync,
 
-  input  logic [VGA_COLORLEN - 1:0] vmgr_r,
-  input  logic [VGA_COLORLEN - 1:0] vmgr_g,
-  input  logic [VGA_COLORLEN - 1:0] vmgr_b,
-  output logic [VGA_POSLEN - 1:0]   vmgr_x,
-  output logic [VGA_POSLEN - 1:0]   vmgr_y
+  input  logic [VGA_COLORLEN - 1:0]    vmgr_r,
+  input  logic [VGA_COLORLEN - 1:0]    vmgr_g,
+  input  logic [VGA_COLORLEN - 1:0]    vmgr_b,
+  output logic [VGA_FRAMESZ_LOG - 1:0] vmgr_pos
 );
-  logic [VGA_POSLEN - 1:0]   cx, cx_r;
-  logic [VGA_POSLEN - 1:0]   cy, cy_r;
-  logic [VGA_POSLEN - 1:0]   bx, bx_r;
-  logic [VGA_POSLEN - 1:0]   by, by_r;
-  logic [VGA_COLORLEN - 1:0] br, br_r;
-  logic [VGA_COLORLEN - 1:0] bg, bg_r;
-  logic [VGA_COLORLEN - 1:0] bb, bb_r;
-  logic                      chsync;
-  logic                      cvsync;
-  logic                      cblank;
-  logic                      bhsync, bhsync_r;
-  logic                      bvsync, bvsync_r;
+  logic [VGA_POSLEN - 1:0]      cx, cx_r;
+  logic [VGA_POSLEN - 1:0]      cy, cy_r;
+  logic [VGA_POSLEN - 1:0]      bx, bx_r;
+  logic [VGA_POSLEN - 1:0]      by, by_r;
+  logic [VGA_COLORLEN - 1:0]    br, br_r;
+  logic [VGA_COLORLEN - 1:0]    bg, bg_r;
+  logic [VGA_COLORLEN - 1:0]   bb, bb_r;
+  logic [VGA_FRAMESZ_LOG - 1:0] cpos, cpos_r;
+  logic [VGA_FRAMESZ_LOG - 1:0] spos, spos_r;
+  logic                         chsync;
+  logic                         cvsync;
+  logic                         cblank;
+  logic                         bhsync, bhsync_r;
+  logic                         bvsync, bvsync_r;
 
+  /*
+   * Coordinate calculation
+   */
   always_comb begin
     cx = cx_r;
     cy = cy_r;
@@ -59,10 +64,45 @@ module vga
     end
   end
 
+  /*
+   * Sync and blank signals
+   */
   assign chsync = !(cx_r >= VGA_H_SYNCSTART && cx_r < VGA_H_SYNCEND);
   assign cvsync = !(cy_r >= VGA_V_SYNCSTART && cy_r < VGA_V_SYNCEND);
   assign cblank = cx_r >= VGA_H_ACTIVECNT || cy_r >= VGA_V_ACTIVECNT;
 
+  /*
+   * Frame position calculation
+   */
+  always_comb begin
+    cpos = cpos_r;
+    spos = spos_r;
+
+    if (cx_r < VGA_WIDTH && cy_r < VGA_HEIGHT) begin
+      if (cx_r[0]) begin
+        if (cx_r == VGA_WIDTH - 1) begin
+          if (cy_r[0])
+            cpos = cy_r == VGA_HEIGHT - 1 ? 0 : cpos_r + 1;
+          else
+            cpos = spos_r;
+        end else
+          cpos = cpos_r + 1;
+      end else if (!cx_r)
+        spos = cpos_r;
+    end
+  end
+
+  always_ff @(posedge vga_clk, negedge nrst)
+    if (!nrst)
+      cpos_r <= 0;
+    else begin
+      cpos_r <= cpos;
+      spos_r <= spos;
+    end
+
+  /*
+   * Output buffering
+   */
   assign bx     = cx_r;
   assign by     = cy_r;
   assign br     = cblank ? 0 : vmgr_r;
@@ -94,8 +134,7 @@ module vga
   /*
    * VirtIO manager signals
    */
-  assign vmgr_x = cx_r;
-  assign vmgr_y = cy_r;
+  assign vmgr_pos = cpos_r;
 
   /*
    * Other signals

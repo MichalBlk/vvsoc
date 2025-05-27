@@ -30,20 +30,28 @@ module _top
   output logic                      QSPI_CSN,
 
   input  logic                      UART_TXD_IN,
-  output logic                      UART_RXD_OUT
+  output logic                      UART_RXD_OUT,
+
+  output logic [VGA_COLORLEN - 1:0] VGA_R,
+  output logic [VGA_COLORLEN - 1:0] VGA_G,
+  output logic [VGA_COLORLEN - 1:0] VGA_B,
+  output logic                      VGA_HS,
+  output logic                      VGA_VS
 );
   logic       cpu_clk;
   logic       dram_clk;
   logic       fl_clk;
+  logic       vga_clk;
 
   logic       qspi_sclk;
   logic [3:0] dc;
 
-  pll PLL(
+  pll DRAM(
     .clk_in   (CLK100MHZ),
     .clk_cpu  (cpu_clk),
     .clk_dram (dram_clk),
-    .clk_fl   (fl_clk)
+    .clk_fl   (fl_clk),
+    .clk_vga  (vga_clk)
   );
 
   STARTUPE2 STARTUPE2_0(
@@ -64,6 +72,7 @@ module _top
 
   top TOP(
     .clk        (cpu_clk),
+    .vga_clk    (vga_clk),
     .nrst       (CPU_RESETN),
     .dram_clk   (dram_clk),
     .fl_clk     (fl_clk),
@@ -86,7 +95,12 @@ module _top
     .fl_sclk    (qspi_sclk),
     .fl_ncs     (QSPI_CSN),
     .rx         (UART_TXD_IN),
-    .tx         (UART_RXD_OUT)
+    .tx         (UART_RXD_OUT),
+    .r          (VGA_R),
+    .g          (VGA_G),
+    .b          (VGA_B),
+    .hsync      (VGA_HS),
+    .vsync      (VGA_VS)
   );
 
   assign QSPI_WPN    = 1;
