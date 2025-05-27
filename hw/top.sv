@@ -10,6 +10,7 @@ module top
   import board_pkg::*;
 (
   input  logic                      clk,
+  input  logic                      vga_clk,
   input  logic                      nrst,
 
 `ifdef NEXYS_A7
@@ -40,7 +41,6 @@ module top
   input  logic                      rx,
   output logic                      tx,
 
-  input  logic                      vga_clk,
   output logic [VGA_POSLEN - 1:0]   x,
   output logic [VGA_POSLEN - 1:0]   y,
   output logic [VGA_COLORLEN - 1:0] r,
@@ -185,8 +185,7 @@ module top
   logic                          uart_vmgr_rx_ready;
   logic                          uart_vmgr_tx_busy;
 
-  logic [VGA_POSLEN - 1:0]       vga_vmgr_x;
-  logic [VGA_POSLEN - 1:0]       vga_vmgr_y;
+  logic [VGA_FRAMESZ_LOG - 1:0]  vga_vmgr_pos;
 
 `ifdef SIM
   initial begin
@@ -527,8 +526,7 @@ module top
     .uart_tx_busy  (uart_vmgr_tx_busy),
     .uart_tx_byte  (vmgr_uart_tx_byte),
     .uart_tx_start (vmgr_uart_tx_start),
-    .vga_x         (vga_vmgr_x),
-    .vga_y         (vga_vmgr_y),
+    .vga_pos       (vga_vmgr_pos),
     .vga_r         (vmgr_vga_r),
     .vga_g         (vmgr_vga_g),
     .vga_b         (vmgr_vga_b),
@@ -599,19 +597,18 @@ module top
   );
 
   vga VGA(
-    .vga_clk (vga_clk),
-    .nrst    (nrst),
-    .x       (x),
-    .y       (y),
-    .r       (r),
-    .g       (g),
-    .b       (b),
-    .hsync   (hsync),
-    .vsync   (vsync),
-    .vmgr_r  (vmgr_vga_r),
-    .vmgr_g  (vmgr_vga_g),
-    .vmgr_b  (vmgr_vga_b),
-    .vmgr_x  (vga_vmgr_x),
-    .vmgr_y  (vga_vmgr_y)
+    .vga_clk  (vga_clk),
+    .nrst     (nrst),
+    .x        (x),
+    .y        (y),
+    .r        (r),
+    .g        (g),
+    .b        (b),
+    .hsync    (hsync),
+    .vsync    (vsync),
+    .vmgr_r   (vmgr_vga_r),
+    .vmgr_g   (vmgr_vga_g),
+    .vmgr_b   (vmgr_vga_b),
+    .vmgr_pos (vga_vmgr_pos)
   );
 endmodule

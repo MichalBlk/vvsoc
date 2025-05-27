@@ -4,6 +4,10 @@
 `define SIM 
 
 package board_pkg;
+  /*
+   * VGA
+   */
+  parameter VGA_COLORLEN = 8;
 endpackage
 
 `endif /* !__BOARD_SVH__ */

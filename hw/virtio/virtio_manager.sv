@@ -8,6 +8,7 @@ module virtio_manager
   import isa_pkg::*;
   import virtio_pkg::*;
   import soc_pkg::*;
+  import board_pkg::*;
 (
   input  logic                          clk,
   input  logic                          nrst,
@@ -24,8 +25,7 @@ module virtio_manager
   output logic [BLEN - 1:0]             uart_tx_byte,
   output logic                          uart_tx_start,
 
-  input  logic [VGA_POSLEN - 1:0]       vga_x,
-  input  logic [VGA_POSLEN - 1:0]       vga_y,
+  input  logic [VGA_FRAMESZ_LOG - 1:0]  vga_pos,
   output logic [VGA_COLORLEN - 1:0]     vga_r,
   output logic [VGA_COLORLEN - 1:0]     vga_g,
   output logic [VGA_COLORLEN - 1:0]     vga_b,
@@ -57,53 +57,45 @@ module virtio_manager
   localparam VMGR_UART_RX_FIFO_ADDRLEN   = $clog2(VMGR_UART_RX_FIFOSZ);
   localparam VMGR_UART_RX_FIFO_CNTLEN    = $clog2(VMGR_UART_RX_FIFOSZ + 1);
 
-  localparam VMGR_VGA_FRAME_FIFO_ADDRLEN = $clog2(VMGR_VGA_FRAME_FIFOSZ);
-  localparam VMGR_VGA_FRAME_FIFO_CNTLEN  = $clog2(VMGR_VGA_FRAME_FIFOSZ + 1);
-
   typedef enum logic [1:0] {
     ST_IDLE,
     ST_BUSY,
     ST_FINISH
   } state_t;
 
-  state_t                                   state, state_r;
-  vmgr_dev_t                                dev, dev_r;
-  logic [VMGR_MAXQUEUECNT_LOG - 1:0]        pend_queue_num, pend_queue_num_r;
-  vmgr_exit_code_t                          exit_code, exit_code_r;
-  logic [VMGR_DELAY_CNTLEN - 1:0]           delay_cnt, delay_cnt_r;
-  logic                                     finished;
+  state_t                                 state, state_r;
+  vmgr_dev_t                              dev, dev_r;
+  logic [VMGR_MAXQUEUECNT_LOG - 1:0]      pend_queue_num, pend_queue_num_r;
+  vmgr_exit_code_t                        exit_code, exit_code_r;
+  logic [VMGR_DELAY_CNTLEN - 1:0]         delay_cnt, delay_cnt_r;
+  logic                                   finished;
 
-  logic [BLEN - 1:0]                        uart_rx_fifo [VMGR_UART_RX_FIFOSZ - 1:0],
+  logic [BLEN - 1:0]                      uart_rx_fifo [VMGR_UART_RX_FIFOSZ - 1:0],
     uart_rx_fifo_r [VMGR_UART_RX_FIFOSZ - 1:0];
-  logic [VMGR_UART_RX_FIFO_ADDRLEN - 1:0]   uart_rx_fifo_head, uart_rx_fifo_head_r;
-  logic [VMGR_UART_RX_FIFO_ADDRLEN - 1:0]   uart_rx_fifo_tail, uart_rx_fifo_tail_r;
-  logic [VMGR_UART_RX_FIFO_CNTLEN - 1:0]    uart_rx_fifo_cnt, uart_rx_fifo_cnt_r;
+  logic [VMGR_UART_RX_FIFO_ADDRLEN - 1:0] uart_rx_fifo_head, uart_rx_fifo_head_r;
+  logic [VMGR_UART_RX_FIFO_ADDRLEN - 1:0] uart_rx_fifo_tail, uart_rx_fifo_tail_r;
+  logic [VMGR_UART_RX_FIFO_CNTLEN - 1:0]  uart_rx_fifo_cnt, uart_rx_fifo_cnt_r;
 
-  logic [VGA_COLORLEN - 1:0]
-    vga_frame_fifo_r [VMGR_VGA_FRAME_FIFOSZ - 1:0][VGA_HEIGHT - 1:0][VGA_WIDTH - 1:0];
-  logic [VGA_COLORLEN - 1:0]
-    vga_frame_fifo_g [VMGR_VGA_FRAME_FIFOSZ - 1:0][VGA_HEIGHT - 1:0][VGA_WIDTH - 1:0];
-  logic [VGA_COLORLEN - 1:0]
-    vga_frame_fifo_b [VMGR_VGA_FRAME_FIFOSZ - 1:0][VGA_HEIGHT - 1:0][VGA_WIDTH - 1:0];
-  logic [VMGR_VGA_FRAME_FIFO_ADDRLEN - 1:0] vga_frame_fifo_head, vga_frame_fifo_head_r;
-  logic [VMGR_VGA_FRAME_FIFO_ADDRLEN - 1:0] vga_frame_fifo_tail, vga_frame_fifo_tail_r;
-  logic [VMGR_VGA_FRAME_FIFO_CNTLEN - 1:0]  vga_frame_fifo_cnt, vga_frame_fifo_cnt_r;
-  logic [VGA_POSLEN - 1:0]                  vga_fx, vga_fx_r;
-  logic [VGA_POSLEN - 1:0]                  vga_fy, vga_fy_r;
-  logic                                     vga_rdy, vga_rdy_r;
-  logic                                     vga_update;
-  logic                                     vga_last_pixel;
-  logic                                     vga_stall;
+  logic [VGA_COLORLEN - 1:0]              vga_frame_r [VGA_FRAMESZ - 1:0];
+  logic [VGA_COLORLEN - 1:0]              vga_frame_g [VGA_FRAMESZ - 1:0];
+  logic [VGA_COLORLEN - 1:0]              vga_frame_b [VGA_FRAMESZ - 1:0];
+  logic [VGA_FRAMESZ_LOG - 1:0]           vga_idx, vga_idx_r;
+  logic                                   vga_rdy, vga_rdy_r;
+  logic [VGA_COLORLEN - 1:0]              vga_out_r;
+  logic [VGA_COLORLEN - 1:0]              vga_out_g;
+  logic [VGA_COLORLEN - 1:0]              vga_out_b;
+  logic                                   vga_update;
+  logic                                   vga_last_pixel;
 
   logic [VMGR_QUEUE_NOTIF_CNTLEN - 1:0]
     queue_notif_cnt[VMGR_DEVCNT - 1:0][VMGR_MAXQUEUECNT - 1:0],
     queue_notif_cnt_r[VMGR_DEVCNT - 1:0][VMGR_MAXQUEUECNT - 1:0];
 
-  logic [VCD_QUEUECNT_LOG - 1:0]            vcd_pend_queue_num;
-  logic                                     vcd_pending;
+  logic [VCD_QUEUECNT_LOG - 1:0]          vcd_pend_queue_num;
+  logic                                   vcd_pending;
 
-  logic [VGD_QUEUECNT_LOG - 1:0]            vgd_pend_queue_num;
-  logic                                     vgd_pending;
+  logic [VGD_QUEUECNT_LOG - 1:0]          vgd_pend_queue_num;
+  logic                                   vgd_pending;
 
   /*
    * UART receiving
@@ -158,93 +150,76 @@ module virtio_manager
   logic [VGA_COLORLEN - 1:0] vga_wg;
   logic [VGA_COLORLEN - 1:0] vga_wb;
 
-  assign vga_update               = vsw_wen && vsw_addr == VMGR_REG_VGA_UPDATE;
+  assign vga_update = vsw_wen && vsw_addr == VMGR_REG_VGA_UPDATE;
 
-  assign {vga_wr, vga_wg, vga_wb} = (3 * VGA_COLORLEN)'(vsw_wdata);
+  assign vga_wr     = vsw_wdata[23-:VGA_COLORLEN];
+  assign vga_wg     = vsw_wdata[15-:VGA_COLORLEN];
+  assign vga_wb     = vsw_wdata[7-:VGA_COLORLEN];
 
   always_ff @(posedge clk)
     if (vga_update) begin
-      vga_frame_fifo_r[vga_frame_fifo_tail_r][vga_fy_r][vga_fx_r] <= vga_wr;
-      vga_frame_fifo_g[vga_frame_fifo_tail_r][vga_fy_r][vga_fx_r] <= vga_wg;
-      vga_frame_fifo_b[vga_frame_fifo_tail_r][vga_fy_r][vga_fx_r] <= vga_wb;
+      vga_frame_r[vga_idx_r] <= vga_wr;
+      vga_frame_g[vga_idx_r] <= vga_wg;
+      vga_frame_b[vga_idx_r] <= vga_wb;
     end
 
   /*
    * VGA frame position calculation
    */
-  always_comb begin
-    vga_fx = vga_fx_r;
-    vga_fy = vga_fy_r;
+  assign vga_last_pixel = vga_idx_r == VGA_FRAMESZ - 1;
 
-    if (vga_update && !(vga_last_pixel && vga_stall)) begin
-      if (vga_fx_r == VGA_WIDTH - 1) begin
-        vga_fx = 0;
-        if (vga_fy_r == VGA_HEIGHT - 1)
-          vga_fy = 0;
-        else
-          vga_fy = vga_fy_r + 1;
-      end else
-        vga_fx = vga_fx_r + 1;
+  always_comb begin
+    vga_idx = vga_idx_r;
+
+    if (vga_update) begin
+      if (vga_last_pixel)
+        vga_idx = 0;
+      else
+        vga_idx = vga_idx_r + 1;
     end
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst) begin
-      vga_fx_r <= 0;
-      vga_fy_r <= 0;
-    end else begin
-      vga_fx_r <= vga_fx;
-      vga_fy_r <= vga_fy;
-    end
+    if (!nrst)
+      vga_idx_r <= 0;
+    else
+      vga_idx_r <= vga_idx;
 
   /*
-   * VGA frame fifo management
+   * VGA frame readiness
    */
-  logic vga_flush;
+  logic vga_frame_done;
 
-  assign vga_last_pixel = vga_fx_r == VGA_WIDTH - 1 && vga_fy_r == VGA_HEIGHT - 1;
-  assign vga_stall      = vga_frame_fifo_tail == vga_frame_fifo_tail_r;
-
-  assign vga_flush      = vga_update && vga_last_pixel;
+  assign vga_frame_done = vga_update && vga_last_pixel;
 
   always_comb begin
-    vga_frame_fifo_head = vga_frame_fifo_head_r;
-    vga_frame_fifo_tail = vga_frame_fifo_tail_r;
-    vga_frame_fifo_cnt  = vga_frame_fifo_cnt_r;
-    vga_rdy             = vga_rdy_r;
+    vga_rdy = vga_rdy_r;
 
-    if (vga_y == VGA_HEIGHT && !vga_x) begin
-      if (!vga_rdy_r)
-        vga_rdy = vga_frame_fifo_cnt_r != 0;
-      else if (vga_frame_fifo_cnt_r != 1) begin
-        vga_frame_fifo_head = vga_frame_fifo_head_r + 1;
-        vga_frame_fifo_cnt  = vga_frame_fifo_cnt_r - 1;
-      end
-    end else if (vga_flush && vga_frame_fifo_cnt_r != VMGR_VGA_FRAME_FIFOSZ) begin
-      vga_frame_fifo_tail = vga_frame_fifo_tail_r + 1;
-      vga_frame_fifo_cnt  = vga_frame_fifo_cnt_r + 1;
-    end
+    if (vga_frame_done)
+      vga_rdy = 1;
   end
 
   always_ff @(posedge clk, negedge nrst)
-    if (!nrst) begin
-      vga_frame_fifo_head_r <= 0;
-      vga_frame_fifo_tail_r <= 0;
-      vga_frame_fifo_cnt_r  <= 0;
-      vga_rdy_r             <= 0;
-    end else begin
-      vga_frame_fifo_head_r <= vga_frame_fifo_head;
-      vga_frame_fifo_tail_r <= vga_frame_fifo_tail;
-      vga_frame_fifo_cnt_r  <= vga_frame_fifo_cnt;
-      vga_rdy_r             <= vga_rdy;
-    end
+    if (!nrst)
+      vga_rdy_r <= 0;
+    else
+      vga_rdy_r <= vga_rdy;
+
+  /*
+   * VGA output colors
+   */
+  always_ff @(posedge clk) begin
+    vga_out_r <= vga_frame_r[vga_pos];
+    vga_out_g <= vga_frame_g[vga_pos];
+    vga_out_b <= vga_frame_b[vga_pos];
+  end
 
   /*
    * VGA signals
    */
-  assign vga_r = vga_rdy_r ? vga_frame_fifo_r[vga_frame_fifo_head_r][vga_y][vga_x] : 0;
-  assign vga_g = vga_rdy_r ? vga_frame_fifo_g[vga_frame_fifo_head_r][vga_y][vga_x] : 0;
-  assign vga_b = vga_rdy_r ? vga_frame_fifo_b[vga_frame_fifo_head_r][vga_y][vga_x] : 'hff;
+  assign vga_r = vga_rdy_r ? vga_out_r : 0;
+  assign vga_g = vga_rdy_r ? vga_out_g : 0;
+  assign vga_b = vga_rdy_r ? vga_out_b : {VGA_COLORLEN{1'b1}};
 
   /*
    * Debug console signals
@@ -263,8 +238,7 @@ module virtio_manager
   assign finished  = vsw_wen && vsw_addr == VMGR_REG_FINISH;
 
   assign vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
-  assign vsw_stall = (vsw_addr == VMGR_REG_UART_TX && uart_tx_busy) ||
-    (vga_flush && vga_stall);
+  assign vsw_stall = vsw_addr == VMGR_REG_UART_TX && uart_tx_busy;
 
   /*
    * VirtIO console signals
