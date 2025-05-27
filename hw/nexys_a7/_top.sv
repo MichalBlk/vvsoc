@@ -46,7 +46,7 @@ module _top
   logic       qspi_sclk;
   logic [3:0] dc;
 
-  pll DRAM(
+  pll PLL(
     .clk_in   (CLK100MHZ),
     .clk_cpu  (cpu_clk),
     .clk_dram (dram_clk),
