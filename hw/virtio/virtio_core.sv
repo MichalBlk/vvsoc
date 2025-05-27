@@ -199,6 +199,24 @@ module virtio_core
   end
 
   /*
+   * Program counter handling
+   */
+  always_comb begin
+    pc = pc_r;
+
+    if (state_r == ST_EXE)
+      pc = tkn ? jmp_pc : pc_r + ILENB;
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst)
+      pc_r <= VC_RESET_PC;
+    else if (!vmgr_nsrst)
+      pc_r <= VC_RESET_PC;
+    else
+      pc_r <= pc;
+
+  /*
    * Memory stage
    */
   always_comb begin
@@ -220,21 +238,6 @@ module virtio_core
      opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
      opcode == OPCODE_OP);
 
-  always_comb begin
-    pc = pc_r;
-
-    if (state_r == ST_WB)
-      pc = tkn ? jmp_pc_r : pc_r + ILENB;
-  end
-
-  always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      pc_r <= VC_RESET_PC;
-    else if (!vmgr_nsrst)
-      pc_r <= VC_RESET_PC;
-    else
-      pc_r <= pc;
-
   /*
    * State transitions
    */
@@ -251,11 +254,14 @@ module virtio_core
           state = ST_DEC;
 
       ST_EXE:
-        state = mem_access ? ST_MEM : ST_WB;
+        if (opcode == OPCODE_BRANCH)
+          state = ST_IF;
+        else
+          state = mem_access ? ST_MEM : ST_WB;
 
       ST_MEM:
         if (!vsw_stall)
-          state = ST_WB;
+          state = opcode == OPCODE_STORE ? ST_IF : ST_WB;
 
       ST_WB:
         state = ST_IF;
