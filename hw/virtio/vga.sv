@@ -28,7 +28,7 @@ module vga
   logic [VGA_POSLEN - 1:0]      by, by_r;
   logic [VGA_COLORLEN - 1:0]    br, br_r;
   logic [VGA_COLORLEN - 1:0]    bg, bg_r;
-  logic [VGA_COLORLEN - 1:0]   bb, bb_r;
+  logic [VGA_COLORLEN - 1:0]    bb, bb_r;
   logic [VGA_FRAMESZ_LOG - 1:0] cpos, cpos_r;
   logic [VGA_FRAMESZ_LOG - 1:0] spos, spos_r;
   logic                         chsync;
