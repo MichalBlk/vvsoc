@@ -660,12 +660,16 @@ module app_core
         end else if (mul_r) begin
           if (!mul_stall)
             state = ST_WB;
-        end else
+        end else if (opcode == OPCODE_BRANCH)
+          state = ST_COM;
+        else
           state = mem_access ? ST_MEM1 : ST_WB;
 
       ST_MEM1:
         if (!mmu_stall) begin
           if (mmu_exc_pending)
+            state = ST_COM;
+          else if (opcode == OPCODE_STORE)
             state = ST_COM;
           else
             state = amo_rmw_r ? ST_EXE2 : ST_WB;
