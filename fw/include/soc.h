@@ -48,6 +48,7 @@
 /*
  * Boot memory
  */
+#define BMEMSZ (4 * PAGESZ)
 #define BMEM_START 0x50000000
 
 /*
