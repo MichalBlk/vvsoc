@@ -6,7 +6,7 @@
 /*
  * VirtIO memory
  */
-#define VMEMSZ (4 * PAGESZ)
+#define VMEMSZ (2 * PAGESZ)
 #define VMEM_START 0x10000000
 
 /*
@@ -48,6 +48,7 @@
 /*
  * Boot memory
  */
+#define BMEMSZ PAGESZ
 #define BMEM_START 0x50000000
 
 /*
