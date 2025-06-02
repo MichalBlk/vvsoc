@@ -40,7 +40,7 @@
  */
 #define VGD_START 0x40000000
 
-#define VGD_QUEUE_NUM_MAX 8
+#define VGD_QUEUE_NUM_MAX 32
 
 #define VGA_WIDTH 320
 #define VGA_HEIGHT 240

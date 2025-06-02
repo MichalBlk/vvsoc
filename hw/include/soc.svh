@@ -93,24 +93,22 @@ package soc_pkg;
   /*
    * VirtIO console device
    */
-  parameter         VCD_ADDRLEN         = 12;
-  parameter         VCD_ADDRLENW        = VCD_ADDRLEN - XLENB_LOG;
-  parameter         VCD_QUEUECNT        = 2;
-  parameter         VCD_QUEUECNT_LOG    = $clog2(VCD_QUEUECNT);
-  parameter         VCD_QUEUENUMMAX     = 2;
-  parameter         VCD_QUEUENUMMAX_LOG = $clog2(VCD_QUEUENUMMAX);
-  parameter longint VCD_FEATURES        = 1 << VIRTIO_F_VERSION_1SH;
+  parameter         VCD_ADDRLEN      = 12;
+  parameter         VCD_ADDRLENW     = VCD_ADDRLEN - XLENB_LOG;
+  parameter         VCD_QUEUECNT     = 2;
+  parameter         VCD_QUEUECNT_LOG = $clog2(VCD_QUEUECNT);
+  parameter         VCD_QUEUENUMMAX  = 2;
+  parameter longint VCD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
    * VirtIO GPU device
    */
-  parameter         VGD_ADDRLEN         = 12;
-  parameter         VGD_ADDRLENW        = VGD_ADDRLEN - XLENB_LOG;
-  parameter         VGD_QUEUECNT        = 2;
-  parameter         VGD_QUEUECNT_LOG    = $clog2(VCD_QUEUECNT);
-  parameter         VGD_QUEUENUMMAX     = 8;
-  parameter         VGD_QUEUENUMMAX_LOG = $clog2(VCD_QUEUENUMMAX);
-  parameter longint VGD_FEATURES        = 1 << VIRTIO_F_VERSION_1SH;
+  parameter         VGD_ADDRLEN      = 12;
+  parameter         VGD_ADDRLENW     = VGD_ADDRLEN - XLENB_LOG;
+  parameter         VGD_QUEUECNT     = 2;
+  parameter         VGD_QUEUECNT_LOG = $clog2(VCD_QUEUECNT);
+  parameter         VGD_QUEUENUMMAX  = 32;
+  parameter longint VGD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
    * Boot memory
