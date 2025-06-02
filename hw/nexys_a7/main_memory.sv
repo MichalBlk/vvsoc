@@ -64,7 +64,7 @@ module main_memory
   logic                      dram_done;
   logic                      dram_on;
 
-  dram mem_ex(
+  dram DRAM(
     .clk        (clk),
     .dram_clk   (dram_clk),
     .nrst       (nrst),
