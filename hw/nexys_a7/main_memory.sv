@@ -13,8 +13,7 @@ module main_memory
   input  logic                      dram_clk,
   input  logic                      nrst,
 
-  output logic [XLEN - 1:0]         ac_pte_rdata,
-  output logic                      ac_pte_stall,
+  output logic [XLEN - 1:0]         ac_pte,
 
   input  logic [MMEM_ADDRLEN - 1:0] msw_addr,
   input  logic [XLEN - 1:0]         msw_wdata,
@@ -119,10 +118,10 @@ module main_memory
   logic [XLEN_LOG:0] sizebit;
   logic [XLEN - 1:0] mask;
 
-  assign ac_pte_rdata = rdata_r;
+  assign ac_pte  = rdata_r;
 
-  assign sizebit      = 1 << (size_r + BLEN_LOG);
-  assign mask         = (1 << sizebit) - 1;
+  assign sizebit = 1 << (size_r + BLEN_LOG);
+  assign mask    = (1 << sizebit) - 1;
 
   always_comb
     if (sign_r && (rdata_r >> (sizebit - 1)))
@@ -227,6 +226,5 @@ module main_memory
   /*
    * Other output signals
    */
-  assign ac_pte_stall = state_r != ST_FINISH;
-  assign msw_stall    = state_r != ST_FINISH;
+  assign msw_stall = state_r != ST_FINISH;
 endmodule

@@ -17,11 +17,13 @@ module app_switch
   output logic                       ac_stall,
 
   input  logic [XLEN - 1:0]          vcd_rdata,
+  input  logic                       vcd_stall,
   output logic [VCD_ADDRLEN - 1:0]   vcd_addr,
   output logic [XLEN - 1:0]          vcd_wdata,
   output logic                       vcd_wen,
 
   input  logic [XLEN - 1:0]          vgd_rdata,
+  input  logic                       vgd_stall,
   output logic [VGD_ADDRLEN - 1:0]   vgd_addr,
   output logic [XLEN - 1:0]          vgd_wdata,
   output logic                       vgd_wen,
@@ -110,12 +112,14 @@ module app_switch
     unique0 case (dev)
       DEV_VCD: begin
         ac_rdata = vcd_rdata;
+        ac_stall = vcd_stall;
 
         vcd_wen  = ac_wen;
       end
 
       DEV_VGD: begin
         ac_rdata = vgd_rdata;
+        ac_stall = vgd_stall;
 
         vgd_wen  = ac_wen;
       end

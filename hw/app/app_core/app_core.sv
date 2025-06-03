@@ -22,17 +22,13 @@ module app_core
   output logic                   asw_ren,
   output logic                   asw_wen,
 
-  input  logic [XLEN - 1:0]      mmem_pte_rdata,
-  input  logic                   mmem_pte_stall,
+  input  logic [XLEN - 1:0]      mmem_pte,
 
   input  logic                   vcd_intr_pending,
 
-  input  logic                   vgd_intr_pending,
-
-  input  logic                   vmgr_busy,
-  output logic                   vmgr_stallable
+  input  logic                   vgd_intr_pending
 );
-  typedef enum logic [3:0] {
+  typedef enum logic [2:0] {
     ST_IF,
     ST_DEC,
     ST_EXE1,
@@ -40,8 +36,7 @@ module app_core
     ST_EXE2,
     ST_MEM2,
     ST_WB,
-    ST_COM,
-    ST_VMGR_WAIT
+    ST_COM
   } state_t;
 
   state_t                  state, state_r;
@@ -680,11 +675,7 @@ module app_core
           state = mmu_exc_pending ? ST_COM : ST_WB;
 
       ST_COM:
-        state = vmgr_busy ? ST_VMGR_WAIT : ST_IF;
-
-      ST_VMGR_WAIT:
-        if (!vmgr_busy)
-          state = ST_IF;
+        state = ST_IF;
 
       default: state = state_t'(state_r + 1);
     endcase
@@ -757,12 +748,6 @@ module app_core
     .asw_nsign      (asw_nsign),
     .asw_ren        (asw_ren),
     .asw_wen        (asw_wen),
-    .mmem_pte_rdata (mmem_pte_rdata),
-    .mmem_pte_stall (mmem_pte_stall)
+    .mmem_pte       (mmem_pte)
   );
-
-  /*
-   * VirtIO manager signals
-   */
-  assign vmgr_stallable = state_r == ST_WB;
 endmodule

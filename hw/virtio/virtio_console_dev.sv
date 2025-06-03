@@ -18,6 +18,7 @@ module virtio_console_dev
   input  logic [XLEN - 1:0]             asw_wdata,
   input  logic                          asw_wen,
   output logic [XLEN - 1:0]             asw_rdata,
+  output logic                          asw_stall,
 
   input  logic [VCD_ADDRLEN - 1:0]      vsw_addr,
   input  logic [XLEN - 1:0]             vsw_wdata,
@@ -91,7 +92,9 @@ module virtio_console_dev
     device_features_sel = device_features_sel_r;
     interrupt_status    = interrupt_status_r;
 
-    unique0 if (vsw_wen)
+    if (vmgr_used)
+      interrupt_status = interrupt_status_r | (1 << VIRTIO_INTERRUPT_USED_BUFSH);
+    else if (vsw_wen)
       virtqueue[vsw_addrw] = vsw_wdata;
     else if (asw_wen)
       unique0 case (asw_addr)
@@ -141,8 +144,6 @@ module virtio_console_dev
           else
             virtqueue[VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
       endcase
-    else if (vmgr_used)
-      interrupt_status = interrupt_status_r | (1 << VIRTIO_INTERRUPT_USED_BUFSH);
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -170,11 +171,16 @@ module virtio_console_dev
   assign ac_intr_pending = interrupt_status_r[VIRTIO_INTERRUPT_USED_BUFSH];
 
   /*
+   * Other application switch signals
+   */
+  assign asw_stall = vsw_wen || vmgr_used;
+
+  /*
    * VirtIO manager signals
    */
   assign vmgr_queue_rdy = {virtqueue_r[VIRTQUEUESZW + VIRTQUEUE_READY_OFFW] != 0,
     virtqueue_r[VIRTQUEUE_READY_OFFW] != 0};
   assign vmgr_queue_num = asw_wdata;
-  assign vmgr_notify    = asw_wen && asw_addr == VIRTIO_REG_QUEUE_NOTIFY;
+  assign vmgr_notify    = asw_wen && !asw_stall && asw_addr == VIRTIO_REG_QUEUE_NOTIFY;
   assign vmgr_drvok     = status_r[VIRTIO_STATUS_DRIVER_OKSH];
 endmodule

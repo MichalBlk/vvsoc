@@ -23,6 +23,7 @@ module virtio_core
   output logic                   vsw_wen
 );
   typedef enum logic [2:0] {
+    ST_IDLE,
     ST_IF,
     ST_DEC,
     ST_EXE,
@@ -249,6 +250,9 @@ module virtio_core
     state = state_r;
 
     case (state_r)
+      ST_IDLE:
+        state = ST_IF;
+
       ST_IF:
         if (!vsw_stall)
           state = ST_DEC;
@@ -273,9 +277,9 @@ module virtio_core
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      state_r <= ST_IF;
+      state_r <= ST_IDLE;
     else if (!vmgr_nsrst)
-      state_r <= ST_IF;
+      state_r <= ST_IDLE;
     else
       state_r <= state;
 
