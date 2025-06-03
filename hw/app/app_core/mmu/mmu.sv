@@ -33,8 +33,7 @@ module mmu
   output logic                   asw_ren,
   output logic                   asw_wen,
 
-  input  logic [XLEN - 1:0]      mmem_pte_rdata,
-  input  logic                   mmem_pte_stall
+  input  logic [XLEN - 1:0]      mmem_pte
 );
   typedef enum logic [2:0] {
     ST_TLB,
@@ -183,7 +182,7 @@ module mmu
     l1_pte = l1_pte_r;
 
     if (state_r == ST_L1)
-      l1_pte = mmem_pte_rdata;
+      l1_pte = mmem_pte;
   end
 
   always_ff @(posedge clk)
@@ -205,7 +204,7 @@ module mmu
     l0_pte = l0_pte_r;
 
     if (state_r == ST_L0)
-      l0_pte = mmem_pte_rdata;
+      l0_pte = mmem_pte;
   end
 
   always_ff @(posedge clk)
@@ -365,7 +364,7 @@ module mmu
         end
 
       ST_L1:
-        if (!mmem_pte_stall) begin
+        if (!asw_stall) begin
           if (l1_exc_pending)
             state = ST_FINISH;
           else
@@ -373,11 +372,11 @@ module mmu
         end
 
       ST_L0:
-        if (!mmem_pte_stall)
+        if (!asw_stall)
           state = l0_exc_pending ? ST_FINISH : ST_UPDATE;
 
       ST_UPDATE:
-        if ((sp_r && !l1_needs_update) || (!sp_r && !l0_needs_update) || !mmem_pte_stall)
+        if ((sp_r && !l1_needs_update) || (!sp_r && !l0_needs_update) || !asw_stall)
           state = ST_ACCESS;
 
       ST_ACCESS:
@@ -396,7 +395,7 @@ module mmu
       state_r <= state;
 
   /*
-   * Other application core signals
+   * Application core signals
    */
   assign ac_rdata       = data_r;
   assign ac_exc_code    = exc_code_r;

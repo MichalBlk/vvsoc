@@ -13,8 +13,6 @@ module virtio_manager
   input  logic                          clk,
   input  logic                          nrst,
 
-  input  logic                          ac_stallable,
-
   input  logic [BLEN - 1:0]             dbgc_byte,
   input  logic                          dbgc_wen,
   output logic                          dbgc_stall,
@@ -50,9 +48,7 @@ module virtio_manager
   input  logic [VGD_QUEUECNT_LOG - 1:0] vgd_queue_num,
   input  logic                          vgd_notify,
   input  logic                          vgd_drvok,
-  output logic                          vgd_used,
-
-  output logic                          busy
+  output logic                          vgd_used
 );
   localparam VMGR_UART_RX_FIFO_ADDRLEN   = $clog2(VMGR_UART_RX_FIFOSZ);
   localparam VMGR_UART_RX_FIFO_CNTLEN    = $clog2(VMGR_UART_RX_FIFOSZ + 1);
@@ -268,20 +264,15 @@ module virtio_manager
       for (int j = 0; j < VMGR_MAXQUEUECNT; j++)
         queue_notif_cnt[i][j] = queue_notif_cnt_r[i][j];
 
-    unique0 case (state_r)
-      ST_IDLE: begin
-        if (vcd_notify && !vcd_notif_cnt_max)
-          queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
-            queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
-
-        if (vgd_notify && !vgd_notif_cnt_max)
-          queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] =
-            queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
-      end
-
-      ST_FINISH:
-        queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt[dev_r][pend_queue_num_r] - 1;
-    endcase
+    if (state_r != ST_BUSY || !finished) begin
+      if (vcd_notify && !vcd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
+      else if (vgd_notify && !vgd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
+    end else
+      queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt_r[dev_r][pend_queue_num_r] - 1;
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -396,7 +387,7 @@ module virtio_manager
 
     unique0 case (state_r)
       ST_IDLE:
-        if (ac_stallable && !delay_cnt_r && pending)
+        if (!delay_cnt_r && pending)
           state = ST_BUSY;
 
       ST_BUSY:
@@ -415,26 +406,21 @@ module virtio_manager
       state_r <= state;
 /*
       if (state_r == ST_IDLE && state == ST_BUSY) begin
-        if (dev == VMGR_DEV_VCD) begin
+        if (dev_r == VMGR_DEV_VCD) begin
           $display("[VMGR] waking up to handle the console");
           if (pend_queue_num == 0)
             $display("[VMGR] waking up for receiving");
           else
             $display("[VMGR] waking up for transmitting");
-        end else if (dev == VMGR_DEV_VGD) begin
+        end else if (dev_r == VMGR_DEV_VGD) begin
           $display("[VMGR] waking up to handle the display");
           if (pend_queue_num == 0)
             $display("[VMGR] waking up for control");
           else
             $display("[VMGR] waking up for coursor");
         end
-      end else if (state_r == ST_BUSY && state == ST_FINISH)
-        $display("[VMGR] finished, result=%d", vsw_wdata);
+      end else if (state_r == ST_FINISH)
+        $display("[VMGR] finished, result=%d", exit_code_r);
 */
     end
-
-  /*
-   * Other signals
-   */
-  assign busy = state_r == ST_BUSY;
 endmodule

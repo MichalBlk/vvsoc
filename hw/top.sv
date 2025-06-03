@@ -69,7 +69,6 @@ module top
   logic                          ac_asw_nsign;
   logic                          ac_asw_ren;
   logic                          ac_asw_wen;
-  logic                          ac_vmgr_stallable;
 
   logic [XLEN - 1:0]             asw_ac_rdata;
   logic                          asw_ac_stall;
@@ -111,13 +110,13 @@ module top
   logic                          msw_mmem_ren;
   logic                          msw_mmem_wen;
 
-  logic [XLEN - 1:0]             mmem_ac_pte_rdata;
-  logic                          mmem_ac_pte_stall;
+  logic [XLEN - 1:0]             mmem_ac_pte;
   logic [XLEN - 1:0]             mmem_msw_rdata;
   logic                          mmem_msw_stall;
 
   logic                          vcd_ac_intr_pending;
   logic [XLEN - 1:0]             vcd_asw_rdata;
+  logic                          vcd_asw_stall;
   logic [XLEN - 1:0]             vcd_vsw_rdata;
   logic [VCD_QUEUECNT - 1:0]     vcd_vmgr_queue_rdy;
   logic [VCD_QUEUECNT_LOG - 1:0] vcd_vmgr_queue_num;
@@ -126,6 +125,7 @@ module top
 
   logic                          vgd_ac_intr_pending;
   logic [XLEN - 1:0]             vgd_asw_rdata;
+  logic                          vgd_asw_stall;
   logic [XLEN - 1:0]             vgd_vsw_rdata;
   logic [VGD_QUEUECNT - 1:0]     vgd_vmgr_queue_rdy;
   logic [VGD_QUEUECNT_LOG - 1:0] vgd_vmgr_queue_num;
@@ -176,7 +176,6 @@ module top
   logic                          vmgr_vsw_stall;
   logic                          vmgr_vcd_used;
   logic                          vmgr_vgd_used;
-  logic                          vmgr_busy;
 
   logic [XLEN - 1:0]             vmem_vsw_rdata;
   logic                          vmem_vsw_stall;
@@ -287,12 +286,9 @@ module top
     .asw_nsign          (ac_asw_nsign),
     .asw_ren            (ac_asw_ren),
     .asw_wen            (ac_asw_wen),
-    .mmem_pte_rdata     (mmem_ac_pte_rdata),
-    .mmem_pte_stall     (mmem_ac_pte_stall),
+    .mmem_pte           (mmem_ac_pte),
     .vcd_intr_pending   (vcd_ac_intr_pending),
-    .vgd_intr_pending   (vgd_ac_intr_pending),
-    .vmgr_busy          (vmgr_busy),
-    .vmgr_stallable     (ac_vmgr_stallable)
+    .vgd_intr_pending   (vgd_ac_intr_pending)
   );
 
   app_switch APP_SWITCH(
@@ -305,10 +301,12 @@ module top
     .ac_rdata    (asw_ac_rdata),
     .ac_stall    (asw_ac_stall),
     .vcd_rdata   (vcd_asw_rdata),
+    .vcd_stall   (vcd_asw_stall),
     .vcd_addr    (asw_vcd_addr),
     .vcd_wdata   (asw_vcd_wdata),
     .vcd_wen     (asw_vcd_wen),
     .vgd_rdata   (vgd_asw_rdata),
+    .vgd_stall   (vgd_asw_stall),
     .vgd_addr    (asw_vgd_addr),
     .vgd_wdata   (asw_vgd_wdata),
     .vgd_wen     (asw_vgd_wen),
@@ -343,6 +341,8 @@ module top
   );
 
   main_switch MAIN_SWITCH(
+    .clk        (clk),
+    .nrst       (nrst),
     .asw_addr   (asw_msw_addr),
     .asw_wdata  (asw_msw_wdata),
     .asw_size   (asw_msw_size),
@@ -359,7 +359,6 @@ module top
     .vsw_wen    (vsw_msw_wen),
     .vsw_rdata  (msw_vsw_rdata),
     .vsw_stall  (msw_vsw_stall),
-    .vmgr_busy  (vmgr_busy),
     .mmem_rdata (mmem_msw_rdata),
     .mmem_stall (mmem_msw_stall),
     .mmem_addr  (msw_mmem_addr),
@@ -371,8 +370,7 @@ module top
   );
 
 `ifdef SIM
-  assign mmem_ac_pte_rdata = mmem_msw_rdata;
-  assign mmem_ac_pte_stall = mmem_msw_stall;
+  assign mmem_ac_pte = mmem_msw_rdata;
 
   sim_memory #(
     .SZ    (MMEMSZ)
@@ -390,33 +388,32 @@ module top
   );
 `elsif NEXYS_A7
   main_memory MAIN_MEMORY(
-    .clk          (clk),
-    .dram_clk     (dram_clk),
-    .nrst         (nrst),
-    .ac_pte_rdata (mmem_ac_pte_rdata),
-    .ac_pte_stall (mmem_ac_pte_stall),
-    .msw_addr     (msw_mmem_addr),
-    .msw_wdata    (msw_mmem_wdata),
-    .msw_size     (msw_mmem_size),
-    .msw_nsign    (msw_mmem_nsign),
-    .msw_ren      (msw_mmem_ren),
-    .msw_wen      (msw_mmem_wen),
-    .msw_rdata    (mmem_msw_rdata),
-    .msw_stall    (mmem_msw_stall),
-    .ddr2_addr    (ddr2_addr),
-    .ddr2_ba      (ddr2_ba),
-    .ddr2_cas_n   (ddr2_cas_n),
-    .ddr2_ck_n    (ddr2_ck_n),
-    .ddr2_ck_p    (ddr2_ck_p),
-    .ddr2_cke     (ddr2_cke),
-    .ddr2_ras_n   (ddr2_ras_n),
-    .ddr2_we_n    (ddr2_we_n),
-    .ddr2_dq      (ddr2_dq),
-    .ddr2_dqs_n   (ddr2_dqs_n),
-    .ddr2_dqs_p   (ddr2_dqs_p),
-    .ddr2_cs_n    (ddr2_cs_n),
-    .ddr2_dm      (ddr2_dm),
-    .ddr2_odt     (ddr2_odt)
+    .clk        (clk),
+    .dram_clk   (dram_clk),
+    .nrst       (nrst),
+    .ac_pte     (mmem_ac_pte),
+    .msw_addr   (msw_mmem_addr),
+    .msw_wdata  (msw_mmem_wdata),
+    .msw_size   (msw_mmem_size),
+    .msw_nsign  (msw_mmem_nsign),
+    .msw_ren    (msw_mmem_ren),
+    .msw_wen    (msw_mmem_wen),
+    .msw_rdata  (mmem_msw_rdata),
+    .msw_stall  (mmem_msw_stall),
+    .ddr2_addr  (ddr2_addr),
+    .ddr2_ba    (ddr2_ba),
+    .ddr2_cas_n (ddr2_cas_n),
+    .ddr2_ck_n  (ddr2_ck_n),
+    .ddr2_ck_p  (ddr2_ck_p),
+    .ddr2_cke   (ddr2_cke),
+    .ddr2_ras_n (ddr2_ras_n),
+    .ddr2_we_n  (ddr2_we_n),
+    .ddr2_dq    (ddr2_dq),
+    .ddr2_dqs_n (ddr2_dqs_n),
+    .ddr2_dqs_p (ddr2_dqs_p),
+    .ddr2_cs_n  (ddr2_cs_n),
+    .ddr2_dm    (ddr2_dm),
+    .ddr2_odt   (ddr2_odt)
   );
 `endif
 
@@ -428,6 +425,7 @@ module top
     .asw_wdata       (asw_vcd_wdata),
     .asw_wen         (asw_vcd_wen),
     .asw_rdata       (vcd_asw_rdata),
+    .asw_stall       (vcd_asw_stall),
     .vsw_addr        (vsw_vcd_addr),
     .vsw_wdata       (vsw_vcd_wdata),
     .vsw_wen         (vsw_vcd_wen),
@@ -447,6 +445,7 @@ module top
     .asw_wdata       (asw_vgd_wdata),
     .asw_wen         (asw_vgd_wen),
     .asw_rdata       (vgd_asw_rdata),
+    .asw_stall       (vgd_asw_stall),
     .vsw_addr        (vsw_vgd_addr),
     .vsw_wdata       (vsw_vgd_wdata),
     .vsw_wen         (vsw_vgd_wen),
@@ -517,7 +516,6 @@ module top
   virtio_manager VIRTIO_MANAGER(
     .clk           (clk),
     .nrst          (nrst),
-    .ac_stallable  (ac_vmgr_stallable),
     .dbgc_byte     (dbgc_vmgr_byte),
     .dbgc_wen      (dbgc_vmgr_wen),
     .dbgc_stall    (vmgr_dbgc_stall),
@@ -547,8 +545,7 @@ module top
     .vgd_queue_num (vgd_vmgr_queue_num),
     .vgd_drvok     (vgd_vmgr_drvok),
     .vgd_notify    (vgd_vmgr_notify),
-    .vgd_used      (vmgr_vgd_used),
-    .busy          (vmgr_busy)
+    .vgd_used      (vmgr_vgd_used)
   );
 
 `ifdef SIM
