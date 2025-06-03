@@ -1,9 +1,8 @@
-//`default_nettype none
+`default_nettype none
 
 `include "isa.svh"
 `include "virtio.svh"
 `include "soc.svh"
-`include "board.svh"
 
 module virtio_manager
   import isa_pkg::*;
