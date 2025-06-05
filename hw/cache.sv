@@ -74,7 +74,7 @@ module cache
   logic                           line_valid3 [CACHE_SETCNT - 1:0],
     line_valid3_r [CACHE_SETCNT - 1:0];
 
-  logic [CACHE_LINECNT_LOG - 1:0]  line_nxt [CACHE_SETCNT - 1:0],
+  logic [CACHE_LINECNT_LOG - 1:0] line_nxt [CACHE_SETCNT - 1:0],
     line_nxt_r [CACHE_SETCNT - 1:0];
 
   logic [MMEM_ADDRLEN - 1:0]      addr, addr_r;
