@@ -402,25 +402,6 @@ module virtio_manager
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
       state_r <= ST_IDLE;
-    else begin
+    else
       state_r <= state;
-/*
-      if (state_r == ST_IDLE && state == ST_BUSY) begin
-        if (dev_r == VMGR_DEV_VCD) begin
-          $display("[VMGR] waking up to handle the console");
-          if (pend_queue_num == 0)
-            $display("[VMGR] waking up for receiving");
-          else
-            $display("[VMGR] waking up for transmitting");
-        end else if (dev_r == VMGR_DEV_VGD) begin
-          $display("[VMGR] waking up to handle the display");
-          if (pend_queue_num == 0)
-            $display("[VMGR] waking up for control");
-          else
-            $display("[VMGR] waking up for coursor");
-        end
-      end else if (state_r == ST_FINISH)
-        $display("[VMGR] finished, result=%d", exit_code_r);
-*/
-    end
 endmodule

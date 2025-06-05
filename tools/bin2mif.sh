@@ -1,6 +1,6 @@
 #! /bin/bash
 
-in=$(basename -- "$1")
+in=$(basename -- "$2")
 out="${in%.*}.mif"
 
-od -An -vtx4 -w4 $1 | cut -c2- > $out
+od -An -vtx$1 -w$1 $2 | cut -c2- > $out
