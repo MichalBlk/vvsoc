@@ -19,13 +19,6 @@ module main_memory
   output logic [MMEM_DATALEN - 1:0] cache_rdata,
   output logic                      cache_stall
 );
-  typedef enum logic {
-    ST_IDLE,
-    ST_BUSY
-  } state_t;
-
-  state_t state, state_r;
-
   logic [MMEM_DATALEN - 1:0]  mem [MMEMSZW - 1:0];
 
   logic [MMEM_ADDRWLEN - 1:0] addrw;
@@ -40,33 +33,12 @@ module main_memory
   /*
    * Writing
    */
-  always_ff @(posedge clk) begin
-    if (state_r == ST_BUSY && cache_wen)
+  always_ff @(posedge clk)
+    if (cache_wen)
       mem[addrw] <= cache_wdata;
-  end
-
-  always_comb begin
-    state = state_r;
-
-    case (state_r)
-      ST_IDLE:
-        if (cache_ren || cache_wen)
-          state = ST_BUSY;
-
-      ST_BUSY:
-        state = ST_IDLE;
-    endcase
-  end
-
-  always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      state_r <= ST_IDLE;
-    else
-      state_r <= state;
 
   /*
    * Other signals
    */
-  //assign cache_stall = 0;
-  assign cache_stall = state_r == ST_IDLE;
+  assign cache_stall = 0;
 endmodule
