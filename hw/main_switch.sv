@@ -28,14 +28,14 @@ module main_switch
   output logic [XLEN - 1:0]         vsw_rdata,
   output logic                      vsw_stall,
 
-  input  logic [XLEN - 1:0]         mmem_rdata,
-  input  logic                      mmem_stall,
-  output logic [MMEM_ADDRLEN - 1:0] mmem_addr,
-  output logic [XLEN - 1:0]         mmem_wdata,
-  output logic [XLENB_LOG - 1:0]    mmem_size,
-  output logic                      mmem_nsign,
-  output logic                      mmem_ren,
-  output logic                      mmem_wen
+  input  logic [XLEN - 1:0]         cache_rdata,
+  input  logic                      cache_stall,
+  output logic [MMEM_ADDRLEN - 1:0] cache_addr,
+  output logic [XLEN - 1:0]         cache_wdata,
+  output logic [XLENB_LOG - 1:0]    cache_size,
+  output logic                      cache_nsign,
+  output logic                      cache_ren,
+  output logic                      cache_wen
 );
   typedef enum logic [1:0] {
     ST_IDLE,
@@ -62,7 +62,7 @@ module main_switch
         state = ST_APP;
       else if (vsw_pending)
         state = ST_VIRTIO;
-    end else if (!mmem_stall)
+    end else if (!cache_stall)
       state = ST_IDLE;
   end
 
@@ -75,32 +75,32 @@ module main_switch
   /*
    * Application switch signals
    */
-  assign asw_rdata = mmem_rdata;
-  assign asw_stall = state_r != ST_APP || mmem_stall;
+  assign asw_rdata = cache_rdata;
+  assign asw_stall = state_r != ST_APP || cache_stall;
 
   /*
    * VirtIO switch signals
    */
-  assign vsw_rdata = mmem_rdata;
-  assign vsw_stall = state_r != ST_VIRTIO || mmem_stall;
+  assign vsw_rdata = cache_rdata;
+  assign vsw_stall = state_r != ST_VIRTIO || cache_stall;
 
   /*
-   * Main memory signals
+   * Cache signals
    */
   always_comb
     if (state == ST_APP) begin
-      mmem_addr  = asw_addr;
-      mmem_wdata = asw_wdata;
-      mmem_size  = asw_size;
-      mmem_nsign = asw_nsign;
-      mmem_ren   = asw_ren;
-      mmem_wen   = asw_wen;
+      cache_addr  = asw_addr;
+      cache_wdata = asw_wdata;
+      cache_size  = asw_size;
+      cache_nsign = asw_nsign;
+      cache_ren   = asw_ren;
+      cache_wen   = asw_wen;
     end else begin
-      mmem_addr  = vsw_addr;
-      mmem_wdata = vsw_wdata;
-      mmem_size  = vsw_size;
-      mmem_nsign = vsw_nsign;
-      mmem_ren   = vsw_ren;
-      mmem_wen   = vsw_wen;
+      cache_addr  = vsw_addr;
+      cache_wdata = vsw_wdata;
+      cache_size  = vsw_size;
+      cache_nsign = vsw_nsign;
+      cache_ren   = vsw_ren;
+      cache_wen   = vsw_wen;
     end
 endmodule

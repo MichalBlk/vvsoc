@@ -13,16 +13,12 @@ module main_memory
   input  logic                      dram_clk,
   input  logic                      nrst,
 
-  output logic [XLEN - 1:0]         ac_pte,
-
-  input  logic [MMEM_ADDRLEN - 1:0] msw_addr,
-  input  logic [XLEN - 1:0]         msw_wdata,
-  input  logic [XLENB_LOG - 1:0]    msw_size,
-  input  logic                      msw_nsign,
-  input  logic                      msw_ren,
-  input  logic                      msw_wen,
-  output logic [XLEN - 1:0]         msw_rdata,
-  output logic                      msw_stall,
+  input  logic [MMEM_ADDRLEN - 1:0] cache_addr,
+  input  logic [MMEM_DATALEN - 1:0] cache_wdata,
+  input  logic                      cache_ren,
+  input  logic                      cache_wen,
+  output logic [MMEM_DATALEN - 1:0] cache_rdata,
+  output logic                      cache_stall,
 
   inout  logic [DDR2_DQLEN - 1:0]   ddr2_dq,
   inout  logic [DDR2_DQSLEN - 1:0]  ddr2_dqs_n,
@@ -51,15 +47,12 @@ module main_memory
   state_t                    state, state_r;
 
   logic [MMEM_ADDRLEN - 1:0] addr, addr_r;
-  logic [XLENB_LOG - 1:0]    size, size_r;
-  logic                      sign, sign_r;
-
-  logic [XLEN - 1:0]         rdata, rdata_r;
-  logic [XLEN - 1:0]         wdata, wdata_r;
+  logic [MMEM_DATALEN - 1:0] rdata, rdata_r;
+  logic [MMEM_DATALEN - 1:0] wdata, wdata_r;
   logic                      ren, ren_r;
   logic                      wen, wen_r;
 
-  logic [XLEN - 1:0]         dram_rdata;
+  logic [MMEM_DATALEN - 1:0] dram_rdata;
   logic                      dram_done;
   logic                      dram_on;
 
@@ -68,7 +61,6 @@ module main_memory
     .dram_clk   (dram_clk),
     .nrst       (nrst),
     .mmem_addr  (addr_r),
-    .mmem_size  (size_r),
     .mmem_wdata (wdata_r),
     .mmem_ren   (ren_r),
     .mmem_wen   (wen_r),
@@ -95,40 +87,23 @@ module main_memory
    * Input buffering
    */
   always_comb begin
-    addr = addr_r;
-    size = size_r;
-    sign = sign_r;
+    addr  = addr_r;
+    wdata = wdata_r;
 
     if (state_r == ST_IDLE) begin
-      addr = msw_addr;
-      size = msw_size;
-      sign = !msw_nsign;
+      addr  = cache_addr;
+      wdata = cache_wdata;
     end
   end
 
   always_ff @(posedge clk) begin
-    addr_r <= addr;
-    size_r <= size;
-    sign_r <= sign;
+    addr_r  <= addr;
+    wdata_r <= wdata;
   end
 
   /*
    * Reading
    */
-  logic [XLEN_LOG:0] sizebit;
-  logic [XLEN - 1:0] mask;
-
-  assign ac_pte  = rdata_r;
-
-  assign sizebit = 1 << (size_r + BLEN_LOG);
-  assign mask    = (1 << sizebit) - 1;
-
-  always_comb
-    if (sign_r && (rdata_r >> (sizebit - 1)))
-      msw_rdata = rdata_r | ~mask;
-    else
-      msw_rdata = rdata_r & mask;
-
   always_comb begin
     rdata = rdata_r;
     ren   = ren_r;
@@ -159,13 +134,9 @@ module main_memory
    * Writing
    */ 
   always_comb begin
-    wdata = wdata_r;
-    wen   = wen_r;
+    wen = wen_r;
 
     unique0 case (state_r)
-      ST_IDLE:
-        wdata = msw_wdata;
-
       ST_WRITE:
         if (dram_on)
           wen = 1;
@@ -178,10 +149,8 @@ module main_memory
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
       wen_r <= 0;
-    else begin
-      wdata_r <= wdata;
-      wen_r   <= wen;
-    end
+    else
+      wen_r <= wen;
 
   /*
    * State transitions
@@ -191,9 +160,9 @@ module main_memory
 
     unique0 case (state_r)
       ST_IDLE:
-        if (msw_ren)
+        if (cache_ren)
           state = ST_READ;
-        else if (msw_wen)
+        else if (cache_wen)
           state = ST_WRITE;
 
       ST_READ:
@@ -224,7 +193,8 @@ module main_memory
       state_r <= state;
 
   /*
-   * Other output signals
+   * Cache signals
    */
-  assign msw_stall = state_r != ST_FINISH;
+  assign cache_rdata = rdata_r;
+  assign cache_stall = state_r != ST_FINISH;
 endmodule

@@ -14,11 +14,10 @@ module dram
   input  logic                      nrst,
 
   input  logic [MMEM_ADDRLEN - 1:0] mmem_addr,
-  input  logic [XLEN - 1:0]         mmem_wdata,
-  input  logic [XLENB_LOG - 1:0]    mmem_size,
+  input  logic [MMEM_DATALEN - 1:0] mmem_wdata,
   input  logic                      mmem_ren,
   input  logic                      mmem_wen,
-  output logic [XLEN - 1:0]         mmem_rdata,
+  output logic [MMEM_DATALEN - 1:0] mmem_rdata,
   output logic                      mmem_done,
   output logic                      mmem_on,
 
@@ -37,14 +36,16 @@ module dram
   output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
   output logic                      ddr2_odt
 );
-  localparam MIG_ADDRLEN = 27;
+  localparam DRAM_DATALEN = MMEM_DATALEN / 2;
+  localparam MIG_ADDRLEN  = 27;
 
   typedef enum logic [2:0] {
     ST_IDLE,
     ST_PREREAD,
     ST_READ,
     ST_PREWRITE,
-    ST_WRITE
+    ST_WRITE_L,
+    ST_WRITE_H
   } state_t;
 
   typedef enum logic [2:0] {
@@ -52,32 +53,31 @@ module dram
     CMD_READ
   } cmd_t;
 
-  state_t                   state, state_r;
+  state_t                    state, state_r;
 
-  cmd_t                     cmd, cmd_r;
-  logic                     en, en_r;
-  logic                     finished, finished_r;
-  logic [DXLEN - 1:0]       rdata, rdata_r;
-  logic [DXLEN - 1:0]       wdata, wdata_r;
-  logic [DXLENB - 1:0]      wmask, wmask_r;
-  logic                     wend, wend_r;
-  logic                     wren, wren_r;
+  cmd_t                      cmd, cmd_r;
+  logic                      en, en_r;
+  logic                      finished, finished_r;
+  logic [MMEM_DATALEN - 1:0] rdata, rdata_r;
+  logic [DRAM_DATALEN - 1:0] wdata, wdata_r;
+  logic                      wend, wend_r;
+  logic                      wren, wren_r;
 
-  logic                     fs_ren;
-  logic                     fs_wen;
-  logic                     fs_finished;
+  logic                      fs_ren;
+  logic                      fs_wen;
+  logic                      fs_finished;
 
-  logic                     ffs_on;
+  logic                      ffs_on;
 
-  logic [MIG_ADDRLEN - 1:0] mig_addr;
-  logic [DXLEN - 1:0]       mig_rdata;
-  logic                     mig_rend;
-  logic                     mig_rvalid;
-  logic                     mig_rdy;
-  logic                     mig_wrdy;
-  logic                     mig_ui_clk;
-  logic                     mig_ui_srst;
-  logic                     mig_ui_nrst;
+  logic [MIG_ADDRLEN - 1:0]  mig_addr;
+  logic [DRAM_DATALEN - 1:0] mig_rdata;
+  logic                      mig_rend;
+  logic                      mig_rvalid;
+  logic                      mig_rdy;
+  logic                      mig_wrdy;
+  logic                      mig_ui_clk;
+  logic                      mig_ui_srst;
+  logic                      mig_ui_nrst;
 
   flag_sync REN_SYNC(
     .src_clk  (clk),
@@ -116,7 +116,6 @@ module dram
     .res  (ffs_on)
   );
 
-  assign mig_addr    = {mmem_addr[MMEM_ADDRLEN - 1:DXLENB_LOG], {DXLENB_LOG{1'b0}}};
   assign mig_ui_nrst = !mig_ui_srst;
 
   mig MIG(
@@ -134,12 +133,12 @@ module dram
     .ddr2_cs_n           (ddr2_cs_n),
     .ddr2_dm             (ddr2_dm),
     .ddr2_odt            (ddr2_odt),
-    .app_addr            (mig_addr),
+    .app_addr            (mmem_addr),
     .app_cmd             (cmd_r),
     .app_en              (en_r),
     .app_wdf_data        (wdata_r),
     .app_wdf_end         (wend_r),
-    .app_wdf_mask        (wmask_r),
+    .app_wdf_mask        (8'h00),
     .app_wdf_wren        (wren_r),
     .app_rd_data         (mig_rdata),
     .app_rd_data_end     (mig_rend),
@@ -165,34 +164,12 @@ module dram
   always_comb begin
     rdata = rdata_r;
 
-    if (mig_rvalid && ((state_r == ST_PREREAD && mig_rdy) || state_r == ST_READ) && !mig_rend)
-      unique0 case (mmem_size)
-        0:
-          case (mmem_addr[DXLENB_LOG - 1:0])
-            0: rdata = mig_rdata[7:0];
-            1: rdata = mig_rdata[15:8];
-            2: rdata = mig_rdata[23:16];
-            3: rdata = mig_rdata[31:24];
-            4: rdata = mig_rdata[39:32];
-            5: rdata = mig_rdata[47:40];
-            6: rdata = mig_rdata[55:48];
-            7: rdata = mig_rdata[63:56];
-          endcase
-
-        1:
-          case (mmem_addr[DXLENB_LOG - 1:1])
-            0: rdata = mig_rdata[15:0];
-            1: rdata = mig_rdata[31:16];
-            2: rdata = mig_rdata[47:32];
-            3: rdata = mig_rdata[63:48];
-          endcase
-
-        2:
-          case (mmem_addr[DXLENB_LOG - 1:2])
-            0: rdata = mig_rdata[31:0];
-            1: rdata = mig_rdata[63:32];
-          endcase
-      endcase
+    if (mig_rvalid && ((state_r == ST_PREREAD && mig_rdy) || state_r == ST_READ)) begin
+      if (!mig_rend)
+        rdata[0+:DRAM_DATALEN] = mig_rdata;
+      else
+        rdata[DRAM_DATALEN+:DRAM_DATALEN] = mig_rdata;
+    end
   end
 
   always_ff @(posedge mig_ui_clk)
@@ -234,7 +211,6 @@ module dram
    */
   always_comb begin
     wdata = wdata_r;
-    wmask = wmask_r;
     wend  = wend_r;
     wren  = wren_r;
 
@@ -242,51 +218,19 @@ module dram
       ST_IDLE:
         wren = 0;
 
-      ST_WRITE:
+      ST_WRITE_L:
         if (mig_wrdy) begin
-          wdata = {mmem_wdata, mmem_wdata};
-
-          unique0 case (mmem_size)
-            0: begin
-              wdata = {mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0],
-                mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0], mmem_wdata[7:0]};
-
-              case (mmem_addr[DXLENB_LOG - 1:0])
-                0: wmask = 8'b11111110;
-                1: wmask = 8'b11111101;
-                2: wmask = 8'b11111011;
-                3: wmask = 8'b11110111;
-                4: wmask = 8'b11101111;
-                5: wmask = 8'b11011111;
-                6: wmask = 8'b10111111;
-                7: wmask = 8'b01111111;
-              endcase
-            end
-
-            1: begin
-              wdata = {mmem_wdata[15:0], mmem_wdata[15:0], mmem_wdata[15:0], mmem_wdata[15:0]};
-
-              case (mmem_addr[DXLENB_LOG - 1:1])
-                0: wmask = 8'b11111100;
-                1: wmask = 8'b11110011;
-                2: wmask = 8'b11001111;
-                3: wmask = 8'b00111111;
-              endcase
-            end
-
-            2: begin
-              wdata = {mmem_wdata[31:0], mmem_wdata[31:0]};
-
-              case (mmem_addr[DXLENB_LOG - 1:2])
-                0: wmask = 8'b11110000;
-                1: wmask = 8'b00001111;
-              endcase
-            end
-          endcase
-
-          wend = 1;
-          wren = 1;
+          wdata = mmem_wdata[0+:DRAM_DATALEN];
+          wend  = 0;
+          wren  = 1;
         end 
+
+      ST_WRITE_H:
+        if (mig_wrdy) begin
+          wdata = mmem_wdata[DRAM_DATALEN+:DRAM_DATALEN];
+          wend  = 1;
+          wren  = 1;
+        end
     endcase
   end
 
@@ -295,7 +239,6 @@ module dram
       wren_r <= 0;
     else begin
       wdata_r <= wdata;
-      wmask_r <= wmask;
       wend_r  <= wend;
       wren_r  <= wren;
     end
@@ -329,9 +272,13 @@ module dram
 
       ST_PREWRITE:
         if (mig_rdy)
-          state = ST_WRITE;
+          state = ST_WRITE_L;
 
-      ST_WRITE:
+      ST_WRITE_L:
+        if (mig_wrdy)
+          state = ST_WRITE_H;
+
+      ST_WRITE_H:
         if (mig_wrdy) begin
           state    = ST_IDLE;
           finished = 1;

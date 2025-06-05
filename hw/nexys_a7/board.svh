@@ -5,6 +5,11 @@
 
 package board_pkg;
   /*
+   * Main memory
+   */
+  parameter MMEM_DATALEN  = 128;
+
+  /*
    * DRAM
    */
   parameter DDR2_DQLEN   = 16;

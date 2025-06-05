@@ -22,7 +22,7 @@ module app_core
   output logic                   asw_ren,
   output logic                   asw_wen,
 
-  input  logic [XLEN - 1:0]      mmem_pte,
+  input  logic [XLEN - 1:0]      cache_pte,
 
   input  logic                   vcd_intr_pending,
 
@@ -748,6 +748,6 @@ module app_core
     .asw_nsign      (asw_nsign),
     .asw_ren        (asw_ren),
     .asw_wen        (asw_wen),
-    .mmem_pte       (mmem_pte)
+    .cache_pte      (cache_pte)
   );
 endmodule

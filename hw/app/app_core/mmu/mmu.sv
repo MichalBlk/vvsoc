@@ -33,7 +33,7 @@ module mmu
   output logic                   asw_ren,
   output logic                   asw_wen,
 
-  input  logic [XLEN - 1:0]      mmem_pte
+  input  logic [XLEN - 1:0]      cache_pte
 );
   typedef enum logic [2:0] {
     ST_TLB,
@@ -182,7 +182,7 @@ module mmu
     l1_pte = l1_pte_r;
 
     if (state_r == ST_L1)
-      l1_pte = mmem_pte;
+      l1_pte = cache_pte;
   end
 
   always_ff @(posedge clk)
@@ -204,7 +204,7 @@ module mmu
     l0_pte = l0_pte_r;
 
     if (state_r == ST_L0)
-      l0_pte = mmem_pte;
+      l0_pte = cache_pte;
   end
 
   always_ff @(posedge clk)

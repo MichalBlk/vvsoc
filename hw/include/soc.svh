@@ -5,11 +5,13 @@
 `include "board.svh"
 
 package soc_pkg;
+  import isa_pkg::BLEN_LOG;
   import isa_pkg::XLEN;
   import isa_pkg::XLENB_LOG;
   import isa_pkg::PAGESZ;
   import isa_pkg::PNLEN;
   import virtio_pkg::VIRTIO_F_VERSION_1SH;
+  import board_pkg::MMEM_DATALEN;
 
   /*
    * Device types
@@ -127,20 +129,46 @@ package soc_pkg;
   parameter CLINT_REG_MTIMEH    = 'hbffc;
 
   /*
+   * Cache
+   */
+  parameter CACHE_SETCNT       = 16;
+  parameter CACHE_SETCNT_LOG   = $clog2(CACHE_SETCNT);
+
+  parameter CACHE_LINECNT      = 4;
+  parameter CACHE_LINECNT_LOG  = $clog2(CACHE_LINECNT);
+
+  parameter CACHE_LINELEN      = 512;
+  parameter CACHE_LINELENB     = CACHE_LINELEN >> BLEN_LOG;
+  parameter CACHE_LINELEN_LOG  = $clog2(CACHE_LINELEN);
+  parameter CACHE_LINELENB_LOG = $clog2(CACHE_LINELENB);
+
+  parameter CACHE_OFFSETLEN    = CACHE_LINELENB_LOG;
+  parameter CACHE_TAGLEN       = MMEM_ADDRLEN - (CACHE_SETCNT_LOG + CACHE_OFFSETLEN);
+
+  parameter CACHE_MMEM_CYCLES  = CACHE_LINELEN / MMEM_DATALEN;
+  parameter CACHE_MMEM_CNTLEN  = $clog2(CACHE_MMEM_CYCLES);
+
+  /*
    * Main memory
    */
+  parameter MMEM_DATALENB     = MMEM_DATALEN >> BLEN_LOG;
+  parameter MMEM_DATALENB_LOG = $clog2(MMEM_DATALENB);
+
   parameter MMEMSZ            = 'h3200000;
+  parameter MMEMSZW           = MMEMSZ >> MMEM_DATALENB_LOG;
   parameter MMEM_ADDRLEN      = $clog2(MMEMSZ);
+
+  parameter MMEM_ADDRWLEN     = MMEM_ADDRLEN - MMEM_DATALENB_LOG;
 
   parameter MMEM_KERNEL_OFF   = 'h0000000;
   parameter MMEM_OPENSBI_OFF  = 'h1000000;
   parameter MMEM_DTB_OFF      = 'h1100000;
   parameter MMEM_INITRD_OFF   = 'h2000000;
 
-  parameter MMEM_KERNEL_OFFW  = MMEM_KERNEL_OFF >> XLENB_LOG;
-  parameter MMEM_OPENSBI_OFFW = MMEM_OPENSBI_OFF >> XLENB_LOG;
-  parameter MMEM_DTB_OFFW     = MMEM_DTB_OFF >> XLENB_LOG;
-  parameter MMEM_INITRD_OFFW  = MMEM_INITRD_OFF >> XLENB_LOG;
+  parameter MMEM_KERNEL_OFFW  = MMEM_KERNEL_OFF >> MMEM_DATALENB_LOG;
+  parameter MMEM_OPENSBI_OFFW = MMEM_OPENSBI_OFF >> MMEM_DATALENB_LOG;
+  parameter MMEM_DTB_OFFW     = MMEM_DTB_OFF >> MMEM_DATALENB_LOG;
+  parameter MMEM_INITRD_OFFW  = MMEM_INITRD_OFF >> MMEM_DATALENB_LOG;
 
   /*
    * Flash memory
