@@ -209,7 +209,7 @@ package soc_pkg;
   /*
    * Clock
    */
-  parameter CLK_FREQ = 50000000;
+  parameter CLK_FREQ = 100000000;
 endpackage
 
 `endif /* !__SOC_SVH__ */
