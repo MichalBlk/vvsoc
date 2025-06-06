@@ -7,7 +7,7 @@
   chosen {
     bootargs = "init=/bin/ksh";
     linux,initrd-start = <0x82000000>;
-    linux,initrd-end = <0x82300000>;
+    linux,initrd-end = <0x82341800>;
   };
 
   cpus {
