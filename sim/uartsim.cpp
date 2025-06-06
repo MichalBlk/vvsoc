@@ -102,9 +102,7 @@ UARTSIM::UARTSIM(const int port) {
 		m_conwr = STDOUT_FILENO;
 	} else
 		setup_listener(port);
-//	setup(25);	// Set us up for (default) 8N1 w/ a baud rate of CLK/25
-//  setup(0x08001458);
-  setup(0x080001b2);
+	setup(25);	// Set us up for (default) 8N1 w/ a baud rate of CLK/25
 	m_rx_baudcounter = 0;
 	m_tx_baudcounter = 0;
 	m_rx_state = RXIDLE;
