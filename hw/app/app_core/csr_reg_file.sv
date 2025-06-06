@@ -254,13 +254,12 @@ module csr_reg_file
     stval      = stval_r;
     satp       = satp_r;
 
-    cycle      = cycle_r;
+    cycle      = cycle_r + 1;
     instret    = instret_r;
 
     if (ac_com) begin
       mip     = _mip;
 
-      cycle   = cycle_r + 1;
       instret = instret_r + 1;
 
       if (ac_exc_pending) begin
