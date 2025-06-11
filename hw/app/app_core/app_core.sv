@@ -26,7 +26,9 @@ module app_core
 
   input  logic                   vcd_intr_pending,
 
-  input  logic                   vgd_intr_pending
+  input  logic                   vgd_intr_pending,
+
+  input  logic                   vkd_intr_pending
 );
   typedef enum logic [2:0] {
     ST_IF,
@@ -47,6 +49,7 @@ module app_core
   logic                    bclint_intr_pending, bclint_intr_pending_r;
   logic                    bvcd_intr_pending, bvcd_intr_pending_r;
   logic                    bvgd_intr_pending, bvgd_intr_pending_r;
+  logic                    bvkd_intr_pending, bvkd_intr_pending_r;
 
   logic [ILEN - 1:0]       inst, inst_r;
   logic [OPCODELEN - 1:0]  opcode;
@@ -119,11 +122,13 @@ module app_core
     bclint_intr_pending = bclint_intr_pending_r;
     bvcd_intr_pending   = bvcd_intr_pending_r;
     bvgd_intr_pending   = bvgd_intr_pending_r;
+    bvkd_intr_pending   = bvkd_intr_pending_r;
 
     if (state_r == ST_IF) begin
       bclint_intr_pending = clint_intr_pending;
       bvcd_intr_pending   = vcd_intr_pending;
       bvgd_intr_pending   = vgd_intr_pending;
+      bvkd_intr_pending   = vkd_intr_pending;
     end
   end
 
@@ -131,6 +136,7 @@ module app_core
     bclint_intr_pending_r <= bclint_intr_pending;
     bvcd_intr_pending_r   <= bvcd_intr_pending;
     bvgd_intr_pending_r   <= bvgd_intr_pending;
+    bvkd_intr_pending_r   <= bvkd_intr_pending;
   end
 
   /*
@@ -241,7 +247,8 @@ module app_core
     .ac_intr_handling   (csrrf_intr_handling),
     .clint_intr_pending (bclint_intr_pending_r),
     .vcd_intr_pending   (bvcd_intr_pending_r),
-    .vgd_intr_pending   (bvgd_intr_pending_r)
+    .vgd_intr_pending   (bvgd_intr_pending_r),
+    .vkd_intr_pending   (bvkd_intr_pending_r)
   );
 
   imm_gen IMM_GEN(

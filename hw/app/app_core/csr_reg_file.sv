@@ -32,7 +32,9 @@ module csr_reg_file
 
   input  logic                vcd_intr_pending,
 
-  input  logic                vgd_intr_pending
+  input  logic                vgd_intr_pending,
+
+  input  logic                vkd_intr_pending
 );
   priv_t               priv, priv_r;
 
@@ -178,10 +180,12 @@ module csr_reg_file
   always_comb begin
     intr_code = 'bx;
 
-    if (active_intrs[PD0I])
-      intr_code = PD0I;
+    if (active_intrs[PD2I])
+      intr_code = PD2I;
     else if (active_intrs[PD1I])
       intr_code = PD1I;
+    else if (active_intrs[PD0I])
+      intr_code = PD0I;
     else if (active_intrs[MTI])
       intr_code = MTI;
     else if (active_intrs[STI])
@@ -197,6 +201,7 @@ module csr_reg_file
     _mip[MTI]  = clint_intr_pending;
     _mip[PD0I] = vcd_intr_pending;
     _mip[PD1I] = vgd_intr_pending;
+    _mip[PD2I] = vkd_intr_pending;
   end
 
   assign _csr_m_mstatus = ac_wdata & MSTATUS_MASK;

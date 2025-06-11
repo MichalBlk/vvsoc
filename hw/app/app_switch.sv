@@ -28,6 +28,12 @@ module app_switch
   output logic [XLEN - 1:0]          vgd_wdata,
   output logic                       vgd_wen,
 
+  input  logic [XLEN - 1:0]          vkd_rdata,
+  input  logic                       vkd_stall,
+  output logic [VKD_ADDRLEN - 1:0]   vkd_addr,
+  output logic [XLEN - 1:0]          vkd_wdata,
+  output logic                       vkd_wen,
+
   input  logic [XLEN - 1:0]          bmem_rdata,
   input  logic                       bmem_stall,
   output logic [BMEM_ADDRLEN- 1:0]   bmem_addr,
@@ -71,6 +77,9 @@ module app_switch
   assign vgd_addr    = ac_addr;
   assign vgd_wdata   = ac_wdata;
 
+  assign vkd_addr    = ac_addr;
+  assign vkd_wdata   = ac_wdata;
+
   assign bmem_addr   = ac_addr;
   assign bmem_wdata  = ac_wdata;
   assign bmem_size   = ac_size;
@@ -97,6 +106,8 @@ module app_switch
 
     vgd_wen   = 0;
 
+    vkd_wen   = 0;
+
     bmem_ren  = 0;
     bmem_wen  = 0;
 
@@ -122,6 +133,13 @@ module app_switch
         ac_stall = vgd_stall;
 
         vgd_wen  = ac_wen;
+      end
+
+      DEV_VKD: begin
+        ac_rdata = vkd_rdata;
+        ac_stall = vkd_stall;
+
+        vkd_wen  = ac_wen;
       end
 
       DEV_BMEM: begin

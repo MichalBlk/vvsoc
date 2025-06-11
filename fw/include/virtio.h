@@ -100,4 +100,10 @@ typedef struct {
 #define VIRTIO_GPU_CTRL_QUEUE_NUM 0
 #define VIRTIO_GPU_CURS_QUEUE_NUM 1
 
+/*
+ * VirtIO input
+ */
+#define VIRTIO_INPUT_EVENT_QUEUE_NUM 0
+#define VIRTIO_INPUT_STATUS_QUEUE_NUM 1
+
 #endif /* !__VIRTIO_H__ */

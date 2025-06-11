@@ -14,6 +14,7 @@
 #define VRVSOC_ACLINT_MTIMER_ADDR (VRVSOC_CLINT_ADDR + CLINT_MTIMER_OFFSET)
 #define VRVSOC_INTR_PD0 16
 #define VRVSOC_INTR_PD1 17
+#define VRVSOC_INTR_PD2 18
 
 static struct aclint_mtimer_data mtimer = {
   .mtime_freq = VRVSOC_ACLINT_MTIMER_FREQ,
@@ -43,7 +44,8 @@ static int platform_console_init(void) {
 }
 
 static int platform_irqchip_init(bool coldboot) {
-  csr_set(CSR_MIDELEG, (1 << VRVSOC_INTR_PD0) | (1 << VRVSOC_INTR_PD1));
+  csr_set(CSR_MIDELEG, (1 << VRVSOC_INTR_PD2) | (1 << VRVSOC_INTR_PD1) |
+    (1 << VRVSOC_INTR_PD0));
   return 0;
 }
 
