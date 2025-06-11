@@ -85,18 +85,6 @@ module virtio_kbd_dev
   /*
    * Writing
    */
-/*
-  always_ff @(posedge clk) begin
-    if (asw_wen && asw_addr == VIRTIO_REG_STATUS && !asw_wdata)
-      $display("[VGD] resetting!");
-    if (interrupt_status[0] && !interrupt_status_r[0])
-      $display("[VGD] rising interrupt!");
-    if (!interrupt_status[0] && interrupt_status_r[0])
-      $display("[VGD] clearing interrupt!");
-    if (vmgr_notify)
-      $display("[VGD] got notified!");
-  end
-*/
   always_comb begin
     for (int i = 0; i < VIRTQUEUE_TOTALSZW; i++)
       virtqueue[i] = virtqueue_r[i];
@@ -157,6 +145,8 @@ module virtio_kbd_dev
             virtqueue[VIRTQUEUESZW + VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
           else
             virtqueue[VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
+
+        /* TODO: implement configuration registers. */
       endcase
   end
 
