@@ -36,7 +36,10 @@ module _top
   output logic [VGA_COLORLEN - 1:0] VGA_G,
   output logic [VGA_COLORLEN - 1:0] VGA_B,
   output logic                      VGA_HS,
-  output logic                      VGA_VS
+  output logic                      VGA_VS,
+
+  input  logic                      PS2_CLK,
+  input  logic                      PS2_DATA
 );
   logic       cpu_clk;
   logic       dram_clk;
@@ -76,6 +79,7 @@ module _top
     .nrst       (CPU_RESETN),
     .dram_clk   (dram_clk),
     .fl_clk     (fl_clk),
+    .kbd_clk    (PS2_CLK),
     .ddr2_addr  (ddr2_addr),
     .ddr2_ba    (ddr2_ba),
     .ddr2_cas_n (ddr2_cas_n),
@@ -94,6 +98,7 @@ module _top
     .fl_mosi    (QSPI_MOSI),
     .fl_sclk    (qspi_sclk),
     .fl_ncs     (QSPI_CSN),
+    .kbd_data   (PS2_DATA),
     .rx         (UART_TXD_IN),
     .tx         (UART_RXD_OUT),
     .r          (VGA_R),
