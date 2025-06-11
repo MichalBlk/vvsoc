@@ -14,16 +14,18 @@
  */
 #define VMGR_START 0x20000000
 
-#define VMGR_REG_UART_RX 0x0
-#define VMGR_REG_UART_TX 0x4
-#define VMGR_REG_VGA_UPDATE 0x8
-#define VMGR_REG_FINISH 0xc
+#define VMGR_REG_UART_RX 0x00
+#define VMGR_REG_UART_TX 0x04
+#define VMGR_REG_VGA_UPDATE 0x08
+#define VMGR_REG_FINISH 0x0c
+#define VMGR_REG_KBD 0x10
 
 #define VMGR_FINISH_SUCCESS 0
 #define VMGR_FINISH_FAILURE 1
 
 #define VMGR_DEV_VCD 0
 #define VMGR_DEV_VGD 1
+#define VMGR_DEV_VKD 2
 
 #define VMGR_ARG_QN_MASK 0x1
 #define VMGR_ARG_DEV_SH 1
@@ -44,6 +46,13 @@
 
 #define VGA_WIDTH 320
 #define VGA_HEIGHT 240
+
+/*
+ * VirtIO keyboard device
+ */
+#define VKD_START 0xe0000000
+
+#define VKD_QUEUE_NUM_MAX 32
 
 /*
  * Boot memory

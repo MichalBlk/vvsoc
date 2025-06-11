@@ -42,6 +42,11 @@ module virtio_switch
   output logic [XLEN - 1:0]         vgd_wdata,
   output logic                      vgd_wen,
 
+  input  logic [XLEN - 1:0]         vkd_rdata,
+  output logic [VKD_ADDRLEN - 1:0]  vkd_addr,
+  output logic [XLEN - 1:0]         vkd_wdata,
+  output logic                      vkd_wen,
+
   input  logic [XLEN - 1:0]         msw_rdata,
   input  logic                      msw_stall,
   output logic [XLEN - 1:0]         msw_addr,
@@ -69,6 +74,9 @@ module virtio_switch
   assign vgd_addr    = vc_addr;
   assign vgd_wdata   = vc_wdata;
 
+  assign vkd_addr    = vc_addr;
+  assign vkd_wdata   = vc_wdata;
+
   assign msw_addr   = vc_addr;
   assign msw_wdata  = vc_wdata;
   assign msw_size   = vc_size;
@@ -87,6 +95,8 @@ module virtio_switch
     vcd_wen  = 0;
 
     vgd_wen  = 0;
+
+    vkd_wen  = 0;
 
     msw_ren  = 0;
     msw_wen  = 0;
@@ -118,6 +128,12 @@ module virtio_switch
         vc_rdata = vgd_rdata;
 
         vgd_wen  = vc_wen;
+      end
+
+      DEV_VKD: begin
+        vc_rdata = vkd_rdata;
+
+        vkd_wen  = vc_wen;
       end
 
       DEV_MMEM: begin

@@ -2,11 +2,13 @@
 
 `include "isa.svh"
 `include "virtio.svh"
+`include "evdev.svh"
 `include "soc.svh"
 
 module virtio_manager
   import isa_pkg::*;
   import virtio_pkg::*;
+  import evdev_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (
@@ -28,6 +30,10 @@ module virtio_manager
   output logic [VGA_COLORLEN - 1:0]     vga_g,
   output logic [VGA_COLORLEN - 1:0]     vga_b,
 
+  input  logic [EV_CODELEN - 1:0]       kbd_code,
+  input  logic                          kbd_value,
+  input  logic                          kbd_ready,
+
   output logic                          vc_nsrst,
   output logic [XLEN - 1:0]             vc_srstarg,
 
@@ -48,10 +54,19 @@ module virtio_manager
   input  logic [VGD_QUEUECNT_LOG - 1:0] vgd_queue_num,
   input  logic                          vgd_notify,
   input  logic                          vgd_drvok,
-  output logic                          vgd_used
+  output logic                          vgd_used,
+
+  input  logic [VKD_QUEUECNT - 1:0]     vkd_queue_rdy,
+  input  logic [VKD_QUEUECNT_LOG - 1:0] vkd_queue_num,
+  input  logic                          vkd_notify,
+  input  logic                          vkd_drvok,
+  output logic                          vkd_used
 );
-  localparam VMGR_UART_RX_FIFO_ADDRLEN   = $clog2(VMGR_UART_RX_FIFOSZ);
-  localparam VMGR_UART_RX_FIFO_CNTLEN    = $clog2(VMGR_UART_RX_FIFOSZ + 1);
+  localparam VMGR_UART_RX_FIFO_ADDRLEN = $clog2(VMGR_UART_RX_FIFOSZ);
+  localparam VMGR_UART_RX_FIFO_CNTLEN  = $clog2(VMGR_UART_RX_FIFOSZ + 1);
+
+  localparam VMGR_KBD_FIFO_ADDRLEN     = $clog2(VMGR_KBD_FIFOSZ);
+  localparam VMGR_KBD_FIFO_CNTLEN      = $clog2(VMGR_KBD_FIFOSZ + 1);
 
   typedef enum logic [1:0] {
     ST_IDLE,
@@ -83,6 +98,14 @@ module virtio_manager
   logic                                   vga_update;
   logic                                   vga_last_pixel;
 
+  logic [EV_CODELEN - 1:0]                kbd_fifo_code [VMGR_KBD_FIFOSZ - 1:0],
+    kbd_fifo_code_r [VMGR_KBD_FIFOSZ - 1:0];
+  logic                                   kbd_fifo_value [VMGR_KBD_FIFOSZ - 1:0],
+    kbd_fifo_value_r [VMGR_KBD_FIFOSZ - 1:0];
+  logic [VMGR_KBD_FIFO_ADDRLEN - 1:0]     kbd_fifo_head, kbd_fifo_head_r;
+  logic [VMGR_KBD_FIFO_ADDRLEN - 1:0]     kbd_fifo_tail, kbd_fifo_tail_r;
+  logic [VMGR_KBD_FIFO_CNTLEN - 1:0]      kbd_fifo_cnt, kbd_fifo_cnt_r;
+
   logic [VMGR_QUEUE_NOTIF_CNTLEN - 1:0]
     queue_notif_cnt[VMGR_DEVCNT - 1:0][VMGR_MAXQUEUECNT - 1:0],
     queue_notif_cnt_r[VMGR_DEVCNT - 1:0][VMGR_MAXQUEUECNT - 1:0];
@@ -92,6 +115,9 @@ module virtio_manager
 
   logic [VGD_QUEUECNT_LOG - 1:0]          vgd_pend_queue_num;
   logic                                   vgd_pending;
+
+  logic [VKD_QUEUECNT_LOG - 1:0]          vkd_pend_queue_num;
+  logic                                   vkd_pending;
 
   /*
    * UART receiving
@@ -218,6 +244,52 @@ module virtio_manager
   assign vga_b = vga_rdy_r ? vga_out_b : {VGA_COLORLEN{1'b1}};
 
   /*
+   * Keyboard receiving
+   */
+  always_comb begin
+    for (int i = 0; i < VMGR_KBD_FIFOSZ; i++) begin
+      kbd_fifo_code[i]  = kbd_fifo_code_r[i];
+      kbd_fifo_value[i] = kbd_fifo_value_r[i];
+    end
+
+    kbd_fifo_head = kbd_fifo_head_r;
+    kbd_fifo_tail = kbd_fifo_tail_r;
+    kbd_fifo_cnt  = kbd_fifo_cnt_r;
+
+    if (kbd_fifo_cnt_r && vsw_ren && vsw_addr == VMGR_REG_KBD) begin
+      kbd_fifo_head = kbd_fifo_head_r + 1;
+      if (!kbd_ready)
+        kbd_fifo_cnt = kbd_fifo_cnt_r - 1;
+      else begin
+        kbd_fifo_code[kbd_fifo_tail_r]  = kbd_code;
+        kbd_fifo_value[kbd_fifo_tail_r] = kbd_value;
+        kbd_fifo_tail                   = kbd_fifo_tail_r + 1;
+      end
+    end else if (kbd_ready && kbd_fifo_cnt_r != VMGR_KBD_FIFOSZ) begin
+      kbd_fifo_code[kbd_fifo_tail_r]  = kbd_code;
+      kbd_fifo_value[kbd_fifo_tail_r] = kbd_value;
+      kbd_fifo_tail                   = kbd_fifo_tail_r + 1;
+      kbd_fifo_cnt                    = kbd_fifo_cnt_r + 1;
+    end
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst) begin
+      kbd_fifo_head_r <= 0;
+      kbd_fifo_tail_r <= 0;
+      kbd_fifo_cnt_r  <= 0;
+    end else begin
+      for (int i = 0; i < VMGR_KBD_FIFOSZ; i++) begin
+        kbd_fifo_code_r[i]  <= kbd_fifo_code[i];
+        kbd_fifo_value_r[i] <= kbd_fifo_value[i];
+      end
+
+      kbd_fifo_head_r <= kbd_fifo_head;
+      kbd_fifo_tail_r <= kbd_fifo_tail;
+      kbd_fifo_cnt_r  <= kbd_fifo_cnt;
+    end
+
+  /*
    * Debug console signals
    */
   assign dbgc_stall = uart_tx_busy;
@@ -231,9 +303,16 @@ module virtio_manager
   /*
    * VirtIO switch signals
    */
-  assign finished  = vsw_wen && vsw_addr == VMGR_REG_FINISH;
+  logic [XLEN - 1:0] kbd_rdata;
 
-  assign vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
+  assign kbd_rdata = {kbd_fifo_code_r[kbd_fifo_head_r], kbd_fifo_value_r[kbd_fifo_head_r]};
+
+  always_comb
+    if (vsw_addr == VMGR_REG_UART_RX)
+      vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
+    else
+      vsw_rdata = kbd_fifo_cnt_r ? kbd_rdata : {XLEN{1'b1}};
+
   assign vsw_stall = vsw_addr == VMGR_REG_UART_TX && uart_tx_busy;
 
   /*
@@ -249,15 +328,26 @@ module virtio_manager
     exit_code_r == VMGR_EXIT_SUCCESS;
 
   /*
+   * VirtIO keyboard signals
+   */
+  assign vkd_used = state_r == ST_FINISH && dev_r == VMGR_DEV_VKD &&
+    exit_code_r == VMGR_EXIT_SUCCESS;
+
+  /*
    * Queue notifications
    */
   logic vcd_notif_cnt_max;
   logic vgd_notif_cnt_max;
+  logic vkd_notif_cnt_max;
+
+  assign finished          = vsw_wen && vsw_addr == VMGR_REG_FINISH;
 
   assign vcd_notif_cnt_max =
     queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] == {VMGR_QUEUE_NOTIF_CNTLEN{1'b1}};
   assign vgd_notif_cnt_max =
     queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] == {VMGR_QUEUE_NOTIF_CNTLEN{1'b1}};
+  assign vkd_notif_cnt_max =
+    queue_notif_cnt_r[VMGR_DEV_VKD][vgd_queue_num] == {VMGR_QUEUE_NOTIF_CNTLEN{1'b1}};
 
   always_comb begin
     for (int i = 0; i < VMGR_DEVCNT; i++)
@@ -265,12 +355,15 @@ module virtio_manager
         queue_notif_cnt[i][j] = queue_notif_cnt_r[i][j];
 
     if (state_r != ST_BUSY || !finished) begin
-      if (vcd_notify && !vcd_notif_cnt_max)
-        queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
-          queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
+      if (vkd_notify && !vkd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VKD][vkd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VKD][vkd_queue_num] + 1;
       else if (vgd_notify && !vgd_notif_cnt_max)
         queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] =
           queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
+      else if (vcd_notify && !vcd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
     end else
       queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt_r[dev_r][pend_queue_num_r] - 1;
   end
@@ -318,6 +411,22 @@ module virtio_manager
     VIRTIO_GPU_CURS_QUEUE_NUM;
 
   /*
+   * VirtIO keyboard queues
+   */
+  logic vkd_event_pending;
+  logic vkd_status_pending;
+
+  assign vkd_event_pending  = vkd_queue_rdy[VIRTIO_INPUT_EVENT_QUEUE_NUM] &&
+    kbd_fifo_cnt_r;
+  assign vkd_status_pending = vkd_queue_rdy[VIRTIO_INPUT_STATUS_QUEUE_NUM] &&
+    queue_notif_cnt_r[VMGR_DEV_VKD][VIRTIO_INPUT_STATUS_QUEUE_NUM];
+
+  assign vkd_pending        = vkd_drvok && (vkd_event_pending || vkd_status_pending);
+
+  assign vkd_pend_queue_num = vkd_event_pending ? VIRTIO_INPUT_EVENT_QUEUE_NUM :
+    VIRTIO_INPUT_STATUS_QUEUE_NUM;
+
+  /*
    * Pending queue number and device selection
    */
   always_comb begin
@@ -325,7 +434,10 @@ module virtio_manager
     pend_queue_num = pend_queue_num_r;
 
     if (state_r == ST_IDLE) begin
-      if (vcd_pending) begin
+      if (vkd_pending) begin
+        dev            = VMGR_DEV_VKD;
+        pend_queue_num = vkd_pend_queue_num;
+      end else if (vcd_pending) begin
         dev            = VMGR_DEV_VCD;
         pend_queue_num = vcd_pend_queue_num;
       end else begin
@@ -380,7 +492,7 @@ module virtio_manager
    */
   logic pending;
 
-  assign pending = vcd_pending || vgd_pending;
+  assign pending = vcd_pending || vgd_pending || vkd_pending;
 
   always_comb begin
     state = state_r;

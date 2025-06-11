@@ -28,6 +28,7 @@ package soc_pkg;
     DEV_DBGC  = DEVLEN'(6),
     DEV_CLINT = DEVLEN'(7),
     DEV_MMEM  = DEVLEN'(8),
+    DEV_VKD   = DEVLEN'(14),
     DEV_FL    = DEVLEN'(15)
   } dev_t;
 
@@ -60,29 +61,33 @@ package soc_pkg;
   /*
    * VirtIO manager
    */
-  parameter VMGR_ADDRLEN            = 4;
+  parameter VMGR_ADDRLEN            = 8;
 `ifdef SIM
   parameter VMGR_UART_RX_FIFOSZ     = 64;
 `else
   parameter VMGR_UART_RX_FIFOSZ     = 256;
 `endif
 
-  parameter VMGR_REG_UART_RX        = 'h0;
-  parameter VMGR_REG_UART_TX        = 'h4;
-  parameter VMGR_REG_VGA_UPDATE     = 'h8;
-  parameter VMGR_REG_FINISH         = 'hc;
+  parameter VMGR_KBD_FIFOSZ         = 64;
+
+  parameter VMGR_REG_UART_RX        = 'h00;
+  parameter VMGR_REG_UART_TX        = 'h04;
+  parameter VMGR_REG_VGA_UPDATE     = 'h08;
+  parameter VMGR_REG_FINISH         = 'h0c;
+  parameter VMGR_REG_KBD            = 'h10;
 
   typedef enum logic {
     VMGR_EXIT_SUCCESS,
     VMGR_EXIT_FAILURE
   } vmgr_exit_code_t;
 
-  parameter VMGR_DEVCNT             = 2;
+  parameter VMGR_DEVCNT             = 3;
   parameter VMGR_DEVLEN             = $clog2(VMGR_DEVCNT);
 
   typedef enum logic [VMGR_DEVLEN - 1:0] {
     VMGR_DEV_VCD,
-    VMGR_DEV_VGD
+    VMGR_DEV_VGD,
+    VMGR_DEV_VKD
   } vmgr_dev_t;
 
   parameter VMGR_MAXQUEUECNT        = 2;
@@ -111,6 +116,16 @@ package soc_pkg;
   parameter         VGD_QUEUECNT_LOG = $clog2(VCD_QUEUECNT);
   parameter         VGD_QUEUENUMMAX  = 32;
   parameter longint VGD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
+
+  /*
+   * VirtIO keyboard device
+   */
+  parameter         VKD_ADDRLEN      = 12;
+  parameter         VKD_ADDRLENW     = VKD_ADDRLEN - XLENB_LOG;
+  parameter         VKD_QUEUECNT     = 2;
+  parameter         VKD_QUEUECNT_LOG = $clog2(VKD_QUEUECNT);
+  parameter         VKD_QUEUENUMMAX  = 32;
+  parameter longint VKD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
    * Boot memory

@@ -1,5 +1,7 @@
 #include <virtio.h>
 #include <virtio_gpu.h>
+#include <virtio_input.h>
+#include <evdev.h>
 #include <soc.h>
 
 /*
@@ -222,6 +224,62 @@ static int vgd_handle_curs(void) {
   return VMGR_FINISH_SUCCESS;
 }
 
+/*
+ * VirtIO keyboard device
+ */
+static inline int vkd_mod(int x) {
+  return mod(x, VKD_QUEUE_NUM_MAX);
+}
+
+static void vkd_add_used(virtqueue_t *vq, int didx, int len) {
+  add_used(vq, didx, len, vkd_mod);
+}
+
+static int vkd_handle_single_event(virtqueue_t *vq, int didx) {
+  desc_t *d = vq->desc + didx;
+  int data = vmgr_rd(VMGR_REG_KBD);
+  if (data == -1)
+    return 0;
+
+  virtio_input_event_t *ev = d->addr;
+  ev->type = EV_KEY;
+  ev->code = data >> 1;
+  ev->value = data & 1;
+
+  vkd_add_used(vq, didx, sizeof(virtio_input_event_t));
+  return 1;
+}
+
+static void vkd_add_syn(virtqueue_t *vq, int didx) {
+  desc_t *d = vq->desc + didx;
+  virtio_input_event_t *ev = d->addr;
+  ev->type = EV_SYN;
+  ev->code = SYN_REPORT;
+  ev->value = 0;
+  vkd_add_used(vq, didx, sizeof(virtio_input_event_t));
+}
+
+static int vkd_handle_event(void) {
+  virtqueue_t *vq = (virtqueue_t *)VKD_START;
+  avail_vring_t *avr = vq->avail;
+  int aidx = vq->last_aidx, end = avr->idx;
+  if (aidx == end)
+    return VMGR_FINISH_FAILURE;
+
+  for (; aidx != end; aidx += 2) {
+    if (!vkd_handle_single_event(vq, avr->ring[vkd_mod(aidx)]))
+      break;
+    vkd_add_syn(vq, avr->ring[vkd_mod(aidx + 1)]);
+  }
+
+  vq->last_aidx = aidx;
+  return VMGR_FINISH_SUCCESS;
+}
+
+static int vkd_handle_status(void) {
+  halt();
+}
+
 void __attribute__((__noreturn__)) process(int arg) {
   int rv, qn = arg & VMGR_ARG_QN_MASK;
   int dev = arg >> VMGR_ARG_DEV_SH;
@@ -236,6 +294,11 @@ void __attribute__((__noreturn__)) process(int arg) {
       rv = vgd_handle_ctrl();
     else
       rv = vgd_handle_curs();
+  } else if (dev == VMGR_DEV_VKD) {
+    if (qn == VIRTIO_INPUT_EVENT_QUEUE_NUM)
+      rv = vkd_handle_event();
+    else
+      rv = vkd_handle_status();
   } else {
     halt();
   }

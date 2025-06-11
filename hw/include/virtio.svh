@@ -39,6 +39,7 @@ package virtio_pkg;
    */
   parameter VIRTIO_DEVICE_ID_CONSOLE = 3;
   parameter VIRTIO_DEVICE_ID_GPU     = 16;
+  parameter VIRTIO_DEVICE_ID_INPUT   = 18;
 
   /*
    * VirtIO vendor IDs
@@ -85,6 +86,14 @@ package virtio_pkg;
   parameter VIRTIO_GPU_CTRL_QUEUE_NUM   = 0;
   parameter VIRTIO_GPU_CURS_QUEUE_NUM   = 1;
 
+  /*
+   * VirtIO input
+   */
+  parameter VIRTIO_INPUT_REG_SELECT       = 'h100;
+  parameter VIRTIO_INPUT_REG_SUBSEL       = 'h101;
+
+  parameter VIRTIO_INPUT_EVENT_QUEUE_NUM  = 0;
+  parameter VIRTIO_INPUT_STATUS_QUEUE_NUM = 1;
 endpackage
 
 `endif /* !__VIRTIO_SVH__ */

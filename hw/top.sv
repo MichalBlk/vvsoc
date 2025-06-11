@@ -1,11 +1,13 @@
 `default_nettype none
 
 `include "isa.svh"
+`include "evdev.svh"
 `include "soc.svh"
 `include "board.svh"
 
 module top
   import isa_pkg::*;
+  import evdev_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (
@@ -78,6 +80,9 @@ module top
   logic [VGD_ADDRLEN - 1:0]      asw_vgd_addr;
   logic [XLEN - 1:0]             asw_vgd_wdata;
   logic                          asw_vgd_wen;
+  logic [VKD_ADDRLEN - 1:0]      asw_vkd_addr;
+  logic [XLEN - 1:0]             asw_vkd_wdata;
+  logic                          asw_vkd_wen;
   logic [BMEM_ADDRLEN - 1:0]     asw_bmem_addr;
   logic [XLEN - 1:0]             asw_bmem_wdata;
   logic [XLENB_LOG - 1:0]        asw_bmem_size;
@@ -139,6 +144,15 @@ module top
   logic                          vgd_vmgr_notify;
   logic                          vgd_vmgr_drvok;
 
+  logic                          vkd_ac_intr_pending;
+  logic [XLEN - 1:0]             vkd_asw_rdata;
+  logic                          vkd_asw_stall;
+  logic [XLEN - 1:0]             vkd_vsw_rdata;
+  logic [VKD_QUEUECNT - 1:0]     vkd_vmgr_queue_rdy;
+  logic [VKD_QUEUECNT_LOG - 1:0] vkd_vmgr_queue_num;
+  logic                          vkd_vmgr_notify;
+  logic                          vkd_vmgr_drvok;
+
   logic [XLEN - 1:0]             vsw_vc_rdata;
   logic                          vsw_vc_stall;
   logic [VMEM_ADDRLEN - 1:0]     vsw_vmem_addr;
@@ -157,6 +171,9 @@ module top
   logic [VGD_ADDRLEN - 1:0]      vsw_vgd_addr;
   logic [XLEN - 1:0]             vsw_vgd_wdata;
   logic                          vsw_vgd_wen;
+  logic [VKD_ADDRLEN - 1:0]      vsw_vkd_addr;
+  logic [XLEN - 1:0]             vsw_vkd_wdata;
+  logic                          vsw_vkd_wen;
   logic [XLEN - 1:0]             vsw_msw_addr;
   logic [XLEN - 1:0]             vsw_msw_wdata;
   logic [XLENB_LOG - 1:0]        vsw_msw_size;
@@ -183,6 +200,7 @@ module top
   logic                          vmgr_vsw_stall;
   logic                          vmgr_vcd_used;
   logic                          vmgr_vgd_used;
+  logic                          vmgr_vkd_used;
 
   logic [XLEN - 1:0]             vmem_vsw_rdata;
   logic                          vmem_vsw_stall;
@@ -292,7 +310,8 @@ module top
     .asw_wen            (ac_asw_wen),
     .cache_pte          (cache_ac_pte),
     .vcd_intr_pending   (vcd_ac_intr_pending),
-    .vgd_intr_pending   (vgd_ac_intr_pending)
+    .vgd_intr_pending   (vgd_ac_intr_pending),
+    .vkd_intr_pending   (vkd_ac_intr_pending)
   );
 
   app_switch APP_SWITCH(
@@ -314,6 +333,11 @@ module top
     .vgd_addr    (asw_vgd_addr),
     .vgd_wdata   (asw_vgd_wdata),
     .vgd_wen     (asw_vgd_wen),
+    .vkd_rdata   (vkd_asw_rdata),
+    .vkd_stall   (vkd_asw_stall),
+    .vkd_addr    (asw_vkd_addr),
+    .vkd_wdata   (asw_vkd_wdata),
+    .vkd_wen     (asw_vkd_wen),
     .bmem_rdata  (bmem_asw_rdata),
     .bmem_stall  (bmem_asw_stall),
     .bmem_addr   (asw_bmem_addr),
@@ -472,6 +496,26 @@ module top
     .vmgr_drvok      (vgd_vmgr_drvok)
   );
 
+  virtio_kbd_dev VIRTIO_KBD_DEV(
+    .clk             (clk),
+    .nrst            (nrst),
+    .ac_intr_pending (vkd_ac_intr_pending),
+    .asw_addr        (asw_vkd_addr),
+    .asw_wdata       (asw_vkd_wdata),
+    .asw_wen         (asw_vkd_wen),
+    .asw_rdata       (vkd_asw_rdata),
+    .asw_stall       (vkd_asw_stall),
+    .vsw_addr        (vsw_vkd_addr),
+    .vsw_wdata       (vsw_vkd_wdata),
+    .vsw_wen         (vsw_vkd_wen),
+    .vsw_rdata       (vkd_vsw_rdata),
+    .vmgr_used       (vmgr_vkd_used),
+    .vmgr_queue_rdy  (vkd_vmgr_queue_rdy),
+    .vmgr_queue_num  (vkd_vmgr_queue_num),
+    .vmgr_notify     (vkd_vmgr_notify),
+    .vmgr_drvok      (vkd_vmgr_drvok)
+  );
+
   virtio_switch VIRTIO_SWITCH(
     .vc_addr    (vc_vsw_addr),
     .vc_wdata   (vc_vsw_wdata),
@@ -503,6 +547,10 @@ module top
     .vgd_addr   (vsw_vgd_addr),
     .vgd_wdata  (vsw_vgd_wdata),
     .vgd_wen    (vsw_vgd_wen),
+    .vkd_rdata  (vkd_vsw_rdata),
+    .vkd_addr   (vsw_vkd_addr),
+    .vkd_wdata  (vsw_vkd_wdata),
+    .vkd_wen    (vsw_vkd_wen),
     .msw_rdata  (msw_vsw_rdata),
     .msw_stall  (msw_vsw_stall),
     .msw_addr   (vsw_msw_addr),
@@ -543,6 +591,9 @@ module top
     .vga_r         (vmgr_vga_r),
     .vga_g         (vmgr_vga_g),
     .vga_b         (vmgr_vga_b),
+    .kbd_code      (0),
+    .kbd_value     (0),
+    .kbd_ready     (0),
     .vc_nsrst      (vmgr_vc_nsrst),
     .vc_srstarg    (vmgr_vc_srstarg),
     .vsw_addr      (vsw_vmgr_addr),
@@ -560,7 +611,12 @@ module top
     .vgd_queue_num (vgd_vmgr_queue_num),
     .vgd_drvok     (vgd_vmgr_drvok),
     .vgd_notify    (vgd_vmgr_notify),
-    .vgd_used      (vmgr_vgd_used)
+    .vgd_used      (vmgr_vgd_used),
+    .vkd_queue_rdy (vkd_vmgr_queue_rdy),
+    .vkd_queue_num (vkd_vmgr_queue_num),
+    .vkd_drvok     (vkd_vmgr_drvok),
+    .vkd_notify    (vkd_vmgr_notify),
+    .vkd_used      (vmgr_vkd_used)
   );
 
   memory #(

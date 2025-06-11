@@ -65,6 +65,12 @@
       interrupts-extended = <&hlic 0x11>;
     };
 
+    virtio@e0000000 {
+      compatible = "virtio,mmio";
+      reg = <0xe0000000 0x200>;
+      interrupts-extended = <&hlic 0x12>;
+    };
+
     clint@70000000 {
       compatible = "riscv,clint0";
       interrupts-extended = <&hlic 0x3>, <&hlic 0x7>;
