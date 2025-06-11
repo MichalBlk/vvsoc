@@ -18,6 +18,7 @@ module top
 `ifdef NEXYS_A7
   input  logic                      dram_clk,
   input  logic                      fl_clk,
+  input  logic                      kbd_clk,
 
   inout  logic [DDR2_DQLEN - 1:0]   ddr2_dq,
   inout  logic [DDR2_DQSLEN - 1:0]  ddr2_dqs_n,
@@ -38,6 +39,8 @@ module top
   output logic                      fl_mosi,
   output logic                      fl_sclk,
   output logic                      fl_ncs,
+
+  input  logic                      kbd_data,
 `endif
 
   input  logic                      rx,
@@ -210,6 +213,10 @@ module top
   logic                          uart_vmgr_tx_busy;
 
   logic [VGA_FRAMESZ_LOG - 1:0]  vga_vmgr_pos;
+
+  logic [EV_CODELEN - 1:0]       kbd_vmgr_code;
+  logic                          kbd_vmgr_value;
+  logic                          kbd_vmgr_ready;
 
 `ifdef SIM
   initial begin
@@ -591,9 +598,9 @@ module top
     .vga_r         (vmgr_vga_r),
     .vga_g         (vmgr_vga_g),
     .vga_b         (vmgr_vga_b),
-    .kbd_code      (0),
-    .kbd_value     (0),
-    .kbd_ready     (0),
+    .kbd_code      (kbd_vmgr_code),
+    .kbd_value     (kbd_vmgr_value),
+    .kbd_ready     (kbd_vmgr_ready),
     .vc_nsrst      (vmgr_vc_nsrst),
     .vc_srstarg    (vmgr_vc_srstarg),
     .vsw_addr      (vsw_vmgr_addr),
@@ -662,4 +669,16 @@ module top
     .vmgr_b   (vmgr_vga_b),
     .vmgr_pos (vga_vmgr_pos)
   );
+
+`ifdef NEXYS_A7
+  kbd KBD(
+    .clk        (clk),
+    .kbd_clk    (kbd_clk),
+    .nrst       (nrst),
+    .kbd_data   (kbd_data),
+    .vmgr_code  (kbd_vmgr_code),
+    .vmgr_value (kbd_vmgr_value),
+    .vmgr_ready (kbd_vmgr_ready)
+  );
+`endif
 endmodule
