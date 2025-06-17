@@ -210,13 +210,11 @@ module app_core
   ) REG_FILE(
     .clk     (clk),
     .nrst    (nrst),
-    .nsrst   (1),
     .raddr1  (rs1),
     .raddr2  (rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
-    .srstarg (0),
     .rdata1  (rf_rdata1),
     .rdata2  (rf_rdata2)
   );

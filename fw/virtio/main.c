@@ -280,29 +280,31 @@ static int vkd_handle_status(void) {
   halt();
 }
 
-void __attribute__((__noreturn__)) process(int arg) {
-  int rv, qn = arg & VMGR_ARG_QN_MASK;
-  int dev = arg >> VMGR_ARG_DEV_SH;
+void __attribute__((__noreturn__)) process(void) {
+  for (;;) {
+    int arg = vmgr_rd(VMGR_REG_REQ);
+    int rv, qn = arg & VMGR_ARG_QN_MASK;
+    int dev = arg >> VMGR_ARG_DEV_SH;
 
-  if (dev == VMGR_DEV_VCD) {
-    if (qn == VIRTIO_CONSOLE_RX_QUEUE_NUM)
-      rv = vcd_handle_rx();
-    else
-      rv = vcd_handle_tx();
-  } else if (dev == VMGR_DEV_VGD) {
-    if (qn == VIRTIO_GPU_CTRL_QUEUE_NUM)
-      rv = vgd_handle_ctrl();
-    else
-      rv = vgd_handle_curs();
-  } else if (dev == VMGR_DEV_VKD) {
-    if (qn == VIRTIO_INPUT_EVENT_QUEUE_NUM)
-      rv = vkd_handle_event();
-    else
-      rv = vkd_handle_status();
-  } else {
-    halt();
+    if (dev == VMGR_DEV_VCD) {
+      if (qn == VIRTIO_CONSOLE_RX_QUEUE_NUM)
+        rv = vcd_handle_rx();
+      else
+        rv = vcd_handle_tx();
+    } else if (dev == VMGR_DEV_VGD) {
+      if (qn == VIRTIO_GPU_CTRL_QUEUE_NUM)
+        rv = vgd_handle_ctrl();
+      else
+        rv = vgd_handle_curs();
+    } else if (dev == VMGR_DEV_VKD) {
+      if (qn == VIRTIO_INPUT_EVENT_QUEUE_NUM)
+        rv = vkd_handle_event();
+      else
+        rv = vkd_handle_status();
+    } else {
+      halt();
+    }
+
+    vmgr_wr(VMGR_REG_FINISH, rv);
   }
-
-  vmgr_wr(VMGR_REG_FINISH, rv);
-  __builtin_unreachable();
 }

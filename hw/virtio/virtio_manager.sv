@@ -34,9 +34,6 @@ module virtio_manager
   input  logic                          kbd_value,
   input  logic                          kbd_ready,
 
-  output logic                          vc_nsrst,
-  output logic [XLEN - 1:0]             vc_srstarg,
-
   input  logic [VMGR_ADDRLEN - 1:0]     vsw_addr,
   input  logic [XLEN - 1:0]             vsw_wdata,
   input  logic                          vsw_ren,
@@ -295,25 +292,29 @@ module virtio_manager
   assign dbgc_stall = uart_tx_busy;
 
   /*
-   * VirtIO core signals
-   */
-  assign vc_nsrst   = !(state_r == ST_IDLE);
-  assign vc_srstarg = {dev_r, pend_queue_num_r};
-
-  /*
    * VirtIO switch signals
    */
   logic [XLEN - 1:0] kbd_rdata;
 
   assign kbd_rdata = {kbd_fifo_code_r[kbd_fifo_head_r], kbd_fifo_value_r[kbd_fifo_head_r]};
 
-  always_comb
-    if (vsw_addr == VMGR_REG_UART_RX)
-      vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
-    else
-      vsw_rdata = kbd_fifo_cnt_r ? kbd_rdata : {XLEN{1'b1}};
+  always_comb begin
+    vsw_rdata = 'bx;
 
-  assign vsw_stall = vsw_addr == VMGR_REG_UART_TX && uart_tx_busy;
+    unique0 case (vsw_addr)
+      VMGR_REG_UART_RX:
+        vsw_rdata = uart_rx_fifo_cnt_r ? uart_rx_fifo_r[uart_rx_fifo_head_r] : {XLEN{1'b1}};
+
+      VMGR_REG_KBD:
+        vsw_rdata = kbd_fifo_cnt_r ? kbd_rdata : {XLEN{1'b1}};
+
+      VMGR_REG_REQ:
+        vsw_rdata = {dev_r, pend_queue_num_r};
+    endcase
+  end
+
+  assign vsw_stall = (vsw_addr == VMGR_REG_UART_TX && uart_tx_busy) ||
+    (vsw_addr == VMGR_REG_REQ && state_r != ST_BUSY);
 
   /*
    * VirtIO console signals
