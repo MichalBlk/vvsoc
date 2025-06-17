@@ -197,8 +197,6 @@ module top
   logic [VGA_COLORLEN - 1:0]     vmgr_vga_r;
   logic [VGA_COLORLEN - 1:0]     vmgr_vga_g;
   logic [VGA_COLORLEN - 1:0]     vmgr_vga_b;
-  logic                          vmgr_vc_nsrst;
-  logic [XLEN - 1:0]             vmgr_vc_srstarg;
   logic [XLEN - 1:0]             vmgr_vsw_rdata;
   logic                          vmgr_vsw_stall;
   logic                          vmgr_vcd_used;
@@ -569,18 +567,16 @@ module top
   );
 
   virtio_core VIRTIO_CORE(
-    .clk          (clk),
-    .nrst         (nrst),
-    .vmgr_nsrst   (vmgr_vc_nsrst),
-    .vmgr_srstarg (vmgr_vc_srstarg),
-    .vsw_rdata    (vsw_vc_rdata),
-    .vsw_stall    (vsw_vc_stall),
-    .vsw_addr     (vc_vsw_addr),
-    .vsw_wdata    (vc_vsw_wdata),
-    .vsw_size     (vc_vsw_size),
-    .vsw_nsign    (vc_vsw_nsign),
-    .vsw_ren      (vc_vsw_ren),
-    .vsw_wen      (vc_vsw_wen)
+    .clk       (clk),
+    .nrst      (nrst),
+    .vsw_rdata (vsw_vc_rdata),
+    .vsw_stall (vsw_vc_stall),
+    .vsw_addr  (vc_vsw_addr),
+    .vsw_wdata (vc_vsw_wdata),
+    .vsw_size  (vc_vsw_size),
+    .vsw_nsign (vc_vsw_nsign),
+    .vsw_ren   (vc_vsw_ren),
+    .vsw_wen   (vc_vsw_wen)
   );
 
   virtio_manager VIRTIO_MANAGER(
@@ -601,8 +597,6 @@ module top
     .kbd_code      (kbd_vmgr_code),
     .kbd_value     (kbd_vmgr_value),
     .kbd_ready     (kbd_vmgr_ready),
-    .vc_nsrst      (vmgr_vc_nsrst),
-    .vc_srstarg    (vmgr_vc_srstarg),
     .vsw_addr      (vsw_vmgr_addr),
     .vsw_wdata     (vsw_vmgr_wdata),
     .vsw_ren       (vsw_vmgr_ren),

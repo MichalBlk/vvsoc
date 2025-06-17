@@ -75,6 +75,7 @@ package soc_pkg;
   parameter VMGR_REG_VGA_UPDATE     = 'h08;
   parameter VMGR_REG_FINISH         = 'h0c;
   parameter VMGR_REG_KBD            = 'h10;
+  parameter VMGR_REG_REQ            = 'h14;
 
   typedef enum logic {
     VMGR_EXIT_SUCCESS,

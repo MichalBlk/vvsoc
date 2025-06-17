@@ -9,30 +9,16 @@ module reg_file
 )(
   input  logic                    clk,
   input  logic                    nrst,
-  input  logic                    nsrst,
 
   input  logic [REGCNT_LOG - 1:0] raddr1,
   input  logic [REGCNT_LOG - 1:0] raddr2,
   input  logic [REGCNT_LOG - 1:0] waddr,
   input  logic [XLEN - 1:0]       wdata,
   input  logic                    wen,
-  input  logic [XLEN - 1:0]       srstarg,
   output logic [XLEN - 1:0]       rdata1,
   output logic [XLEN - 1:0]       rdata2
 );
   logic [XLEN - 1:0] x [REGCNT - 1:0], x_r [REGCNT - 1:0];
-
-  logic              red_redge;
-
-  /*
-   * Rising edge detector for synchronous reset
-   */
-  rising_edge_detector REDGE_DETECTOR(
-    .clk   (clk),
-    .nrst  (nrst),
-    .src   (nsrst),
-    .redge (red_redge)
-  );
 
   /*
    * Reading
@@ -47,9 +33,7 @@ module reg_file
     for (int i = 0; i < REGCNT; i++)
       x[i] = x_r[i];
 
-    unique0 if (red_redge)
-      x[REG_A0] = srstarg;
-    else if (wen && waddr)
+    if (wen && waddr)
       x[waddr] = wdata;
   end
 
@@ -59,10 +43,7 @@ module reg_file
         x_r[i] <= 0;
 
       x_r[REG_A0] <= RSTARG;
-    end else if (!nsrst)
-      for (int i = 0; i < REGCNT; i++)
-        x_r[i] <= 0;
-    else
+    end else
       for (int i = 0; i < REGCNT; i++)
         x_r[i] <= x[i];
   end

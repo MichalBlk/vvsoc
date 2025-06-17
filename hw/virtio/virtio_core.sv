@@ -10,9 +10,6 @@ module virtio_core
   input  logic                   clk,
   input  logic                   nrst,
 
-  input  logic                   vmgr_nsrst,
-  input  logic [XLEN - 1:0]      vmgr_srstarg,
-
   input  logic [XLEN - 1:0]      vsw_rdata,
   input  logic                   vsw_stall,
   output logic [XLEN - 1:0]      vsw_addr,
@@ -90,13 +87,11 @@ module virtio_core
   ) REG_FILE(
     .clk     (clk),
     .nrst    (nrst),
-    .nsrst   (vmgr_nsrst),
     .raddr1  (rs1),
     .raddr2  (rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
-    .srstarg (vmgr_srstarg),
     .rdata1  (rf_rdata1),
     .rdata2  (rf_rdata2)
   );
@@ -212,8 +207,6 @@ module virtio_core
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
       pc_r <= VC_RESET_PC;
-    else if (!vmgr_nsrst)
-      pc_r <= VC_RESET_PC;
     else
       pc_r <= pc;
 
@@ -277,8 +270,6 @@ module virtio_core
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      state_r <= ST_IDLE;
-    else if (!vmgr_nsrst)
       state_r <= ST_IDLE;
     else
       state_r <= state;
