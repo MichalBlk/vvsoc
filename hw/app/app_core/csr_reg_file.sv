@@ -8,14 +8,16 @@ module csr_reg_file
   input  logic                clk,
   input  logic                nrst,
 
-  input  csr_addr_t           ac_addr,
+  input  csr_addr_t           ac_raddr,
+  input  csr_addr_t           ac_waddr,
   input  logic [XLEN - 1:0]   ac_wdata,
   input  logic [XLEN - 1:0]   ac_pc,
   input  logic [XLEN - 1:0]   ac_target_pc,
   input  exc_t                ac_exc_code,
   input  logic                ac_exc_pending,
   input  logic [XLEN - 1:0]   ac_tval,
-  input  logic                ac_csr,
+  input  logic                ac_rcsr,
+  input  logic                ac_wcsr,
   input  logic                ac_mret,
   input  logic                ac_sret,
   input  logic                ac_com,
@@ -69,7 +71,7 @@ module csr_reg_file
   logic cnt_access;
   logic ill_cnt;
 
-  assign ill_priv = ac_addr[FUNCT12_PRIVSH+:PRIVLEN] > priv_r;
+  assign ill_priv = ac_raddr[FUNCT12_PRIVSH+:PRIVLEN] > priv_r;
 
   always_comb begin
     ac_rdata = 'bx;
@@ -80,7 +82,7 @@ module csr_reg_file
     else if (ac_sret)
       ac_rdata = sepc_r;
     else
-      case (ac_addr)
+      case (ac_raddr)
         CSR_CYCLE:      ac_rdata = cycle_r;
         CSR_TIME:       ac_rdata = ac_mtime;
         CSR_INSTRET:    ac_rdata = instret_r;
@@ -125,17 +127,17 @@ module csr_reg_file
       endcase
   end
 
-  assign cnt_access = ac_addr == CSR_CYCLE || ac_addr == CSR_TIME || ac_addr == CSR_INSTRET ||
-     ac_addr == CSR_CYCLEH || ac_addr == CSR_TIMEH || ac_addr == CSR_INSTRETH;
+  assign cnt_access = ac_raddr == CSR_CYCLE || ac_raddr == CSR_TIME || ac_raddr == CSR_INSTRET ||
+     ac_raddr == CSR_CYCLEH || ac_raddr == CSR_TIMEH || ac_raddr == CSR_INSTRETH;
 
   always_comb
     case (priv_r)
-      PRIV_S:  ill_cnt = !(mcounteren_r & (1 << ac_addr[CNTCNT_LOG - 1:0]));
-      PRIV_U:  ill_cnt = !((mcounteren_r & scounteren_r) & (1 << ac_addr[CNTCNT_LOG - 1:0]));
+      PRIV_S:  ill_cnt = !(mcounteren_r & (1 << ac_raddr[CNTCNT_LOG - 1:0]));
+      PRIV_U:  ill_cnt = !((mcounteren_r & scounteren_r) & (1 << ac_raddr[CNTCNT_LOG - 1:0]));
       default: ill_cnt = 0;
     endcase
 
-  assign ac_ill = ac_csr && (ill_priv || ill_addr || (cnt_access && ill_cnt));
+  assign ac_ill = ac_rcsr && (ill_priv || ill_addr || (cnt_access && ill_cnt));
 
   /*
    * Completion
@@ -288,8 +290,8 @@ module csr_reg_file
       end else if (ac_sret) begin
         priv    = priv_t'(mstatus_r[MSTATUS_SPPSH]);
         mstatus = sret_mstatus;
-      end else if (ac_csr)
-        case (ac_addr)
+      end else if (ac_wcsr)
+        case (ac_waddr)
           CSR_SSTATUS:    mstatus    = (mstatus_r & ~MSTATUS_SMASK) | (ac_wdata & MSTATUS_SMASK);
           CSR_SIE:        mie        = (mie_r & ~mideleg_r) | (ac_wdata & mideleg_r);
           CSR_STVEC:      stvec      = ac_wdata & ~((1 << TVEC_MODELEN) - 1);
@@ -394,5 +396,5 @@ module csr_reg_file
   assign ac_satp          = satp_r;
   assign ac_tvec          = priv == PRIV_M ? mtvec_r : stvec_r;
   assign ac_intr_handling = !ac_exc_pending && !ac_mret &&
-    !ac_sret && !ac_csr && active_intrs;
+    !ac_sret && !ac_wcsr && active_intrs;
 endmodule
