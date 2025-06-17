@@ -19,6 +19,7 @@ module memory
   input  logic                   nsign,
   input  logic                   ren,
   input  logic                   wen,
+  output logic [XLEN - 1:0]      raw_data,
   output logic [XLEN - 1:0]      rdata,
   output logic                   stall
 );
@@ -109,7 +110,9 @@ module memory
    */
   logic [XLEN - 1:0] shdata;
 
-  assign shdata = (data_r >> addrbit) & mask;
+  assign raw_data = data_r;
+
+  assign shdata   = (data_r >> addrbit) & mask;
 
   always_comb
     if (bsign_r && (shdata >> (sizebit - 1)))

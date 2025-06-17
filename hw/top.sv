@@ -205,6 +205,7 @@ module top
 
   logic [XLEN - 1:0]             vmem_vsw_rdata;
   logic                          vmem_vsw_stall;
+  logic [XLEN - 1:0]             vmem_vc_raw_data;
 
   logic [BLEN - 1:0]             uart_vmgr_rx_byte;
   logic                          uart_vmgr_rx_ready;
@@ -567,16 +568,17 @@ module top
   );
 
   virtio_core VIRTIO_CORE(
-    .clk       (clk),
-    .nrst      (nrst),
-    .vsw_rdata (vsw_vc_rdata),
-    .vsw_stall (vsw_vc_stall),
-    .vsw_addr  (vc_vsw_addr),
-    .vsw_wdata (vc_vsw_wdata),
-    .vsw_size  (vc_vsw_size),
-    .vsw_nsign (vc_vsw_nsign),
-    .vsw_ren   (vc_vsw_ren),
-    .vsw_wen   (vc_vsw_wen)
+    .clk           (clk),
+    .nrst          (nrst),
+    .vsw_rdata     (vsw_vc_rdata),
+    .vsw_stall     (vsw_vc_stall),
+    .vsw_addr      (vc_vsw_addr),
+    .vsw_wdata     (vc_vsw_wdata),
+    .vsw_size      (vc_vsw_size),
+    .vsw_nsign     (vc_vsw_nsign),
+    .vsw_ren       (vc_vsw_ren),
+    .vsw_wen       (vc_vsw_wen),
+    .vmem_raw_data (vmem_vc_raw_data)
   );
 
   virtio_manager VIRTIO_MANAGER(
@@ -624,16 +626,17 @@ module top
     .SZ    (VMEMSZ),
     .MIF   ("virtio.mif")
   ) VIRTIO_MEMORY(
-    .clk   (clk),
-    .nrst  (nrst),
-    .addr  (vsw_vmem_addr),
-    .wdata (vsw_vmem_wdata),
-    .size  (vsw_vmem_size),
-    .nsign (vsw_vmem_nsign),
-    .ren   (vsw_vmem_ren),
-    .wen   (vsw_vmem_wen),
-    .rdata (vmem_vsw_rdata),
-    .stall (vmem_vsw_stall)
+    .clk      (clk),
+    .nrst     (nrst),
+    .addr     (vsw_vmem_addr),
+    .wdata    (vsw_vmem_wdata),
+    .size     (vsw_vmem_size),
+    .nsign    (vsw_vmem_nsign),
+    .ren      (vsw_vmem_ren),
+    .wen      (vsw_vmem_wen),
+    .raw_data (vmem_vc_raw_data),
+    .rdata    (vmem_vsw_rdata),
+    .stall    (vmem_vsw_stall)
   );
 
   uart UART(
