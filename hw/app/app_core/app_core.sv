@@ -36,7 +36,6 @@ module app_core
     ST_MEM1,
     ST_EXE2,
     ST_MEM2,
-    ST_WB,
     ST_COM
   } state_t;
 
@@ -464,7 +463,7 @@ module app_core
     amo_rmw_data_r <= amo_rmw_data;
 
   /*
-   * Write back stage
+   * Completion stage
    */
   always_comb begin
     rf_wdata = rd_data_r;
@@ -475,17 +474,21 @@ module app_core
       rf_wdata = csr_rdata_r;
   end
 
-  assign rf_wen = state_r == ST_WB &&
+  assign rf_wen = !exc_pending_r && state_r == ST_COM &&
     (opcode == OPCODE_LUI || opcode == OPCODE_AUIPC || opcode == OPCODE_JAL ||
      opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
      opcode == OPCODE_OP || opcode == OPCODE_AMO ||
      (opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV));
 
+  assign csrrf_target_pc = tkn_r ? jmp_pc_r : pc_r + ILENB;
+  assign csrrf_wcsr      = opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV;
+  assign csrrf_com       = state_r == ST_COM;
+
   always_comb begin
     resv_addr  = resv_addr_r;
     resv_valid = resv_valid_r;
 
-    if (state_r == ST_WB && opcode == OPCODE_AMO) begin
+    if (state_r == ST_COM && opcode == OPCODE_AMO) begin
       unique0 if (funct5 == FUNCT5_AMO_SC)
         resv_valid = 0;
       else if (funct5 == FUNCT5_AMO_LR) begin
@@ -502,13 +505,6 @@ module app_core
       resv_addr_r  <= resv_addr;
       resv_valid_r <= resv_valid;
     end
-
-  /*
-   * Completion stage
-   */
-  assign csrrf_target_pc = tkn_r ? jmp_pc_r : pc_r + ILENB;
-  assign csrrf_wcsr      = opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV;
-  assign csrrf_com       = state_r == ST_COM;
 
   always_comb begin
     pc = pc_r;
@@ -636,8 +632,15 @@ module app_core
   /*
    * State transitions
    */
+  logic exe_to_com;
+  logic mem1_to_com;
+
+  assign exe_to_com  = exe_exc_pending || opcode == OPCODE_BRANCH || !mem_access;
+
+  assign mem1_to_com = mmu_exc_pending || !amo_rmw_r;
+
   always_comb begin
-    state    = state_r;
+    state = state_r;
 
     case (state_r)
       ST_IF_DEC:
@@ -645,37 +648,28 @@ module app_core
           state = nop || if_dec_exc_pending ? ST_COM : ST_EXE1;
 
       ST_EXE1:
-        if (exe_exc_pending)
-          state = ST_COM;
-        else if (div_r) begin
-          if (!div_stall)
-            state = ST_WB;
-        end else if (mul_r) begin
+        if (mul_r) begin
           if (!mul_stall)
-            state = ST_WB;
-        end else if (opcode == OPCODE_BRANCH)
-          state = ST_COM;
-        else
-          state = mem_access ? ST_MEM1 : ST_WB;
+            state = ST_COM;
+        end else if (div_r) begin
+          if (!div_stall)
+            state = ST_COM;
+        end else
+          state = exe_to_com ? ST_COM : ST_MEM1;
 
       ST_MEM1:
-        if (!mmu_stall) begin
-          if (mmu_exc_pending)
-            state = ST_COM;
-          else if (opcode == OPCODE_STORE)
-            state = ST_COM;
-          else
-            state = amo_rmw_r ? ST_EXE2 : ST_WB;
-        end
+        if (!mmu_stall)
+          state = mem1_to_com ? ST_COM : ST_EXE2;
 
       ST_MEM2:
         if (!mmu_stall)
-          state = mmu_exc_pending ? ST_COM : ST_WB;
+          state = ST_COM;
 
       ST_COM:
         state = ST_IF_DEC;
 
-      default: state = state_t'(state_r + 1);
+      default:
+        state = state_t'(state_r + 1);
     endcase
   end
 
@@ -688,7 +682,7 @@ module app_core
   /*
    * TLB flushing
    */
-  assign mmu_tlb_flush = state_r == ST_WB && sfence_vma_r;
+  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
 
   /*
    * MMU
