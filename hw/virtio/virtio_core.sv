@@ -17,12 +17,12 @@ module virtio_core
   output logic [XLENB_LOG - 1:0] vsw_size,
   output logic                   vsw_nsign,
   output logic                   vsw_ren,
-  output logic                   vsw_wen
+  output logic                   vsw_wen,
+
+  input  logic [XLEN - 1:0]      vmem_raw_data
 );
-  typedef enum logic [2:0] {
-    ST_IDLE,
-    ST_IF,
-    ST_DEC,
+  typedef enum logic [1:0] {
+    ST_IF_DEC,
     ST_EXE,
     ST_MEM,
     ST_WB
@@ -33,11 +33,8 @@ module virtio_core
 
   logic [ILEN - 1:0]       inst, inst_r;
   logic [OPCODELEN - 1:0]  opcode;
-  logic [REGCNT_LOG - 1:0] rs1;
-  logic [REGCNT_LOG - 1:0] rs2;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
-  logic [FUNCT5LEN - 1:0]  funct5;
   logic [FUNCT7LEN - 1:0]  funct7;
   logic [XLENB_LOG - 1:0]  mem_size;
   logic [XLEN - 1:0]       imm, imm_r;
@@ -53,42 +50,24 @@ module virtio_core
   logic                    rf_wen;
 
   /*
-   * Instruction fetch stage
+   * Instruction fetch and decode stage
    */
-  always_comb begin
-    inst = inst_r;
+  logic [REGCNT_LOG - 1:0] _rs1;
+  logic [REGCNT_LOG - 1:0] _rs2;
+  logic [XLEN - 1:0]       rf_rdata1;
+  logic [XLEN - 1:0]       rf_rdata2;
+  logic [XLEN - 1:0]       ig_imm;
 
-    if (state_r == ST_IF)
-      inst = vsw_rdata;
-  end
-
-  always_ff @(posedge clk)
-    inst_r <= inst;
-
-  /*
-   * Decode stage
-   */
-  logic [XLEN - 1:0] rf_rdata1;
-  logic [XLEN - 1:0] rf_rdata2;
-  logic [XLEN - 1:0] ig_imm;
-
-  assign opcode   = inst_r[OPCODESH+:OPCODELEN];
-  assign rs1      = inst_r[RS1SH+:REGCNT_LOG];
-  assign rs2      = inst_r[RS2SH+:REGCNT_LOG];
-  assign rd       = inst_r[RDSH+:REGCNT_LOG];
-  assign funct3   = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct5   = inst_r[FUNCT5SH+:FUNCT5LEN];
-  assign funct7   = inst_r[FUNCT7SH+:FUNCT7LEN];
-
-  assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+  assign _rs1 = vmem_raw_data[RS1SH+:REGCNT_LOG];
+  assign _rs2 = vmem_raw_data[RS2SH+:REGCNT_LOG];
 
   reg_file #(
     .RSTARG (0)
   ) REG_FILE(
     .clk     (clk),
     .nrst    (nrst),
-    .raddr1  (rs1),
-    .raddr2  (rs2),
+    .raddr1  (_rs1),
+    .raddr2  (_rs2),
     .waddr   (rd),
     .wdata   (rf_wdata),
     .wen     (rf_wen),
@@ -97,16 +76,18 @@ module virtio_core
   );
 
   imm_gen IMM_GEN(
-    .inst (inst_r),
+    .inst (vmem_raw_data),
     .imm  (ig_imm)
   );
 
   always_comb begin
+    inst     = inst_r;
     imm      = imm_r;
     rs1_data = rs1_data_r;
     rs2_data = rs2_data_r;
 
-    if (state_r == ST_DEC) begin
+    if (state_r == ST_IF_DEC) begin
+      inst     = vmem_raw_data;
       imm      = ig_imm;
       rs1_data = rf_rdata1;
       rs2_data = rf_rdata2;
@@ -114,6 +95,7 @@ module virtio_core
   end
 
   always_ff @(posedge clk) begin
+    inst_r     <= inst;
     imm_r      <= imm;
     rs1_data_r <= rs1_data;
     rs2_data_r <= rs2_data;
@@ -126,6 +108,13 @@ module virtio_core
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
   logic                   bralu_res;
+
+  assign opcode       = inst_r[OPCODESH+:OPCODELEN];
+  assign rd           = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3       = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct7       = inst_r[FUNCT7SH+:FUNCT7LEN];
+
+  assign mem_size     = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -243,25 +232,22 @@ module virtio_core
     state = state_r;
 
     case (state_r)
-      ST_IDLE:
-        state = ST_IF;
-
-      ST_IF:
+      ST_IF_DEC:
         if (!vsw_stall)
-          state = ST_DEC;
+          state = ST_EXE;
 
       ST_EXE:
         if (opcode == OPCODE_BRANCH)
-          state = ST_IF;
+          state = ST_IF_DEC;
         else
           state = mem_access ? ST_MEM : ST_WB;
 
       ST_MEM:
         if (!vsw_stall)
-          state = opcode == OPCODE_STORE ? ST_IF : ST_WB;
+          state = opcode == OPCODE_STORE ? ST_IF_DEC : ST_WB;
 
       ST_WB:
-        state = ST_IF;
+        state = ST_IF_DEC;
 
       default:
         state = state_t'(state_r + 1);
@@ -270,17 +256,17 @@ module virtio_core
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      state_r <= ST_IDLE;
+      state_r <= ST_IF_DEC;
     else
       state_r <= state;
 
   /*
    * VirtIO switch signals
    */
-  assign vsw_addr  = state_r == ST_IF ? pc_r : mem_addr_r;
+  assign vsw_addr  = state_r == ST_IF_DEC ? pc_r : mem_addr_r;
   assign vsw_wdata = rs2_data_r;
-  assign vsw_size  = state_r == ST_IF ? ILENB_LOG : mem_size;
+  assign vsw_size  = state_r == ST_IF_DEC ? ILENB_LOG : mem_size;
   assign vsw_nsign = funct3[FUNCT3_NSIGNSH];
-  assign vsw_ren   = state_r == ST_IF || (state_r == ST_MEM && opcode == OPCODE_LOAD);
+  assign vsw_ren   = state_r == ST_IF_DEC || (state_r == ST_MEM && opcode == OPCODE_LOAD);
   assign vsw_wen   = state_r == ST_MEM && opcode == OPCODE_STORE;
 endmodule
