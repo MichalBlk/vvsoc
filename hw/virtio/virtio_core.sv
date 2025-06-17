@@ -35,7 +35,6 @@ module virtio_core
   logic [OPCODELEN - 1:0]  opcode;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
-  logic [FUNCT5LEN - 1:0]  funct5;
   logic [FUNCT7LEN - 1:0]  funct7;
   logic [XLENB_LOG - 1:0]  mem_size;
   logic [XLEN - 1:0]       imm, imm_r;
@@ -113,7 +112,6 @@ module virtio_core
   assign opcode       = inst_r[OPCODESH+:OPCODELEN];
   assign rd           = inst_r[RDSH+:REGCNT_LOG];
   assign funct3       = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct5       = inst_r[FUNCT5SH+:FUNCT5LEN];
   assign funct7       = inst_r[FUNCT7SH+:FUNCT7LEN];
 
   assign mem_size     = funct3[FUNCT3_SIZESH+:XLENB_LOG];
