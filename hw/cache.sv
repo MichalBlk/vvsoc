@@ -33,7 +33,6 @@ module cache
   typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ,
-    ST_VICTIM_READ,
     ST_MMEM_WRITE,
     ST_MMEM_READ,
     ST_PROCESS,
@@ -65,21 +64,11 @@ module cache
   logic                           line_dirty3 [CACHE_SETCNT - 1:0],
     line_dirty3_r [CACHE_SETCNT - 1:0];
 
-  logic                           line_valid0 [CACHE_SETCNT - 1:0],
-    line_valid0_r [CACHE_SETCNT - 1:0];
-  logic                           line_valid1 [CACHE_SETCNT - 1:0],
-    line_valid1_r [CACHE_SETCNT - 1:0];
-  logic                           line_valid2 [CACHE_SETCNT - 1:0],
-    line_valid2_r [CACHE_SETCNT - 1:0];
-  logic                           line_valid3 [CACHE_SETCNT - 1:0],
-    line_valid3_r [CACHE_SETCNT - 1:0];
-
   logic [CACHE_LINECNT_LOG - 1:0] line_nxt [CACHE_SETCNT - 1:0],
     line_nxt_r [CACHE_SETCNT - 1:0];
 
   logic [MMEM_ADDRLEN - 1:0]      addr, addr_r;
   logic [CACHE_LINELEN - 1:0]     wdata, wdata_r;
-  logic [XLENB_LOG - 1:0]         size, size_r;
   logic                           sign, sign_r;
   logic                           wen, wen_r;
   logic [CACHE_TAGLEN - 1:0]      tag;
@@ -111,7 +100,6 @@ module cache
   logic [MMEM_ADDRLEN - 1:0]      victim_addr, victim_addr_r;
   logic [CACHE_MMEM_CNTLEN - 1:0] cnt, cnt_r;
   logic                           hit, hit_r;
-  logic                           free_line, free_line_r;
   logic                           victim_dirty;
   logic                           wen0, wen0_r;
   logic                           wen1, wen1_r;
@@ -122,61 +110,64 @@ module cache
   /*
    * Idle stage
    */
-  always_comb begin
-    addr  = addr_r;
-    wdata = wdata_r;
-    size  = size_r;
-    sign  = sign_r;
-    wen   = wen_r;
-
-    if (state_r == ST_IDLE) begin
-      addr  = msw_addr;
-      wdata = CACHE_LINELEN'(msw_wdata);
-      size  = msw_size;
-      sign  = !msw_nsign;
-      wen   = msw_wen;
-    end
-  end
-
-  always_ff @(posedge clk) begin
-    addr_r  <= addr;
-    wdata_r <= wdata;
-    size_r  <= size;
-    sign_r  <= sign;
-    wen_r   <= wen;
-  end
-
-  /*
-   * Read stage
-   */
-  logic [CACHE_LINECNT_LOG - 1:0] free_line_idx;
-
-  assign {tag, set_idx, offset} = addr_r;
+  logic [CACHE_TAGLEN - 1:0]     _tag;
+  logic [CACHE_SETCNT_LOG - 1:0] _set_idx;
+  logic [CACHE_OFFSETLEN - 1:0]  _offset;
 
   always_comb begin
+    addr      = addr_r;
+    wdata     = wdata_r;
+    wen       = wen_r;
+    sign      = sign_r;
     offsetbit = offsetbit_r;
     sizebit   = sizebit_r;
     mask      = mask_r;
 
-    if (state_r == ST_READ) begin
-      offsetbit = offset << BLEN_LOG;
-      sizebit   = 1 << (size_r + BLEN_LOG);
+    if (state_r == ST_IDLE) begin
+      addr      = msw_addr;
+      wdata     = CACHE_LINELEN'(msw_wdata);
+      wen       = msw_wen;
+      sign      = !msw_nsign;
+      offsetbit = _offset << BLEN_LOG;
+      sizebit   = 1 << (msw_size + BLEN_LOG);
       mask      = (1 << sizebit) - 1;
     end
   end
 
   always_ff @(posedge clk) begin
+    addr_r      <= addr;
+    wdata_r     <= wdata;
+    wen_r       <= wen;
+    sign_r      <= sign;
     offsetbit_r <= offsetbit;
     sizebit_r   <= sizebit;
     mask_r      <= mask;
   end
 
-  always_ff @(posedge clk) begin
-    data0_r <= line_data0[set_idx];
-    data1_r <= line_data1[set_idx];
-    data2_r <= line_data2[set_idx];
-    data3_r <= line_data3[set_idx];
+  assign {_tag, _set_idx, _offset} = msw_addr;
+
+  always_ff @(posedge clk)
+    if (state_r == ST_IDLE) begin
+      data0_r <= line_data0[_set_idx];
+      data1_r <= line_data1[_set_idx];
+      data2_r <= line_data2[_set_idx];
+      data3_r <= line_data3[_set_idx];
+    end
+
+  always_comb begin
+    victim_line_idx = victim_line_idx_r;
+
+    if (state_r == ST_IDLE)
+      victim_line_idx = line_nxt_r[_set_idx];
   end
+
+  always_ff @(posedge clk)
+    victim_line_idx_r <= victim_line_idx;
+
+  /*
+   * Read stage
+   */
+  assign {tag, set_idx, offset} = addr_r;
 
   always_comb begin
     line_idx = line_idx_r;
@@ -185,16 +176,16 @@ module cache
     if (state_r == ST_READ) begin
       hit = 0;
 
-      unique0 if (line_tag0[set_idx] == tag && line_valid0[set_idx]) begin
+      unique0 if (line_tag0_r[set_idx] == tag) begin
         line_idx = 0;
         hit      = 1;
-      end else if (line_tag1[set_idx] == tag && line_valid1[set_idx]) begin
+      end else if (line_tag1_r[set_idx] == tag) begin
         line_idx = 1;
         hit      = 1;
-      end else if (line_tag2[set_idx] == tag && line_valid2[set_idx]) begin
+      end else if (line_tag2_r[set_idx] == tag) begin
         line_idx = 2;
         hit      = 1;
-      end else if (line_tag3[set_idx] == tag && line_valid3[set_idx]) begin
+      end else if (line_tag3_r[set_idx] == tag) begin
         line_idx = 3;
         hit      = 1;
       end
@@ -206,45 +197,6 @@ module cache
     hit_r      <= hit;
   end
 
-  always_comb begin
-    free_line_idx = 'bx;
-    free_line     = free_line_r;
-
-    if (state_r == ST_READ) begin
-      free_line = 0;
-
-      if (!line_valid0[set_idx]) begin
-        free_line_idx = 0;
-        free_line     = 1;
-      end else if (!line_valid1[set_idx]) begin
-        free_line_idx = 1;
-        free_line     = 1;
-      end else if (!line_valid2[set_idx]) begin
-        free_line_idx = 2;
-        free_line     = 1;
-      end else if (!line_valid3[set_idx]) begin
-        free_line_idx = 3;
-        free_line     = 1;
-      end
-    end
-  end
-
-  always_ff @(posedge clk)
-    free_line_r <= free_line;
-
-  always_comb begin
-    victim_line_idx = victim_line_idx_r;
-
-    if (state_r == ST_READ)
-      victim_line_idx = free_line ? free_line_idx : line_nxt_r[set_idx];
-  end
-
-  always_ff @(posedge clk)
-    victim_line_idx_r <= victim_line_idx;
-
-  /*
-   * Victim read stage
-   */
   always_comb
     case (victim_line_idx_r)
       0: begin
@@ -268,6 +220,69 @@ module cache
       end
     endcase
 
+  always_comb begin
+    mdf_data0 = mdf_data0_r;
+    mdf_data1 = mdf_data1_r;
+    mdf_data2 = mdf_data2_r;
+    mdf_data3 = mdf_data3_r;
+
+    if (state_r == ST_READ) begin
+      mdf_data0 = (data0_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data1 = (data1_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data2 = (data2_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data3 = (data3_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    mdf_data0_r <= mdf_data0;
+    mdf_data1_r <= mdf_data1;
+    mdf_data2_r <= mdf_data2;
+    mdf_data3_r <= mdf_data3;
+  end
+
+  always_comb begin
+    sh_data0 = sh_data0_r;
+    sh_data1 = sh_data1_r;
+    sh_data2 = sh_data2_r;
+    sh_data3 = sh_data3_r;
+
+    if (state_r == ST_READ) begin
+      sh_data0 = (data0_r >> offsetbit_r) & mask_r;
+      sh_data1 = (data1_r >> offsetbit_r) & mask_r;
+      sh_data2 = (data2_r >> offsetbit_r) & mask_r;
+      sh_data3 = (data3_r >> offsetbit_r) & mask_r;
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    sh_data0_r <= sh_data0;
+    sh_data1_r <= sh_data1;
+    sh_data2_r <= sh_data2;
+    sh_data3_r <= sh_data3;
+  end
+
+  always_comb begin
+    wen0 = wen0_r;
+    wen1 = wen1_r;
+    wen2 = wen2_r;
+    wen3 = wen3_r;
+
+    if (state_r == ST_READ) begin
+        wen0 = (!hit && victim_line_idx_r == 0) || (hit && wen_r && line_idx == 0);
+        wen1 = (!hit && victim_line_idx_r == 1) || (hit && wen_r && line_idx == 1);
+        wen2 = (!hit && victim_line_idx_r == 2) || (hit && wen_r && line_idx == 2);
+        wen3 = (!hit && victim_line_idx_r == 3) || (hit && wen_r && line_idx == 3);
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    wen0_r <= wen0;
+    wen1_r <= wen1;
+    wen2_r <= wen2;
+    wen3_r <= wen3;
+  end
+
   /*
    * Main memory read stage
    */
@@ -285,73 +300,24 @@ module cache
    * Process stage
    */
   always_comb begin
-    mdf_data0    = mdf_data0_r;
-    mdf_data1    = mdf_data1_r;
-    mdf_data2    = mdf_data2_r;
-    mdf_data3    = mdf_data3_r;
     mdf_src_data = mdf_src_data_r;
 
-    if (state_r == ST_PROCESS) begin
-      mdf_data0    = (data0_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data1    = (data1_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data2    = (data2_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data3    = (data3_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+    if (state_r == ST_PROCESS)
       mdf_src_data = (src_data_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-    end
   end
 
-  always_ff @(posedge clk) begin
-    mdf_data0_r    <= mdf_data0;
-    mdf_data1_r    <= mdf_data1;
-    mdf_data2_r    <= mdf_data2;
-    mdf_data3_r    <= mdf_data3;
+  always_ff @(posedge clk)
     mdf_src_data_r <= mdf_src_data;
-  end
 
   always_comb begin
-    sh_data0    = sh_data0_r;
-    sh_data1    = sh_data1_r;
-    sh_data2    = sh_data2_r;
-    sh_data3    = sh_data3_r;
     sh_src_data = sh_src_data_r;
 
-    if (state_r == ST_PROCESS) begin
-      sh_data0    = (data0_r >> offsetbit_r) & mask_r;
-      sh_data1    = (data1_r >> offsetbit_r) & mask_r;
-      sh_data2    = (data2_r >> offsetbit_r) & mask_r;
-      sh_data3    = (data3_r >> offsetbit_r) & mask_r;
+    if (state_r == ST_PROCESS)
       sh_src_data = (src_data_r >> offsetbit_r) & mask_r;
-    end
   end
 
-  always_ff @(posedge clk) begin
-    sh_data0_r    <= sh_data0;
-    sh_data1_r    <= sh_data1;
-    sh_data2_r    <= sh_data2;
-    sh_data3_r    <= sh_data3;
+  always_ff @(posedge clk)
     sh_src_data_r <= sh_src_data;
-  end
-
-  always_comb begin
-    wen0 = wen0_r;
-    wen1 = wen1_r;
-    wen2 = wen2_r;
-    wen3 = wen3_r;
-
-    if (state_r == ST_PROCESS) begin
-      wen0 = (!hit_r && victim_line_idx_r == 0) || (hit_r && wen_r && line_idx_r == 0);
-      wen1 = (!hit_r && victim_line_idx_r == 1) || (hit_r && wen_r && line_idx_r == 1);
-      wen2 = (!hit_r && victim_line_idx_r == 2) || (hit_r && wen_r && line_idx_r == 2);
-      wen3 = (!hit_r && victim_line_idx_r == 3) || (hit_r && wen_r && line_idx_r == 3);
-    end
-  end
-
-  always_ff @(posedge clk) begin
-    wen0_r <= wen0;
-    wen1_r <= wen1;
-    wen2_r <= wen2;
-    wen3_r <= wen3;
-  end
 
   /*
    * Finish stage
@@ -383,10 +349,13 @@ module cache
   always_ff @(posedge clk) begin
     if (state_r == ST_FINISH && wen0_r)
       line_data0[set_idx] <= cwdata0;
+
     if (state_r == ST_FINISH && wen1_r)
       line_data1[set_idx] <= cwdata1;
+
     if (state_r == ST_FINISH && wen2_r)
       line_data2[set_idx] <= cwdata2;
+
     if (state_r == ST_FINISH && wen3_r)
       line_data3[set_idx] <= cwdata3;
   end
@@ -395,7 +364,7 @@ module cache
     for (int i = 0; i < CACHE_SETCNT; i++)
       line_nxt[i] = line_nxt_r[i];
 
-    if (state_r == ST_FINISH && !hit_r && !free_line_r)
+    if (state_r == ST_FINISH && !hit_r)
       line_nxt[set_idx] = line_nxt_r[set_idx] + 1;
   end
 
@@ -448,7 +417,7 @@ module cache
     victim_addr = victim_addr_r;
     victim_data = victim_data_r;
 
-    if (state_r == ST_VICTIM_READ) begin
+    if (state_r == ST_READ) begin
       victim_addr = {victim_tag, set_idx, {CACHE_OFFSETLEN{1'b0}}};
 
       case (victim_line_idx_r)
@@ -484,7 +453,7 @@ module cache
     cnt_r <= cnt;
 
   /*
-   * Line tag, dirty, and valid handling
+   * Line tag and dirty handling
    */
   logic [CACHE_LINECNT_LOG - 1:0] idx;
 
@@ -501,37 +470,28 @@ module cache
       line_dirty1[i] = line_dirty1_r[i];
       line_dirty2[i] = line_dirty2_r[i];
       line_dirty3[i] = line_dirty3_r[i];
-
-      line_valid0[i] = line_valid0_r[i];
-      line_valid1[i] = line_valid1_r[i];
-      line_valid2[i] = line_valid2_r[i];
-      line_valid3[i] = line_valid3_r[i];
     end
 
-    if (state_r == ST_PROCESS && !hit_r)
+    if (state_r == ST_READ && !hit)
       case (victim_line_idx_r)
         0: begin
           line_tag0[set_idx]   = tag;
           line_dirty0[set_idx] = 0;
-          line_valid0[set_idx] = 1;
         end
 
         1: begin
           line_tag1[set_idx]   = tag;
           line_dirty1[set_idx] = 0;
-          line_valid1[set_idx] = 1;
         end
 
         2: begin
           line_tag2[set_idx]   = tag;
           line_dirty2[set_idx] = 0;
-          line_valid2[set_idx] = 1;
         end
 
         3: begin
           line_tag3[set_idx]   = tag;
           line_dirty3[set_idx] = 0;
-          line_valid3[set_idx] = 1;
         end
       endcase
     else if (state_r == ST_FINISH && wen_r)
@@ -546,10 +506,10 @@ module cache
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
       for (int i = 0; i < CACHE_SETCNT; i++) begin
-        line_valid0_r[i] <= 0;
-        line_valid1_r[i] <= 0;
-        line_valid2_r[i] <= 0;
-        line_valid3_r[i] <= 0;
+        line_tag0_r[i] <= {CACHE_TAGLEN{1'b1}};
+        line_tag1_r[i] <= {CACHE_TAGLEN{1'b1}};
+        line_tag2_r[i] <= {CACHE_TAGLEN{1'b1}};
+        line_tag3_r[i] <= {CACHE_TAGLEN{1'b1}};
       end
     else
       for (int i = 0; i < CACHE_SETCNT; i++) begin
@@ -562,11 +522,6 @@ module cache
         line_dirty1_r[i] <= line_dirty1[i];
         line_dirty2_r[i] <= line_dirty2[i];
         line_dirty3_r[i] <= line_dirty3[i];
-
-        line_valid0_r[i] <= line_valid0[i];
-        line_valid1_r[i] <= line_valid1[i];
-        line_valid2_r[i] <= line_valid2[i];
-        line_valid3_r[i] <= line_valid3[i];
       end
 
   /*
@@ -584,14 +539,9 @@ module cache
 
       ST_READ:
         if (hit)
-          state = ST_PROCESS;
-        else if (free_line)
-          state = ST_MMEM_READ;
+          state = ST_FINISH;
         else
-          state = ST_VICTIM_READ;
-
-      ST_VICTIM_READ:
-        state = victim_dirty ? ST_MMEM_WRITE : ST_MMEM_READ;
+          state = victim_dirty ? ST_MMEM_WRITE : ST_MMEM_READ;
 
       ST_MMEM_WRITE:
         if (mem_finished)
