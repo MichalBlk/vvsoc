@@ -221,6 +221,14 @@ module cache
     hit_r      <= hit;
   end
 
+  always_comb
+    case (victim_line_idx_r)
+      0: victim_tag = line_tag0_r[set_idx];
+      1: victim_tag = line_tag1_r[set_idx];
+      2: victim_tag = line_tag2_r[set_idx];
+      3: victim_tag = line_tag3_r[set_idx];
+    endcase
+
   always_comb begin
     victim_addr  = victim_addr_r;
     victim_data  = victim_data_r;
@@ -230,25 +238,21 @@ module cache
       case (victim_line_idx_r)
         0: begin
           victim_data  = data0_r;
-          victim_tag   = line_tag0_r[set_idx];
           victim_dirty = line_dirty0_r[set_idx];
         end
 
         1: begin
           victim_data  = data1_r;
-          victim_tag   = line_tag1_r[set_idx];
           victim_dirty = line_dirty1_r[set_idx];
         end
 
         2: begin
           victim_data  = data2_r;
-          victim_tag   = line_tag2_r[set_idx];
           victim_dirty = line_dirty2_r[set_idx];
         end
 
         3: begin
           victim_data  = data3_r;
-          victim_tag   = line_tag3_r[set_idx];
           victim_dirty = line_dirty3_r[set_idx];
         end
       endcase
