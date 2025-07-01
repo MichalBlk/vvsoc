@@ -33,8 +33,9 @@ module cache
   typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ,
-    ST_MMEM_WRITE,
+    ST_MMEM_WRITE_WAIT,
     ST_MMEM_READ,
+    ST_MMEM_WRITE,
     ST_PROCESS,
     ST_FINISH
   } state_t;
@@ -72,7 +73,6 @@ module cache
   logic                           sign, sign_r;
   logic                           wen, wen_r;
   logic [CACHE_TAGLEN - 1:0]      tag;
-  logic [CACHE_TAGLEN - 1:0]      victim_tag;
   logic [CACHE_SETCNT_LOG - 1:0]  set_idx;
   logic [CACHE_OFFSETLEN - 1:0]   offset;
   logic [CACHE_LINELEN_LOG - 1:0] offsetbit, offsetbit_r;
@@ -96,16 +96,38 @@ module cache
   logic [CACHE_LINELEN - 1:0]     victim_data, victim_data_r;
   logic [CACHE_LINECNT_LOG - 1:0] line_idx, line_idx_r;
   logic [CACHE_LINECNT_LOG - 1:0] victim_line_idx, victim_line_idx_r;
-  logic [MMEM_ADDRLEN - 1:0]      src_addr, src_addr_r;
   logic [MMEM_ADDRLEN - 1:0]      victim_addr, victim_addr_r;
-  logic [CACHE_MMEM_CNTLEN - 1:0] cnt, cnt_r;
   logic                           hit, hit_r;
-  logic                           victim_dirty;
+  logic                           victim_dirty, victim_dirty_r;
   logic                           wen0, wen0_r;
   logic                           wen1, wen1_r;
   logic                           wen2, wen2_r;
   logic                           wen3, wen3_r;
-  logic                           mem_finished;
+
+  logic [MMEM_ADDRLEN - 1:0]      ca_addr;
+  logic                           ca_ren;
+  logic                           ca_wen;
+  logic [CACHE_LINELEN - 1:0]     ca_rdata;
+  logic                           ca_ready;
+  logic                           ca_done;
+
+  cache_agent CACHE_AGENT(
+    .clk         (clk),
+    .nrst        (nrst),
+    .cache_addr  (ca_addr),
+    .cache_wdata (victim_data_r),
+    .cache_ren   (ca_ren),
+    .cache_wen   (ca_wen),
+    .cache_rdata (ca_rdata),
+    .cache_ready (ca_ready),
+    .cache_done  (ca_done),
+    .mmem_rdata  (mmem_rdata),
+    .mmem_stall  (mmem_stall),
+    .mmem_addr   (mmem_addr),
+    .mmem_wdata  (mmem_wdata),
+    .mmem_ren    (mmem_ren),
+    .mmem_wen    (mmem_wen)
+  );
 
   /*
    * Idle stage
@@ -167,6 +189,8 @@ module cache
   /*
    * Read stage
    */
+  logic [CACHE_TAGLEN - 1:0] victim_tag;
+
   assign {tag, set_idx, offset} = addr_r;
 
   always_comb begin
@@ -197,48 +221,46 @@ module cache
     hit_r      <= hit;
   end
 
-  always_comb
-    case (victim_line_idx_r)
-      0: begin
-        victim_tag   = line_tag0_r[set_idx];
-        victim_dirty = line_dirty0_r[set_idx];
-      end
-
-      1: begin
-        victim_tag   = line_tag1_r[set_idx];
-        victim_dirty = line_dirty1_r[set_idx];
-      end
-
-      2: begin
-        victim_tag   = line_tag2_r[set_idx];
-        victim_dirty = line_dirty2_r[set_idx];
-      end
-
-      3: begin
-        victim_tag   = line_tag3_r[set_idx];
-        victim_dirty = line_dirty3_r[set_idx];
-      end
-    endcase
-
   always_comb begin
-    mdf_data0 = mdf_data0_r;
-    mdf_data1 = mdf_data1_r;
-    mdf_data2 = mdf_data2_r;
-    mdf_data3 = mdf_data3_r;
+    victim_addr  = victim_addr_r;
+    victim_data  = victim_data_r;
+    victim_dirty = victim_dirty_r;
 
     if (state_r == ST_READ) begin
-      mdf_data0 = (data0_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data1 = (data1_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data2 = (data2_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
-      mdf_data3 = (data3_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      case (victim_line_idx_r)
+        0: begin
+          victim_data  = data0_r;
+          victim_tag   = line_tag0_r[set_idx];
+          victim_dirty = line_dirty0_r[set_idx];
+        end
+
+        1: begin
+          victim_data  = data1_r;
+          victim_tag   = line_tag1_r[set_idx];
+          victim_dirty = line_dirty1_r[set_idx];
+        end
+
+        2: begin
+          victim_data  = data2_r;
+          victim_tag   = line_tag2_r[set_idx];
+          victim_dirty = line_dirty2_r[set_idx];
+        end
+
+        3: begin
+          victim_data  = data3_r;
+          victim_tag   = line_tag3_r[set_idx];
+          victim_dirty = line_dirty3_r[set_idx];
+        end
+      endcase
+
+      victim_addr = {victim_tag, set_idx, {CACHE_OFFSETLEN{1'b0}}};
     end
   end
 
   always_ff @(posedge clk) begin
-    mdf_data0_r <= mdf_data0;
-    mdf_data1_r <= mdf_data1;
-    mdf_data2_r <= mdf_data2;
-    mdf_data3_r <= mdf_data3;
+    victim_addr_r  <= victim_addr;
+    victim_data_r  <= victim_data;
+    victim_dirty_r <= victim_dirty;
   end
 
   always_comb begin
@@ -260,6 +282,27 @@ module cache
     sh_data1_r <= sh_data1;
     sh_data2_r <= sh_data2;
     sh_data3_r <= sh_data3;
+  end
+
+  always_comb begin
+    mdf_data0 = mdf_data0_r;
+    mdf_data1 = mdf_data1_r;
+    mdf_data2 = mdf_data2_r;
+    mdf_data3 = mdf_data3_r;
+
+    if (state_r == ST_READ) begin
+      mdf_data0 = (data0_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data1 = (data1_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data2 = (data2_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+      mdf_data3 = (data3_r & ~(mask_r << offsetbit_r)) | ((wdata_r & mask_r) << offsetbit_r);
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    mdf_data0_r <= mdf_data0;
+    mdf_data1_r <= mdf_data1;
+    mdf_data2_r <= mdf_data2;
+    mdf_data3_r <= mdf_data3;
   end
 
   always_comb begin
@@ -289,8 +332,8 @@ module cache
   always_comb begin
     src_data = src_data_r;
 
-    if (state_r == ST_MMEM_READ && !mmem_stall)
-      src_data = {mmem_rdata, src_data_r[CACHE_LINELEN - 1:MMEM_DATALEN]};
+    if (state_r == ST_MMEM_READ)
+      src_data = ca_rdata;
   end
 
   always_ff @(posedge clk)
@@ -327,6 +370,25 @@ module cache
   logic [CACHE_LINELEN - 1:0] cwdata2;
   logic [CACHE_LINELEN - 1:0] cwdata3;
   logic [XLEN - 1:0]          sh_data;
+
+  always_comb
+    if (hit_r)
+      case (line_idx_r)
+        0: sh_data = sh_data0_r;
+        1: sh_data = sh_data1_r;
+        2: sh_data = sh_data2_r;
+        3: sh_data = sh_data3_r;
+      endcase
+    else
+      sh_data = sh_src_data_r;
+
+  assign ac_pte = sh_data;
+
+  always_comb
+    if (sign_r && (sh_data >> (sizebit_r - 1)))
+      msw_rdata = sh_data | ~mask_r;
+    else
+      msw_rdata = sh_data;
 
   always_comb
     if (hit_r) begin
@@ -375,82 +437,6 @@ module cache
     else
       for (int i = 0; i < CACHE_SETCNT; i++)
         line_nxt_r[i] <= line_nxt[i];
-
-  always_comb
-    if (hit_r)
-      case (line_idx_r)
-        0: sh_data = sh_data0_r;
-        1: sh_data = sh_data1_r;
-        2: sh_data = sh_data2_r;
-        3: sh_data = sh_data3_r;
-      endcase
-    else
-      sh_data = sh_src_data_r;
-
-  assign ac_pte = sh_data;
-
-  always_comb
-    if (sign_r && (sh_data >> (sizebit_r - 1)))
-      msw_rdata = sh_data | ~mask_r;
-    else
-      msw_rdata = sh_data;
-
-  /*
-   * Source address handling
-   */
-  always_comb begin
-    src_addr = src_addr_r;
-
-    if (state_r == ST_READ)
-      src_addr = {tag, set_idx, {CACHE_OFFSETLEN{1'b0}}};
-    else if (state_r == ST_MMEM_READ && !mmem_stall)
-      src_addr = src_addr_r + MMEM_DATALENB;
-  end
-
-  always_ff @(posedge clk)
-    src_addr_r <= src_addr;
-
-  /*
-   * Victim address/data handling
-   */
-  always_comb begin
-    victim_addr = victim_addr_r;
-    victim_data = victim_data_r;
-
-    if (state_r == ST_READ) begin
-      victim_addr = {victim_tag, set_idx, {CACHE_OFFSETLEN{1'b0}}};
-
-      case (victim_line_idx_r)
-        0: victim_data = data0_r;
-        1: victim_data = data1_r;
-        2: victim_data = data2_r;
-        3: victim_data = data3_r;
-      endcase
-    end else if (state_r == ST_MMEM_WRITE && !mmem_stall) begin
-      victim_addr = victim_addr_r + MMEM_DATALENB;
-      victim_data = victim_data_r >> MMEM_DATALEN;
-    end
-  end
-
-  always_ff @(posedge clk) begin
-    victim_addr_r <= victim_addr;
-    victim_data_r <= victim_data;
-  end
-
-  /*
-   * Counter handling
-   */
-  always_comb begin
-    cnt = cnt_r;
-
-    if (state_r == ST_READ)
-      cnt = CACHE_MMEM_CYCLES - 1;
-    else if ((state_r == ST_MMEM_WRITE || state_r == ST_MMEM_READ) && !mmem_stall)
-      cnt = cnt_r ? cnt_r - 1 : CACHE_MMEM_CYCLES - 1;
-  end
-
-  always_ff @(posedge clk)
-    cnt_r <= cnt;
 
   /*
    * Line tag and dirty handling
@@ -527,8 +513,6 @@ module cache
   /*
    * State transitions
    */
-  assign mem_finished = !cnt_r && !mmem_stall;
-
   always_comb begin
     state = state_r;
 
@@ -540,16 +524,21 @@ module cache
       ST_READ:
         if (hit)
           state = ST_FINISH;
+        else if (ca_ready)
+          state = ST_MMEM_READ;
         else
-          state = victim_dirty ? ST_MMEM_WRITE : ST_MMEM_READ;
+          state = ST_MMEM_WRITE_WAIT;
 
-      ST_MMEM_WRITE:
-        if (mem_finished)
+      ST_MMEM_WRITE_WAIT:
+        if (ca_ready)
           state = ST_MMEM_READ;
 
       ST_MMEM_READ:
-        if (mem_finished)
-          state = ST_PROCESS;
+        if (ca_done)
+          state = victim_dirty_r ? ST_MMEM_WRITE : ST_PROCESS;
+
+      ST_MMEM_WRITE:
+        state = ST_PROCESS;
 
       ST_PROCESS:
         state = ST_FINISH;
@@ -566,12 +555,15 @@ module cache
       state_r <= state;
 
   /*
-   * Main memory signals
+   * Cache signals
    */
-  assign mmem_addr  = state_r == ST_MMEM_WRITE ? victim_addr_r : src_addr_r;
-  assign mmem_wdata = victim_data_r[MMEM_DATALEN - 1:0];
-  assign mmem_ren   = state_r == ST_MMEM_READ;
-  assign mmem_wen   = state_r == ST_MMEM_WRITE;
+  logic [MMEM_ADDRLEN - 1:0] src_addr;
+
+  assign src_addr = {tag, set_idx, {CACHE_OFFSETLEN{1'b0}}};
+
+  assign ca_addr  = state_r == ST_MMEM_WRITE ? victim_addr_r : src_addr;
+  assign ca_wen   = state_r == ST_MMEM_WRITE;
+  assign ca_ren   = (state_r == ST_READ && !hit) || state_r == ST_MMEM_WRITE_WAIT;
 
   /*
    * Other main switch signals
