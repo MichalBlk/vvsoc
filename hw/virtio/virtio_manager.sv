@@ -313,7 +313,7 @@ module virtio_manager
     endcase
   end
 
-  assign vsw_stall = (vsw_addr == VMGR_REG_UART_TX && uart_tx_busy) ||
+  assign vsw_stall = (vsw_addr == VMGR_REG_UART_TX && (uart_tx_busy || dbgc_wen)) ||
     (vsw_addr == VMGR_REG_REQ && state_r != ST_BUSY);
 
   /*
