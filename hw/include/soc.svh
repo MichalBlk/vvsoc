@@ -145,26 +145,6 @@ package soc_pkg;
   parameter CLINT_REG_MTIMEH    = 'hbffc;
 
   /*
-   * Cache
-   */
-  parameter CACHE_SETCNT       = 16;
-  parameter CACHE_SETCNT_LOG   = $clog2(CACHE_SETCNT);
-
-  parameter CACHE_LINECNT      = 4;
-  parameter CACHE_LINECNT_LOG  = $clog2(CACHE_LINECNT);
-
-  parameter CACHE_LINELEN      = 512;
-  parameter CACHE_LINELENB     = CACHE_LINELEN >> BLEN_LOG;
-  parameter CACHE_LINELEN_LOG  = $clog2(CACHE_LINELEN);
-  parameter CACHE_LINELENB_LOG = $clog2(CACHE_LINELENB);
-
-  parameter CACHE_OFFSETLEN    = CACHE_LINELENB_LOG;
-  parameter CACHE_TAGLEN       = MMEM_ADDRLEN - (CACHE_SETCNT_LOG + CACHE_OFFSETLEN);
-
-  parameter CACHE_MMEM_CYCLES  = CACHE_LINELEN / MMEM_DATALEN;
-  parameter CACHE_MMEM_CNTLEN  = $clog2(CACHE_MMEM_CYCLES);
-
-  /*
    * Main memory
    */
   parameter MMEM_DATALENB     = MMEM_DATALEN >> BLEN_LOG;
@@ -185,6 +165,26 @@ package soc_pkg;
   parameter MMEM_OPENSBI_OFFW = MMEM_OPENSBI_OFF >> MMEM_DATALENB_LOG;
   parameter MMEM_DTB_OFFW     = MMEM_DTB_OFF >> MMEM_DATALENB_LOG;
   parameter MMEM_INITRD_OFFW  = MMEM_INITRD_OFF >> MMEM_DATALENB_LOG;
+
+  /*
+   * Cache
+   */
+  parameter CACHE_SETCNT       = 16;
+  parameter CACHE_SETCNT_LOG   = $clog2(CACHE_SETCNT);
+
+  parameter CACHE_LINECNT      = 4;
+  parameter CACHE_LINECNT_LOG  = $clog2(CACHE_LINECNT);
+
+  parameter CACHE_LINELEN      = 512;
+  parameter CACHE_LINELENB     = CACHE_LINELEN >> BLEN_LOG;
+  parameter CACHE_LINELEN_LOG  = $clog2(CACHE_LINELEN);
+  parameter CACHE_LINELENB_LOG = $clog2(CACHE_LINELENB);
+
+  parameter CACHE_OFFSETLEN    = CACHE_LINELENB_LOG;
+  parameter CACHE_TAGLEN       = MMEM_ADDRLEN - (CACHE_SETCNT_LOG + CACHE_OFFSETLEN) + 1;
+
+  parameter CACHE_MMEM_CYCLES  = CACHE_LINELEN / MMEM_DATALEN;
+  parameter CACHE_MMEM_CNTLEN  = $clog2(CACHE_MMEM_CYCLES);
 
   /*
    * Flash memory

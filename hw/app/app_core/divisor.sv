@@ -53,12 +53,12 @@ module divisor
   end
 
   always_ff @(posedge clk) begin
-    sign_src1_r  = sign_src1;
-    sign_src2_r  = sign_src2;
-    diff_signs_r = diff_signs;
-    sign_r       = sign;
-    zero_r       = zero;
-    ovf_r        = ovf;
+    sign_src1_r  <= sign_src1;
+    sign_src2_r  <= sign_src2;
+    diff_signs_r <= diff_signs;
+    sign_r       <= sign;
+    zero_r       <= zero;
+    ovf_r        <= ovf;
   end
 
   /*

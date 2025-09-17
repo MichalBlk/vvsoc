@@ -68,14 +68,14 @@ module virtio_switch
   assign vmgr_addr  = vc_addr;
   assign vmgr_wdata = vc_wdata;
 
-  assign vcd_addr    = vc_addr;
-  assign vcd_wdata   = vc_wdata;
+  assign vcd_addr   = vc_addr;
+  assign vcd_wdata  = vc_wdata;
 
-  assign vgd_addr    = vc_addr;
-  assign vgd_wdata   = vc_wdata;
+  assign vgd_addr   = vc_addr;
+  assign vgd_wdata  = vc_wdata;
 
-  assign vkd_addr    = vc_addr;
-  assign vkd_wdata   = vc_wdata;
+  assign vkd_addr   = vc_addr;
+  assign vkd_wdata  = vc_wdata;
 
   assign msw_addr   = vc_addr;
   assign msw_wdata  = vc_wdata;

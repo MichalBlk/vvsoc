@@ -1,5 +1,8 @@
 `default_nettype none
 
+`include "isa.svh"
+`include "soc.svh"
+
 module uart
   import isa_pkg::BLEN;
   import isa_pkg::BLEN_LOG;

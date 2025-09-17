@@ -252,7 +252,7 @@ module app_core
     sfence_vma = sfence_vma_r;
 
     if (state_r == ST_IF_DEC) begin
-      inst       = fence || wfi ? NOP : mmu_rdata;
+      inst       = nop ? NOP : mmu_rdata;
       imm        = ig_imm;
       rs1_data   = rf_rdata1;
       rs2_data   = rf_rdata2;
@@ -614,9 +614,6 @@ module app_core
           tval        = mem_addr_r;
         end else
           exc_pending = 0;
-
-      ST_COM:
-        exc_pending = 0;
     endcase
   end
 
@@ -635,7 +632,7 @@ module app_core
   logic exe_to_com;
   logic mem1_to_com;
 
-  assign exe_to_com  = exe_exc_pending || opcode == OPCODE_BRANCH || !mem_access;
+  assign exe_to_com  = exe_exc_pending || !mem_access;
 
   assign mem1_to_com = mmu_exc_pending || !amo_rmw_r;
 
