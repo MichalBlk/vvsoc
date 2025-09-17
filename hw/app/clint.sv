@@ -61,7 +61,7 @@ module clint
     end
 
   /*
-   * Application core signals signals
+   * Application core signals
    */
   assign ac_mtime        = mtime_r;
   assign ac_intr_pending = mtime_r >= mtimecmp_r;

@@ -7,7 +7,7 @@ package board_pkg;
   /*
    * Main memory
    */
-  parameter MMEM_DATALEN  = 128;
+  parameter MMEM_DATALEN = 128;
 
   /*
    * DRAM

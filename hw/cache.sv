@@ -316,10 +316,10 @@ module cache
     wen3 = wen3_r;
 
     if (state_r == ST_READ) begin
-        wen0 = (!hit && victim_line_idx_r == 0) || (hit && wen_r && line_idx == 0);
-        wen1 = (!hit && victim_line_idx_r == 1) || (hit && wen_r && line_idx == 1);
-        wen2 = (!hit && victim_line_idx_r == 2) || (hit && wen_r && line_idx == 2);
-        wen3 = (!hit && victim_line_idx_r == 3) || (hit && wen_r && line_idx == 3);
+      wen0 = (!hit && victim_line_idx_r == 0) || (hit && wen_r && line_idx == 0);
+      wen1 = (!hit && victim_line_idx_r == 1) || (hit && wen_r && line_idx == 1);
+      wen2 = (!hit && victim_line_idx_r == 2) || (hit && wen_r && line_idx == 2);
+      wen3 = (!hit && victim_line_idx_r == 3) || (hit && wen_r && line_idx == 3);
     end
   end
 
@@ -462,7 +462,7 @@ module cache
       line_dirty3[i] = line_dirty3_r[i];
     end
 
-    if (state_r == ST_READ && !hit)
+    if (state_r == ST_PROCESS)
       case (victim_line_idx_r)
         0: begin
           line_tag0[set_idx]   = tag;
@@ -534,7 +534,7 @@ module cache
           state = ST_MMEM_WRITE_WAIT;
 
       ST_MMEM_WRITE_WAIT:
-        if (ca_ready)
+        if (ca_done)
           state = ST_MMEM_READ;
 
       ST_MMEM_READ:
@@ -559,7 +559,7 @@ module cache
       state_r <= state;
 
   /*
-   * Cache signals
+   * Cache agent signals
    */
   logic [MMEM_ADDRLEN - 1:0] src_addr;
 
@@ -567,7 +567,7 @@ module cache
 
   assign ca_addr  = state_r == ST_MMEM_WRITE ? victim_addr_r : src_addr;
   assign ca_wen   = state_r == ST_MMEM_WRITE;
-  assign ca_ren   = (state_r == ST_READ && !hit) || state_r == ST_MMEM_WRITE_WAIT;
+  assign ca_ren   = (state_r == ST_READ && !hit) || state_r == ST_MMEM_READ;
 
   /*
    * Other main switch signals

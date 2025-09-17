@@ -103,7 +103,7 @@ module cache_agent
   always_ff @(posedge clk)
     wdata_r <= wdata;
 
-   /*
+  /*
    * Counter handling
    */
   always_comb begin
