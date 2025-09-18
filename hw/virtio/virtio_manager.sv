@@ -356,7 +356,7 @@ module virtio_manager
         queue_notif_cnt[i][j] = queue_notif_cnt_r[i][j];
 
     if (state_r != ST_BUSY || !finished) begin
-      if (vkd_notify && !vkd_notif_cnt_max)
+      unique0 if (vkd_notify && !vkd_notif_cnt_max)
         queue_notif_cnt[VMGR_DEV_VKD][vkd_queue_num] =
           queue_notif_cnt_r[VMGR_DEV_VKD][vkd_queue_num] + 1;
       else if (vgd_notify && !vgd_notif_cnt_max)
@@ -365,8 +365,20 @@ module virtio_manager
       else if (vcd_notify && !vcd_notif_cnt_max)
         queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
           queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
-    end else
-      queue_notif_cnt[dev_r][pend_queue_num_r] = queue_notif_cnt_r[dev_r][pend_queue_num_r] - 1;
+    end else begin
+      queue_notif_cnt[dev_r][pend_queue_num_r] =
+        queue_notif_cnt_r[dev_r][pend_queue_num_r] - 1;
+
+      unique0 if (vkd_notify && dev_r != VMGR_DEV_VKD && !vkd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VKD][vkd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VKD][vkd_queue_num] + 1;
+      else if (vgd_notify && dev_r != VMGR_DEV_VGD && !vgd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VGD][vgd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VGD][vgd_queue_num] + 1;
+      else if (vcd_notify && dev_r != VMGR_DEV_VCD && !vcd_notif_cnt_max)
+        queue_notif_cnt[VMGR_DEV_VCD][vcd_queue_num] =
+          queue_notif_cnt_r[VMGR_DEV_VCD][vcd_queue_num] + 1;
+    end
   end
 
   always_ff @(posedge clk, negedge nrst)
