@@ -23,7 +23,7 @@ module virtio_core
 );
   typedef enum logic [1:0] {
     ST_IF_DEC,
-    ST_EXE,
+    ST_ADDR,
     ST_MEM,
     ST_WB
   } state_t;
@@ -32,6 +32,7 @@ module virtio_core
   logic [XLEN - 1:0]       pc, pc_r;
 
   logic [ILEN - 1:0]       inst, inst_r;
+  logic [OPCODELEN - 1:0]  _opcode;
   logic [OPCODELEN - 1:0]  opcode;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
@@ -40,11 +41,10 @@ module virtio_core
   logic [XLEN - 1:0]       imm, imm_r;
   logic [XLEN - 1:0]       rs1_data, rs1_data_r;
   logic [XLEN - 1:0]       rs2_data, rs2_data_r;
-  logic [XLEN - 1:0]       rd_data, rd_data_r;
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
-  logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
-  logic                    tkn, tkn_r;
   logic [XLEN - 1:0]       mem_data, mem_data_r;
+  logic [XLEN - 1:0]       jmp_pc;
+  logic                    tkn;
  
   logic [XLEN - 1:0]       rf_wdata;
   logic                    rf_wen;
@@ -58,8 +58,9 @@ module virtio_core
   logic [XLEN - 1:0]       rf_rdata2;
   logic [XLEN - 1:0]       ig_imm;
 
-  assign _rs1 = vmem_raw_data[RS1SH+:REGCNT_LOG];
-  assign _rs2 = vmem_raw_data[RS2SH+:REGCNT_LOG];
+  assign _opcode = vmem_raw_data[OPCODESH+:OPCODELEN];
+  assign _rs1    = vmem_raw_data[RS1SH+:REGCNT_LOG];
+  assign _rs2    = vmem_raw_data[RS2SH+:REGCNT_LOG];
 
   reg_file #(
     .RSTARG (0)
@@ -102,19 +103,46 @@ module virtio_core
   end
 
   /*
-   * Execute stage
+   * Address stage
    */
+  assign opcode   = inst_r[OPCODESH+:OPCODELEN];
+  assign rd       = inst_r[RDSH+:REGCNT_LOG];
+  assign funct3   = inst_r[FUNCT3SH+:FUNCT3LEN];
+  assign funct7   = inst_r[FUNCT7SH+:FUNCT7LEN];
+
+  assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
+
+  always_comb begin
+    mem_addr = mem_addr_r;
+
+    if (state_r == ST_ADDR)
+      mem_addr = rs1_data_r + imm_r;
+  end
+
+  always_ff @(posedge clk)
+    mem_addr_r <= mem_addr;
+
+  /*
+   * Memory stage
+   */
+  always_comb begin
+    mem_data = mem_data_r;
+
+    if (state_r == ST_MEM)
+      mem_data = vsw_rdata;
+  end
+
+  always_ff @(posedge clk)
+    mem_data_r <= mem_data;
+
+  /*
+   * Write back stage
+   */
+  logic [XLEN - 1:0]      rd_data;
   logic [XLEN - 1:0]      opalu_src2;
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
   logic                   bralu_res;
-
-  assign opcode       = inst_r[OPCODESH+:OPCODELEN];
-  assign rd           = inst_r[RDSH+:REGCNT_LOG];
-  assign funct3       = inst_r[FUNCT3SH+:FUNCT3LEN];
-  assign funct7       = inst_r[FUNCT7SH+:FUNCT7LEN];
-
-  assign mem_size     = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -135,53 +163,44 @@ module virtio_core
   );
 
   always_comb begin
-    rd_data  = rd_data_r;
-    mem_addr = mem_addr_r;
-    jmp_pc   = jmp_pc_r;
-    tkn      = tkn_r;
+    rd_data = 'bx;
+    jmp_pc  = 'bx;
+    tkn     = 0;
 
-    if (state_r == ST_EXE) begin
-      tkn = 0;
+    unique0 case (opcode)
+      OPCODE_LUI:
+        rd_data = imm_r;
 
-      unique0 case (opcode)
-        OPCODE_LUI:
-          rd_data = imm_r;
+      OPCODE_AUIPC:
+        rd_data = pc_r + imm_r;
 
-        OPCODE_AUIPC:
-          rd_data = pc_r + imm_r;
+      OPCODE_JAL: begin
+        tkn     = 1;
+        jmp_pc  = pc_r + imm_r;
+        rd_data = pc_r + ILENB;
+      end
 
-        OPCODE_JAL: begin
-          tkn     = 1;
-          jmp_pc  = pc_r + imm_r;
-          rd_data = pc_r + ILENB;
-        end
+      OPCODE_JALR: begin
+        tkn     = 1;
+        jmp_pc  = rs1_data_r + imm_r;
+        rd_data = pc_r + ILENB;
+      end
 
-        OPCODE_JALR: begin
-          tkn     = 1;
-          jmp_pc  = rs1_data_r + imm_r;
-          rd_data = pc_r + ILENB;
-        end
+      OPCODE_BRANCH: begin
+        tkn    = bralu_res;
+        jmp_pc = pc_r + imm_r;
+      end
 
-        OPCODE_BRANCH: begin
-          tkn    = bralu_res;
-          jmp_pc = pc_r + imm_r;
-        end
-
-        OPCODE_LOAD, OPCODE_STORE:
-          mem_addr = rs1_data_r + imm_r;
-
-        OPCODE_OP, OPCODE_OP_IMM:
-          rd_data = opalu_res;
-      endcase
-    end
+      OPCODE_OP, OPCODE_OP_IMM:
+        rd_data = opalu_res;
+    endcase
   end
 
-  always_ff @(posedge clk) begin
-    rd_data_r  <= rd_data;
-    mem_addr_r <= mem_addr;
-    jmp_pc_r   <= jmp_pc;
-    tkn_r      <= tkn;
-  end
+  assign rf_wdata = opcode == OPCODE_LOAD ? mem_data_r : rd_data;
+  assign rf_wen   = state_r == ST_WB &&
+    (opcode == OPCODE_LUI || opcode == OPCODE_AUIPC || opcode == OPCODE_JAL ||
+     opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
+     opcode == OPCODE_OP);
 
   /*
    * Program counter handling
@@ -189,8 +208,14 @@ module virtio_core
   always_comb begin
     pc = pc_r;
 
-    if (state_r == ST_EXE)
-      pc = tkn ? jmp_pc : pc_r + ILENB;
+    case (state_r)
+      ST_ADDR:
+        if (opcode == OPCODE_STORE)
+          pc = pc_r + ILENB;
+
+      ST_WB:
+        pc = tkn ? jmp_pc : pc_r + ILENB;
+    endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -200,33 +225,11 @@ module virtio_core
       pc_r <= pc;
 
   /*
-   * Memory stage
-   */
-  always_comb begin
-    mem_data = mem_data_r;
-
-    if (state_r == ST_MEM)
-      mem_data = vsw_rdata;
-  end
-
-  always_ff @(posedge clk)
-    mem_data_r <= mem_data;
-
-  /*
-   * Write back stage
-   */
-  assign rf_wdata = opcode == OPCODE_LOAD ? mem_data_r : rd_data_r;
-  assign rf_wen   = state_r == ST_WB &&
-    (opcode == OPCODE_LUI || opcode == OPCODE_AUIPC || opcode == OPCODE_JAL ||
-     opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
-     opcode == OPCODE_OP);
-
-  /*
    * State transitions
    */
   logic mem_access;
 
-  assign mem_access = opcode == OPCODE_LOAD || opcode == OPCODE_STORE;
+  assign mem_access = _opcode == OPCODE_LOAD || _opcode == OPCODE_STORE;
 
   always_comb begin
     state = state_r;
@@ -234,13 +237,7 @@ module virtio_core
     case (state_r)
       ST_IF_DEC:
         if (!vsw_stall)
-          state = ST_EXE;
-
-      ST_EXE:
-        if (opcode == OPCODE_BRANCH)
-          state = ST_IF_DEC;
-        else
-          state = mem_access ? ST_MEM : ST_WB;
+          state = mem_access ? ST_ADDR : ST_WB;
 
       ST_MEM:
         if (!vsw_stall)
