@@ -67,10 +67,12 @@ module app_core
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
   logic [XLEN - 1:0]       amo_rmw_data, amo_rmw_data_r;
   logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
-  logic                    ecall, ecall_r;
-  logic                    ebreak, ebreak_r;
   logic                    mul, mul_r;
   logic                    div, div_r;
+  logic                    ecall, ecall_r;
+  logic                    ebreak, ebreak_r;
+  logic                    mret, mret_r;
+  logic                    sret, sret_r;
   logic                    sfence_vma, sfence_vma_r;
   logic                    tkn, tkn_r;
   logic                    amo_sc_succ;
@@ -150,7 +152,10 @@ module app_core
   logic [XLEN - 1:0]       rf_rdata1;
   logic [XLEN - 1:0]       rf_rdata2;
   logic [XLEN - 1:0]       ig_imm;
+  csr_addr_t               csrrf_addr;
   logic                    csrrf_rcsr;
+  logic                    csrrf_mret;
+  logic                    csrrf_sret;
   logic [XLEN - 1:0]       csrrf_rdata;
   logic                    iv_ecall;
   logic                    iv_ebreak;
@@ -202,13 +207,15 @@ module app_core
     .rdata2  (rf_rdata2)
   );
 
+  assign csrrf_addr = state_r == ST_IF_DEC ? csr_addr_t'(_funct12) : csr_addr_t'(funct12);
   assign csrrf_rcsr = _opcode == OPCODE_SYSTEM && _funct3 != FUNCT3_PRIV;
+  assign csrrf_mret = state_r == ST_IF_DEC ? iv_mret : mret_r;
+  assign csrrf_sret = state_r == ST_IF_DEC ? iv_sret : sret_r;
 
   csr_reg_file CSR_REG_FILE(
     .clk                (clk),
     .nrst               (nrst),
-    .ac_raddr           (csr_addr_t'(_funct12)),
-    .ac_waddr           (csr_addr_t'(funct12)),
+    .ac_addr            (csrrf_addr),
     .ac_wdata           (csr_wdata_r),
     .ac_pc              (pc_r),
     .ac_target_pc       (csrrf_target_pc),
@@ -217,8 +224,8 @@ module app_core
     .ac_tval            (tval_r),
     .ac_rcsr            (csrrf_rcsr),
     .ac_wcsr            (csrrf_wcsr),
-    .ac_mret            (iv_mret),
-    .ac_sret            (iv_sret),
+    .ac_mret            (csrrf_mret),
+    .ac_sret            (csrrf_sret),
     .ac_com             (csrrf_com),
     .ac_mtime           (clint_mtime),
     .ac_rdata           (csrrf_rdata),
@@ -245,10 +252,12 @@ module app_core
     rs1_data   = rs1_data_r;
     rs2_data   = rs2_data_r;
     csr_rdata  = csr_rdata_r;
-    ecall      = ecall_r;
-    ebreak     = ebreak_r;
     mul        = mul_r;
     div        = div_r;
+    ecall      = ecall_r;
+    ebreak     = ebreak_r;
+    mret       = mret_r;
+    sret       = sret_r;
     sfence_vma = sfence_vma_r;
 
     if (state_r == ST_IF_DEC) begin
@@ -257,10 +266,12 @@ module app_core
       rs1_data   = rf_rdata1;
       rs2_data   = rf_rdata2;
       csr_rdata  = csrrf_rdata;
-      ecall      = iv_ecall;
-      ebreak     = iv_ebreak;
       mul        = iv_mul;
       div        = iv_div;
+      ecall      = iv_ecall;
+      ebreak     = iv_ebreak;
+      mret       = iv_mret;
+      sret       = iv_sret;
       sfence_vma = iv_sfence_vma;
     end
   end
@@ -271,10 +282,12 @@ module app_core
     rs1_data_r   <= rs1_data;
     rs2_data_r   <= rs2_data;
     csr_rdata_r  <= csr_rdata;
-    ecall_r      <= ecall;
-    ebreak_r     <= ebreak;
     mul_r        <= mul;
     div_r        <= div;
+    ecall_r      <= ecall;
+    ebreak_r     <= ebreak;
+    mret_r       <= mret;
+    sret_r       <= sret;
     sfence_vma_r <= sfence_vma;
   end
 
