@@ -23,7 +23,6 @@ module virtio_core
 );
   typedef enum logic [1:0] {
     ST_IF_DEC,
-    ST_ADDR,
     ST_MEM,
     ST_WB
   } state_t;
@@ -86,12 +85,14 @@ module virtio_core
     imm      = imm_r;
     rs1_data = rs1_data_r;
     rs2_data = rs2_data_r;
+    mem_addr = mem_addr_r;
 
     if (state_r == ST_IF_DEC) begin
       inst     = vmem_raw_data;
       imm      = ig_imm;
       rs1_data = rf_rdata1;
       rs2_data = rf_rdata2;
+      mem_addr = rf_rdata1 + ig_imm;
     end
   end
 
@@ -100,10 +101,11 @@ module virtio_core
     imm_r      <= imm;
     rs1_data_r <= rs1_data;
     rs2_data_r <= rs2_data;
+    mem_addr_r <= mem_addr;
   end
 
   /*
-   * Address stage
+   * Memory stage
    */
   assign opcode   = inst_r[OPCODESH+:OPCODELEN];
   assign rd       = inst_r[RDSH+:REGCNT_LOG];
@@ -112,19 +114,6 @@ module virtio_core
 
   assign mem_size = funct3[FUNCT3_SIZESH+:XLENB_LOG];
 
-  always_comb begin
-    mem_addr = mem_addr_r;
-
-    if (state_r == ST_ADDR)
-      mem_addr = rs1_data_r + imm_r;
-  end
-
-  always_ff @(posedge clk)
-    mem_addr_r <= mem_addr;
-
-  /*
-   * Memory stage
-   */
   always_comb begin
     mem_data = mem_data_r;
 
@@ -209,8 +198,8 @@ module virtio_core
     pc = pc_r;
 
     case (state_r)
-      ST_ADDR:
-        if (opcode == OPCODE_STORE)
+      ST_MEM:
+        if (opcode == OPCODE_STORE && !vsw_stall)
           pc = pc_r + ILENB;
 
       ST_WB:
@@ -237,7 +226,7 @@ module virtio_core
     case (state_r)
       ST_IF_DEC:
         if (!vsw_stall)
-          state = mem_access ? ST_ADDR : ST_WB;
+          state = mem_access ? ST_MEM : ST_WB;
 
       ST_MEM:
         if (!vsw_stall)
