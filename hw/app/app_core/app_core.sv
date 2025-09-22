@@ -50,6 +50,7 @@ module app_core
   logic                    bvkd_intr_pending, bvkd_intr_pending_r;
 
   logic [ILEN - 1:0]       inst, inst_r;
+  logic [OPCODELEN - 1:0]  _opcode;
   logic [OPCODELEN - 1:0]  opcode;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
@@ -142,7 +143,6 @@ module app_core
   /*
    * Instruction fetch and decode stage
    */
-  logic [OPCODELEN - 1:0]  _opcode;
   logic [REGCNT_LOG - 1:0] _rs1;
   logic [REGCNT_LOG - 1:0] _rs2;
   logic [FUNCT3LEN - 1:0]  _funct3;
@@ -247,62 +247,67 @@ module app_core
   );
 
   always_comb begin
-    inst       = inst_r;
-    imm        = imm_r;
-    rs1_data   = rs1_data_r;
-    rs2_data   = rs2_data_r;
-    csr_rdata  = csr_rdata_r;
-    mul        = mul_r;
-    div        = div_r;
-    ecall      = ecall_r;
-    ebreak     = ebreak_r;
-    mret       = mret_r;
-    sret       = sret_r;
-    sfence_vma = sfence_vma_r;
+    inst        = inst_r;
+    imm         = imm_r;
+    rs1_data    = rs1_data_r;
+    rs2_data    = rs2_data_r;
+    csr_rdata   = csr_rdata_r;
+    mul         = mul_r;
+    div         = div_r;
+    ecall       = ecall_r;
+    ebreak      = ebreak_r;
+    mret        = mret_r;
+    sret        = sret_r;
+    sfence_vma  = sfence_vma_r;
+    load_amo_lr = load_amo_lr_r;
+    amo_rmw     = amo_rmw_r;
 
     if (state_r == ST_IF_DEC) begin
-      inst       = nop ? NOP : mmu_rdata;
-      imm        = ig_imm;
-      rs1_data   = rf_rdata1;
-      rs2_data   = rf_rdata2;
-      csr_rdata  = csrrf_rdata;
-      mul        = iv_mul;
-      div        = iv_div;
-      ecall      = iv_ecall;
-      ebreak     = iv_ebreak;
-      mret       = iv_mret;
-      sret       = iv_sret;
-      sfence_vma = iv_sfence_vma;
+      inst        = nop ? NOP : mmu_rdata;
+      imm         = ig_imm;
+      rs1_data    = rf_rdata1;
+      rs2_data    = rf_rdata2;
+      csr_rdata   = csrrf_rdata;
+      mul         = iv_mul;
+      ecall       = iv_ecall;
+      ebreak      = iv_ebreak;
+      mret        = iv_mret;
+      sret        = iv_sret;
+      div         = iv_div;
+      sfence_vma  = iv_sfence_vma;
+      load_amo_lr = !nop &&
+        (_opcode == OPCODE_LOAD || (_opcode == OPCODE_AMO && _funct5 == FUNCT5_AMO_LR));
+      amo_rmw     = !nop && _opcode == OPCODE_AMO &&
+        _funct5 != FUNCT5_AMO_LR && _funct5 != FUNCT5_AMO_SC;
     end
   end
 
   always_ff @(posedge clk) begin
-    inst_r       <= inst;
-    imm_r        <= imm;
-    rs1_data_r   <= rs1_data;
-    rs2_data_r   <= rs2_data;
-    csr_rdata_r  <= csr_rdata;
-    mul_r        <= mul;
-    div_r        <= div;
-    ecall_r      <= ecall;
-    ebreak_r     <= ebreak;
-    mret_r       <= mret;
-    sret_r       <= sret;
-    sfence_vma_r <= sfence_vma;
+    inst_r        <= inst;
+    imm_r         <= imm;
+    rs1_data_r    <= rs1_data;
+    rs2_data_r    <= rs2_data;
+    csr_rdata_r   <= csr_rdata;
+    mul_r         <= mul;
+    div_r         <= div;
+    ecall_r       <= ecall;
+    ebreak_r      <= ebreak;
+    mret_r        <= mret;
+    sret_r        <= sret;
+    sfence_vma_r  <= sfence_vma;
+    load_amo_lr_r <= load_amo_lr;
+    amo_rmw_r     <= amo_rmw;
   end
 
   /*
    * Execute stage 1
    */
-  logic [XLEN - 1:0]      opalu_src2;
-  logic [FUNCT7LEN - 1:0] opalu_funct7;
-  logic [XLEN - 1:0]      opalu_res;
-  logic                   bralu_res;
-  logic [XLEN - 1:0]      csralu_res;
-  logic                   mul_start;
-  logic [XLEN - 1:0]      mul_res;
-  logic                   div_start;
-  logic [XLEN - 1:0]      div_res;
+  logic              bralu_res;
+  logic [XLEN - 1:0] csralu_res;
+  logic              mul_start;
+  logic [XLEN - 1:0] mul_res;
+  logic              div_start;
+  logic [XLEN - 1:0] div_res;
 
   assign opcode            = inst_r[OPCODESH+:OPCODELEN];
   assign rd                = inst_r[RDSH+:REGCNT_LOG];
@@ -317,18 +322,7 @@ module app_core
   assign store_amo_sc_succ = opcode == OPCODE_STORE ||
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
 
-  assign mem_access        = load_amo_lr || store_amo_sc_succ || amo_rmw;
-
-  assign opalu_src2        = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
-  assign opalu_funct7      = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
-
-  op_alu OP_ALU(
-    .src1   (rs1_data_r),
-    .src2   (opalu_src2),
-    .funct3 (funct3),
-    .funct7 (opalu_funct7),
-    .res    (opalu_res)
-  );
+  assign mem_access        = load_amo_lr_r || store_amo_sc_succ || amo_rmw_r;
 
   branch_alu BRANCH_ALU(
     .src1   (rs1_data_r),
@@ -372,23 +366,15 @@ module app_core
   );
 
   always_comb begin
-    csr_wdata   = csr_wdata_r;
-    rd_data     = rd_data_r;
-    mem_addr    = mem_addr_r;
-    jmp_pc      = jmp_pc_r;
-    load_amo_lr = load_amo_lr_r;
-    amo_rmw     = amo_rmw_r;
+    csr_wdata = csr_wdata_r;
+    rd_data   = rd_data_r;
+    mem_addr  = mem_addr_r;
+    jmp_pc    = jmp_pc_r;
 
     if (state_r == ST_EXE1) begin
       csr_wdata = csralu_res;
 
       unique0 case (opcode)
-        OPCODE_LUI:
-          rd_data = imm_r;
-
-        OPCODE_AUIPC:
-          rd_data = pc_r + imm_r;
-
         OPCODE_JAL: begin
           jmp_pc  = pc_r + imm_r;
           rd_data = pc_r + ILENB;
@@ -405,16 +391,11 @@ module app_core
         OPCODE_LOAD, OPCODE_STORE:
           mem_addr = rs1_data_r + imm_r;
 
-        OPCODE_OP_IMM:
-          rd_data = opalu_res;
-
         OPCODE_OP:
           if (mul_r)
             rd_data = mul_res;
           else if (div_r)
             rd_data = div_res;
-          else
-            rd_data = opalu_res;
 
         OPCODE_AMO: begin
           mem_addr = rs1_data_r;
@@ -425,19 +406,14 @@ module app_core
           if (funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET))
             jmp_pc = csr_rdata_r;
       endcase
-
-      load_amo_lr = opcode == OPCODE_LOAD || (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_LR);
-      amo_rmw     = opcode == OPCODE_AMO && funct5 != FUNCT5_AMO_LR && funct5 != FUNCT5_AMO_SC;
     end
   end
 
   always_ff @(posedge clk) begin
-    csr_wdata_r   <= csr_wdata;
-    rd_data_r     <= rd_data;
-    mem_addr_r    <= mem_addr;
-    jmp_pc_r      <= jmp_pc;
-    load_amo_lr_r <= load_amo_lr;
-    amo_rmw_r     <= amo_rmw;
+    csr_wdata_r <= csr_wdata;
+    rd_data_r   <= rd_data;
+    mem_addr_r  <= mem_addr;
+    jmp_pc_r    <= jmp_pc;
   end
 
   /*
@@ -478,11 +454,34 @@ module app_core
   /*
    * Completion stage
    */
+  logic [XLEN - 1:0]      opalu_src2;
+  logic [FUNCT7LEN - 1:0] opalu_funct7;
+  logic [XLEN - 1:0]      opalu_res;
+  logic                   mprv_chg;
+  logic                   sum_chg;
+
+  assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
+  assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
+
+  op_alu OP_ALU(
+    .src1   (rs1_data_r),
+    .src2   (opalu_src2),
+    .funct3 (funct3),
+    .funct7 (opalu_funct7),
+    .res    (opalu_res)
+  );
+
   always_comb begin
     rf_wdata = rd_data_r;
 
     unique0 if (load_amo_lr_r || amo_rmw_r)
       rf_wdata = mem_data_r;
+    else if (opcode == OPCODE_LUI)
+      rf_wdata = imm_r;
+    else if (opcode == OPCODE_AUIPC)
+      rf_wdata = pc_r + imm_r;
+    else if (opcode == OPCODE_OP_IMM || (opcode == OPCODE_OP && !mul_r && !div_r))
+      rf_wdata = opalu_res;
     else if (opcode == OPCODE_SYSTEM)
       rf_wdata = csr_rdata_r;
   end
@@ -536,6 +535,8 @@ module app_core
     else
       pc_r <= pc;
 
+  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
+
   /*
    * Flow transfer control
    */
@@ -571,9 +572,11 @@ module app_core
 
   assign ill_inst             = !iv_valid || (iv_mret && csrrf_priv != PRIV_M) ||
     ((iv_sret || iv_sfence_vma) && csrrf_priv == PRIV_U);
+
   assign mem_access_unaligned = (mem_addr & ((1 << mem_size) - 1)) != 0;
 
   assign if_dec_exc_pending   = mmu_exc_pending || ill_inst || csrrf_ill;
+
   assign exe_exc_pending      = ecall_r || ebreak_r || (tkn && jmp_pc[ILENB_LOG - 1:0]) ||
     (mem_access && mem_access_unaligned);
 
@@ -609,11 +612,11 @@ module app_core
           exc_pending = 1;
           tval        = jmp_pc;
         end else if (mem_access_unaligned) begin
-          if (load_amo_lr) begin
+          if (load_amo_lr_r) begin
             exc_code    = CAUSE_MISALIGNED_LOAD;
             exc_pending = 1;
             tval        = mem_addr;
-          end else if (store_amo_sc_succ || amo_rmw) begin
+          end else if (store_amo_sc_succ || amo_rmw_r) begin
             exc_code    = CAUSE_MISALIGNED_STORE_AMO;
             exc_pending = 1;
             tval        = mem_addr;
@@ -642,12 +645,16 @@ module app_core
   /*
    * State transitions
    */
+  logic if_dec_to_com;
   logic exe_to_com;
   logic mem1_to_com;
 
-  assign exe_to_com  = exe_exc_pending || !mem_access;
+  assign if_dec_to_com = _opcode == OPCODE_LUI || _opcode == OPCODE_AUIPC ||
+    _opcode == OPCODE_OP_IMM || (_opcode == OPCODE_OP && !iv_mul && !iv_div);
 
-  assign mem1_to_com = mmu_exc_pending || !amo_rmw_r;
+  assign exe_to_com    = exe_exc_pending || !mem_access;
+
+  assign mem1_to_com   = mmu_exc_pending || !amo_rmw_r;
 
   always_comb begin
     state = state_r;
@@ -655,7 +662,7 @@ module app_core
     case (state_r)
       ST_IF_DEC:
         if (!mmu_stall)
-          state = nop || if_dec_exc_pending ? ST_COM : ST_EXE1;
+          state = nop || if_dec_exc_pending || if_dec_to_com ? ST_COM : ST_EXE1;
 
       ST_EXE1:
         if (mul_r) begin
@@ -688,11 +695,6 @@ module app_core
       state_r <= ST_IF_DEC;
     else
       state_r <= state;
-
-  /*
-   * TLB flushing
-   */
-  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
 
   /*
    * MMU
