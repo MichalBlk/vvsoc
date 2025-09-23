@@ -20,6 +20,7 @@ module mmu
   input  logic [XLEN - 1:0]      ac_satp,
   input  logic                   ac_tlb_flush,
   output logic [XLEN - 1:0]      ac_rdata,
+  output logic [XLEN - 1:0]      ac_inst,
   output exc_t                   ac_exc_code,
   output logic                   ac_exc_pending,
   output logic                   ac_stall,
@@ -55,7 +56,7 @@ module mmu
   logic [XLEN - 1:0]      satp, satp_r;
 
   priv_t                  priv, priv_r;
-  logic                   omit_translation;
+  logic                   omit_translation, omit_translation_r;
   logic [2:0]             tlb_xwr, tlb_exwr;
   logic [XLEN - 1:0]      l1_pte, l1_pte_r;
   logic [2:0]             l1_xwr, l1_exwr;
@@ -70,7 +71,7 @@ module mmu
   logic                   l0_exc_pending;
   logic [XLEN - 1:0]      paddr, paddr_r;
   logic                   sp, sp_r;
-  logic [XLEN - 1:0]      data, data_r;
+  logic [XLEN - 1:0]      inst, inst_r;
   exc_t                   exc_code, exc_code_r;
   logic                   exc_pending, exc_pending_r;
 
@@ -116,18 +117,26 @@ module mmu
   /*
    * Effective privilege level and bare access handling
    */
-  always_comb begin
-    priv = priv_r;
+  logic use_prev_priv;
 
-    if (state_r == ST_TLB)
-      priv = ac_priv == PRIV_M && ac_mstatus[MSTATUS_MPRVSH] && ac_access != ACC_FETCH ?
+  assign use_prev_priv = ac_priv == PRIV_M && ac_mstatus[MSTATUS_MPRVSH] &&
+    ac_access != ACC_FETCH;
+
+  always_comb begin
+    priv             = priv_r;
+    omit_translation = omit_translation_r;
+
+    if (state_r == ST_TLB) begin
+      priv             = use_prev_priv ?
         priv_t'(ac_mstatus[MSTATUS_MPPSH+:PRIVLEN]) : ac_priv;
+      omit_translation = !ac_satp[SATP_MODESH] || priv == PRIV_M;
+    end
   end
 
-  always_ff @(posedge clk)
-    priv_r <= priv;
-
-  assign omit_translation = !ac_satp[SATP_MODESH] || priv == PRIV_M;
+  always_ff @(posedge clk) begin
+    priv_r             <= priv;
+    omit_translation_r <= omit_translation;
+  end
 
   /*
    * TLB stage
@@ -275,17 +284,17 @@ module mmu
     paddr_r <= paddr;
 
   /*
-   * Access stage
+   * Instruction handling
    */
   always_comb begin
-    data = data_r;
+    inst = inst_r;
 
     if (state_r == ST_ACCESS)
-      data = asw_rdata;
+      inst = asw_rdata;
   end
 
   always_ff @(posedge clk)
-    data_r <= data;
+    inst_r <= inst;
 
   /*
    * Exception detection
@@ -381,7 +390,7 @@ module mmu
 
       ST_ACCESS:
         if (!asw_stall)
-          state = ST_FINISH;
+          state = access_r == ACC_FETCH ? ST_FINISH : ST_TLB;
 
       ST_FINISH:
         state = ST_TLB;
@@ -397,10 +406,12 @@ module mmu
   /*
    * Application core signals
    */
-  assign ac_rdata       = data_r;
+  assign ac_rdata       = asw_rdata;
+  assign ac_inst        = inst_r;
   assign ac_exc_code    = exc_code_r;
-  assign ac_exc_pending = exc_pending_r;
-  assign ac_stall       = state_r != ST_FINISH;
+  assign ac_exc_pending = exc_pending_r && !omit_translation_r;
+  assign ac_stall       = state_r != ST_FINISH &&
+    !(state_r == ST_ACCESS && access_r != ACC_FETCH && !asw_stall);
 
   /*
    * Application switch signals
