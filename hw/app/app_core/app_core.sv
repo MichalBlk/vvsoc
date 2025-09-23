@@ -36,7 +36,8 @@ module app_core
     ST_MEM1,
     ST_EXE2,
     ST_MEM2,
-    ST_COM
+    ST_COM,
+    ST_MISALIGNED_JMP
   } state_t;
 
   state_t                  state, state_r;
@@ -54,6 +55,7 @@ module app_core
   logic [OPCODELEN - 1:0]  opcode;
   logic [REGCNT_LOG - 1:0] rd;
   logic [FUNCT3LEN - 1:0]  funct3;
+  logic [FUNCT5LEN - 1:0]  _funct5;
   logic [FUNCT5LEN - 1:0]  funct5;
   logic [FUNCT7LEN - 1:0]  funct7;
   logic [FUNCT12LEN - 1:0] funct12;
@@ -67,7 +69,10 @@ module app_core
   logic [XLEN - 1:0]       rd_data, rd_data_r;
   logic [XLEN - 1:0]       mem_addr, mem_addr_r;
   logic [XLEN - 1:0]       amo_rmw_data, amo_rmw_data_r;
-  logic [XLEN - 1:0]       jmp_pc, jmp_pc_r;
+  logic [XLEN - 1:0]       nxt_pc, nxt_pc_r;
+  logic [XLEN - 1:0]       off_pc, off_pc_r;
+  logic [XLEN - 1:0]       reg_pc, reg_pc_r;
+  logic [XLEN - 1:0]       jmp_pc;
   logic                    mul, mul_r;
   logic                    div, div_r;
   logic                    ecall, ecall_r;
@@ -75,7 +80,7 @@ module app_core
   logic                    mret, mret_r;
   logic                    sret, sret_r;
   logic                    sfence_vma, sfence_vma_r;
-  logic                    tkn, tkn_r;
+  logic                    tkn;
   logic                    amo_sc_succ;
   logic                    load_amo_lr, load_amo_lr_r;
   logic                    store_amo_sc_succ;
@@ -86,7 +91,8 @@ module app_core
   logic                    exc_pending, exc_pending_r;
   logic                    if_dec_exc_pending;
   logic                    exe_exc_pending;
-  logic                    mem_access_unaligned;
+  logic                    misaligned_mem_access;
+  logic                    misaligned_jmp;
   logic [XLEN - 1:0]       tval, tval_r;
 
   logic                    iv_mret;
@@ -98,6 +104,7 @@ module app_core
   logic                    rf_wen;
 
   logic [XLEN - 1:0]       csrrf_target_pc;
+  logic                    csrrf_rcsr;
   logic                    csrrf_wcsr;
   logic                    csrrf_com;
   priv_t                   csrrf_priv;
@@ -110,6 +117,8 @@ module app_core
   logic                    mul_stall;
 
   logic                    div_stall;
+
+  logic                    bralu_res;
 
   logic                    mmu_tlb_flush;
   logic [XLEN - 1:0]       mmu_rdata;
@@ -147,14 +156,12 @@ module app_core
   logic [REGCNT_LOG - 1:0] _rs1;
   logic [REGCNT_LOG - 1:0] _rs2;
   logic [FUNCT3LEN - 1:0]  _funct3;
-  logic [FUNCT5LEN - 1:0]  _funct5;
   logic [FUNCT7LEN - 1:0]  _funct7;
   logic [FUNCT12LEN - 1:0] _funct12;
   logic [XLEN - 1:0]       rf_rdata1;
   logic [XLEN - 1:0]       rf_rdata2;
   logic [XLEN - 1:0]       ig_imm;
   csr_addr_t               csrrf_addr;
-  logic                    csrrf_rcsr;
   logic                    csrrf_mret;
   logic                    csrrf_sret;
   logic [XLEN - 1:0]       csrrf_rdata;
@@ -254,6 +261,9 @@ module app_core
     rs2_data    = rs2_data_r;
     csr_rdata   = csr_rdata_r;
     mem_addr    = mem_addr_r;
+    nxt_pc      = nxt_pc_r;
+    off_pc      = off_pc_r;
+    reg_pc      = reg_pc_r;
     mul         = mul_r;
     div         = div_r;
     ecall       = ecall_r;
@@ -271,6 +281,9 @@ module app_core
       rs2_data    = rf_rdata2;
       csr_rdata   = csrrf_rdata;
       mem_addr    = rf_rdata1 + (_opcode == OPCODE_AMO ? 0 : ig_imm);
+      nxt_pc      = pc_r + ILENB;
+      off_pc      = pc_r + ig_imm;
+      reg_pc      = rf_rdata1 + ig_imm;
       mul         = iv_mul;
       ecall       = iv_ecall;
       ebreak      = iv_ebreak;
@@ -292,6 +305,9 @@ module app_core
     rs2_data_r    <= rs2_data;
     csr_rdata_r   <= csr_rdata;
     mem_addr_r    <= mem_addr;
+    nxt_pc_r      <= nxt_pc;
+    off_pc_r      <= off_pc;
+    reg_pc_r      <= reg_pc;
     mul_r         <= mul;
     div_r         <= div;
     ecall_r       <= ecall;
@@ -306,7 +322,6 @@ module app_core
   /*
    * Execute stage 1
    */
-  logic              bralu_res;
   logic [XLEN - 1:0] csralu_res;
   logic              mul_start;
   logic [XLEN - 1:0] mul_res;
@@ -327,13 +342,6 @@ module app_core
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
 
   assign mem_access        = load_amo_lr_r || store_amo_sc_succ || amo_rmw_r;
-
-  branch_alu BRANCH_ALU(
-    .src1   (rs1_data_r),
-    .src2   (rs2_data_r),
-    .funct3 (funct3),
-    .res    (bralu_res)
-  );
 
   csr_alu CSR_ALU(
     .ac_csr    (csr_rdata_r),
@@ -372,37 +380,13 @@ module app_core
   always_comb begin
     csr_wdata = csr_wdata_r;
     rd_data   = rd_data_r;
-    jmp_pc    = jmp_pc_r;
 
     if (state_r == ST_EXE1) begin
       csr_wdata = csralu_res;
 
       unique0 case (opcode)
-        OPCODE_JAL: begin
-          jmp_pc  = pc_r + imm_r;
-          rd_data = pc_r + ILENB;
-        end
-
-        OPCODE_JALR: begin
-          jmp_pc  = rs1_data_r + imm_r;
-          rd_data = pc_r + ILENB;
-        end
-
-        OPCODE_BRANCH:
-          jmp_pc = pc_r + imm_r;
-
-        OPCODE_OP:
-          if (mul_r)
-            rd_data = mul_res;
-          else if (div_r)
-            rd_data = div_res;
-
-        OPCODE_AMO:
-          rd_data = !amo_sc_succ;
-
-        OPCODE_SYSTEM:
-          if (funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET))
-            jmp_pc = csr_rdata_r;
+        OPCODE_OP:  rd_data = mul_r ? mul_res : div_res;
+        OPCODE_AMO: rd_data = !amo_sc_succ;
       endcase
     end
   end
@@ -410,7 +394,6 @@ module app_core
   always_ff @(posedge clk) begin
     csr_wdata_r <= csr_wdata;
     rd_data_r   <= rd_data;
-    jmp_pc_r    <= jmp_pc;
   end
 
   /*
@@ -454,8 +437,6 @@ module app_core
   logic [XLEN - 1:0]      opalu_src2;
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
-  logic                   mprv_chg;
-  logic                   sum_chg;
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -468,6 +449,13 @@ module app_core
     .res    (opalu_res)
   );
 
+  branch_alu BRANCH_ALU(
+    .src1   (rs1_data_r),
+    .src2   (rs2_data_r),
+    .funct3 (funct3),
+    .res    (bralu_res)
+  );
+
   always_comb begin
     rf_wdata = rd_data_r;
 
@@ -476,7 +464,9 @@ module app_core
     else if (opcode == OPCODE_LUI)
       rf_wdata = imm_r;
     else if (opcode == OPCODE_AUIPC)
-      rf_wdata = pc_r + imm_r;
+      rf_wdata = off_pc_r;
+    else if (opcode == OPCODE_JAL || opcode == OPCODE_JALR)
+      rf_wdata = nxt_pc_r;
     else if (opcode == OPCODE_OP_IMM || (opcode == OPCODE_OP && !mul_r && !div_r))
       rf_wdata = opalu_res;
     else if (opcode == OPCODE_SYSTEM)
@@ -489,9 +479,10 @@ module app_core
      opcode == OPCODE_OP || opcode == OPCODE_AMO ||
      (opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV));
 
-  assign csrrf_target_pc = tkn_r ? jmp_pc_r : pc_r + ILENB;
+  assign csrrf_target_pc = tkn ? jmp_pc : nxt_pc_r;
   assign csrrf_wcsr      = opcode == OPCODE_SYSTEM && funct3 != FUNCT3_PRIV;
-  assign csrrf_com       = state_r == ST_COM;
+  assign csrrf_com       = (state_r == ST_COM && !misaligned_jmp) ||
+    state_r == ST_MISALIGNED_JMP;
 
   always_comb begin
     resv_addr  = resv_addr_r;
@@ -516,9 +507,38 @@ module app_core
     end
 
   always_comb begin
+    jmp_pc = 'bx;
+    tkn    = 0;
+
+    case (opcode)
+      OPCODE_JAL: begin
+        jmp_pc = off_pc_r;
+        tkn    = 1;
+      end
+
+      OPCODE_JALR: begin
+        jmp_pc = reg_pc_r;
+        tkn    = 1;
+      end
+
+      OPCODE_BRANCH: begin
+        jmp_pc = off_pc_r;
+        tkn    = bralu_res;
+      end
+
+      OPCODE_SYSTEM:
+        if (funct3 == FUNCT3_PRIV &&
+          (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET)) begin
+          jmp_pc = csr_rdata_r;
+          tkn    = 1;
+        end
+    endcase
+  end
+
+  always_comb begin
     pc = pc_r;
 
-    if (state_r == ST_COM) begin
+    if (csrrf_com) begin
       if (exc_pending_r || csrrf_intr_handling)
         pc = csrrf_tvec;
       else
@@ -535,45 +555,19 @@ module app_core
   assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
 
   /*
-   * Flow transfer control
-   */
-  always_comb begin
-    tkn = tkn_r;
-
-    unique0 case (state_r)
-      ST_IF_DEC:
-        tkn = 0;
-
-      ST_EXE1:
-        case (opcode)
-          OPCODE_JAL, OPCODE_JALR:
-            tkn = 1;
-
-          OPCODE_BRANCH:
-            tkn = bralu_res;
-
-          OPCODE_SYSTEM:
-            tkn = funct3 == FUNCT3_PRIV && (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET);
-        endcase
-    endcase
-  end
-
-  always_ff @(posedge clk)
-    tkn_r <= tkn;
-
-  /*
    * Exception detection
    */
   logic ill_inst;
 
-  assign ill_inst             = !iv_valid || (iv_mret && csrrf_priv != PRIV_M) ||
+  assign ill_inst              = !iv_valid || (iv_mret && csrrf_priv != PRIV_M) ||
     ((iv_sret || iv_sfence_vma) && csrrf_priv == PRIV_U);
 
-  assign mem_access_unaligned = (mem_addr_r & ((1 << mem_size) - 1)) != 0;
+  assign misaligned_mem_access = (mem_addr_r & ((1 << mem_size) - 1)) != 0;
+  assign misaligned_jmp        = tkn && jmp_pc[ILENB_LOG - 1:0];
 
-  assign if_dec_exc_pending   = mmu_exc_pending || ill_inst || csrrf_ill;
+  assign if_dec_exc_pending    = mmu_exc_pending || ill_inst || csrrf_ill;
 
-  assign exe_exc_pending      = ecall_r || ebreak_r || (tkn && jmp_pc[ILENB_LOG - 1:0]);
+  assign exe_exc_pending       = ecall_r || ebreak_r;
 
   always_comb begin
     exc_code    = exc_code_r;
@@ -602,14 +596,10 @@ module app_core
           exc_code    = CAUSE_BREAKPOINT;
           exc_pending = 1;
           tval        = pc_r;
-        end else if (tkn && jmp_pc[ILENB_LOG - 1:0]) begin
-          exc_code    = CAUSE_MISALIGNED_FETCH;
-          exc_pending = 1;
-          tval        = jmp_pc;
         end
 
       ST_MEM1:
-        if (mem_access_unaligned) begin
+        if (misaligned_mem_access) begin
           if (load_amo_lr_r) begin
             exc_code    = CAUSE_MISALIGNED_LOAD;
             exc_pending = 1;
@@ -633,6 +623,13 @@ module app_core
           tval        = mem_addr_r;
         end else
           exc_pending = 0;
+
+      ST_COM:
+        if (misaligned_jmp) begin
+          exc_code    = CAUSE_MISALIGNED_FETCH;
+          exc_pending = 1;
+          tval        = jmp_pc;
+        end
     endcase
   end
 
@@ -648,16 +645,20 @@ module app_core
   /*
    * State transitions
    */
-  logic if_dec_to_com;
+  logic if_dec_to_exe1;
   logic exe_to_com;
   logic mem1_to_com;
+  logic _mem_access;
 
-  assign if_dec_to_com = _opcode == OPCODE_LUI || _opcode == OPCODE_AUIPC ||
-    _opcode == OPCODE_OP_IMM || (_opcode == OPCODE_OP && !iv_mul && !iv_div);
+  assign if_dec_to_exe1 = iv_mul || iv_div || iv_ecall || iv_ebreak ||
+    csrrf_rcsr || (_opcode == OPCODE_AMO && _funct5 == FUNCT5_AMO_SC);
 
-  assign exe_to_com    = exe_exc_pending || !mem_access;
+  assign exe_to_com     = exe_exc_pending || !mem_access;
 
-  assign mem1_to_com   = mmu_exc_pending || !amo_rmw_r;
+  assign mem1_to_com    = mmu_exc_pending || !amo_rmw_r;
+
+  assign _mem_access    = _opcode == OPCODE_LOAD ||
+    _opcode == OPCODE_STORE || _opcode == OPCODE_AMO;
 
   always_comb begin
     state = state_r;
@@ -665,10 +666,12 @@ module app_core
     case (state_r)
       ST_IF_DEC:
         if (!mmu_stall) begin
-          if (nop || if_dec_exc_pending || if_dec_to_com)
+          if (nop || if_dec_exc_pending)
             state = ST_COM;
+          else if (if_dec_to_exe1)
+            state = ST_EXE1;
           else
-            state = _opcode == OPCODE_LOAD || _opcode == OPCODE_STORE ? ST_MEM1 : ST_EXE1;
+            state = _mem_access ? ST_MEM1 : ST_COM;
         end
 
       ST_EXE1:
@@ -682,7 +685,7 @@ module app_core
           state = exe_to_com ? ST_COM : ST_MEM1;
 
       ST_MEM1:
-        if (mem_access_unaligned)
+        if (misaligned_mem_access)
           state = ST_COM;
         else if (!mmu_stall)
           state = mem1_to_com ? ST_COM : ST_EXE2;
@@ -692,6 +695,9 @@ module app_core
           state = ST_COM;
 
       ST_COM:
+        state = misaligned_jmp ? ST_MISALIGNED_JMP : ST_IF_DEC;
+
+      ST_MISALIGNED_JMP:
         state = ST_IF_DEC;
 
       default:
@@ -727,7 +733,7 @@ module app_core
         mmu_access = ACC_FETCH;
 
       ST_MEM1:
-        if (!mem_access_unaligned) begin
+        if (!misaligned_mem_access) begin
           if (load_amo_lr_r || amo_rmw_r)
             mmu_access = ACC_LOAD;
           else
