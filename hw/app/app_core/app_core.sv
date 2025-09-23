@@ -122,6 +122,7 @@ module app_core
 
   logic                    mmu_tlb_flush;
   logic [XLEN - 1:0]       mmu_rdata;
+  logic [XLEN - 1:0]       mmu_inst;
   exc_t                    mmu_exc_code;
   logic                    mmu_exc_pending;
   logic                    mmu_stall;
@@ -172,13 +173,13 @@ module app_core
   logic                    fence;
   logic                    wfi;
 
-  assign _opcode  = mmu_rdata[OPCODESH+:OPCODELEN];
-  assign _rs1     = mmu_rdata[RS1SH+:REGCNT_LOG];
-  assign _rs2     = mmu_rdata[RS2SH+:REGCNT_LOG];
-  assign _funct3  = mmu_rdata[FUNCT3SH+:FUNCT3LEN];
-  assign _funct5  = mmu_rdata[FUNCT5SH+:FUNCT5LEN];
-  assign _funct7  = mmu_rdata[FUNCT7SH+:FUNCT7LEN];
-  assign _funct12 = mmu_rdata[FUNCT12SH+:FUNCT12LEN];
+  assign _opcode  = mmu_inst[OPCODESH+:OPCODELEN];
+  assign _rs1     = mmu_inst[RS1SH+:REGCNT_LOG];
+  assign _rs2     = mmu_inst[RS2SH+:REGCNT_LOG];
+  assign _funct3  = mmu_inst[FUNCT3SH+:FUNCT3LEN];
+  assign _funct5  = mmu_inst[FUNCT5SH+:FUNCT5LEN];
+  assign _funct7  = mmu_inst[FUNCT7SH+:FUNCT7LEN];
+  assign _funct12 = mmu_inst[FUNCT12SH+:FUNCT12LEN];
 
   assign fence    = _opcode == OPCODE_MISC_MEM &&
     (_funct3 == FUNCT3_FENCE || _funct3 == FUNCT3_FENCEI);
@@ -250,7 +251,7 @@ module app_core
   );
 
   imm_gen IMM_GEN(
-    .inst (mmu_rdata),
+    .inst (mmu_inst),
     .imm  (ig_imm)
   );
 
@@ -275,7 +276,7 @@ module app_core
     amo_rmw     = amo_rmw_r;
 
     if (state_r == ST_IF_DEC) begin
-      inst        = nop ? NOP : mmu_rdata;
+      inst        = nop ? NOP : mmu_inst;
       imm         = ig_imm;
       rs1_data    = rf_rdata1;
       rs2_data    = rf_rdata2;
@@ -583,7 +584,7 @@ module app_core
         end else if (!nop && (ill_inst || csrrf_ill)) begin
           exc_code    = CAUSE_ILLEGAL_INSTRUCTION;
           exc_pending = 1;
-          tval        = mmu_rdata;
+          tval        = mmu_inst;
         end else
           exc_pending = 0;
 
@@ -758,6 +759,7 @@ module app_core
     .ac_satp        (csrrf_satp),
     .ac_tlb_flush   (mmu_tlb_flush),
     .ac_rdata       (mmu_rdata),
+    .ac_inst        (mmu_inst),
     .ac_exc_code    (mmu_exc_code),
     .ac_exc_pending (mmu_exc_pending),
     .ac_stall       (mmu_stall),
