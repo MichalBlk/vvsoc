@@ -7,28 +7,29 @@ module app_core
   import isa_pkg::*;
   import soc_pkg::*;
 (
-  input  logic                   clk,
-  input  logic                   nrst,
+  input  logic                       clk,
+  input  logic                       nrst,
 
-  input  logic [CNTLEN - 1:0]    clint_mtime,
-  input  logic                   clint_intr_pending,
+  input  logic [CNTLEN - 1:0]        clint_mtime,
+  input  logic                       clint_intr_pending,
 
-  input  logic [XLEN - 1:0]      asw_rdata,
-  input  logic                   asw_stall,
-  output logic [XLEN - 1:0]      asw_addr,
-  output logic [XLEN - 1:0]      asw_wdata,
-  output logic [XLENB_LOG - 1:0] asw_size,
-  output logic                   asw_nsign,
-  output logic                   asw_ren,
-  output logic                   asw_wen,
+  input  logic [XLEN - 1:0]          asw_rdata,
+  input  logic                       asw_stall,
+  output logic [XLEN - 1:0]          asw_addr,
+  output logic [XLEN - 1:0]          asw_wdata,
+  output logic [XLENB_LOG - 1:0]     asw_size,
+  output logic                       asw_nsign,
+  output logic                       asw_ren,
+  output logic                       asw_wen,
 
-  input  logic [XLEN - 1:0]      cache_pte,
+  input  logic [XLEN - 1:0]          cache_pte,
+  input  logic [CACHE_LINELEN - 1:0] cache_line,
 
-  input  logic                   vcd_intr_pending,
+  input  logic                       vcd_intr_pending,
 
-  input  logic                   vgd_intr_pending,
+  input  logic                       vgd_intr_pending,
 
-  input  logic                   vkd_intr_pending
+  input  logic                       vkd_intr_pending
 );
   typedef enum logic [2:0] {
     ST_IF_DEC,
@@ -113,6 +114,7 @@ module app_core
   logic                    csrrf_ill;
   logic [XLEN - 1:0]       csrrf_tvec;
   logic                    csrrf_intr_handling;
+  logic                    csrrf_chg_priv;
 
   logic                    mul_stall;
 
@@ -121,6 +123,7 @@ module app_core
   logic                    bralu_res;
 
   logic                    mmu_tlb_flush;
+  logic                    mmu_icache_flush;
   logic [XLEN - 1:0]       mmu_rdata;
   logic [XLEN - 1:0]       mmu_inst;
   exc_t                    mmu_exc_code;
@@ -244,6 +247,7 @@ module app_core
     .ac_ill             (csrrf_ill),
     .ac_tvec            (csrrf_tvec),
     .ac_intr_handling   (csrrf_intr_handling),
+    .ac_chg_priv        (csrrf_chg_priv),
     .clint_intr_pending (bclint_intr_pending_r),
     .vcd_intr_pending   (bvcd_intr_pending_r),
     .vgd_intr_pending   (bvgd_intr_pending_r),
@@ -438,6 +442,7 @@ module app_core
   logic [XLEN - 1:0]      opalu_src2;
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
+  logic                   chg_sum;
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -553,7 +558,13 @@ module app_core
     else
       pc_r <= pc;
 
-  assign mmu_tlb_flush = state_r == ST_COM && sfence_vma_r;
+  assign chg_sum          = csrrf_addr == CSR_SSTATUS &&
+    (csr_wdata_r[MSTATUS_SUMSH] ^ csrrf_mstatus[MSTATUS_SUMSH]);
+
+  assign mmu_tlb_flush    = state_r == ST_COM && sfence_vma_r;
+  assign mmu_icache_flush = state_r == ST_COM &&
+    (sfence_vma_r || csrrf_chg_priv || mret_r || sret_r ||
+     (csrrf_wcsr && (csrrf_addr == CSR_SATP || chg_sum)));
 
   /*
    * Exception detection
@@ -747,30 +758,32 @@ module app_core
   end
 
   mmu MMU(
-    .clk            (clk),
-    .nrst           (nrst),
-    .ac_vaddr       (mmu_vaddr),
-    .ac_wdata       (mmu_wdata),
-    .ac_size        (mmu_size),
-    .ac_nsign       (mmu_nsign),
-    .ac_access      (mmu_access),
-    .ac_priv        (csrrf_priv),
-    .ac_mstatus     (csrrf_mstatus),
-    .ac_satp        (csrrf_satp),
-    .ac_tlb_flush   (mmu_tlb_flush),
-    .ac_rdata       (mmu_rdata),
-    .ac_inst        (mmu_inst),
-    .ac_exc_code    (mmu_exc_code),
-    .ac_exc_pending (mmu_exc_pending),
-    .ac_stall       (mmu_stall),
-    .asw_rdata      (asw_rdata),
-    .asw_stall      (asw_stall),
-    .asw_addr       (asw_addr),
-    .asw_wdata      (asw_wdata),
-    .asw_size       (asw_size),
-    .asw_nsign      (asw_nsign),
-    .asw_ren        (asw_ren),
-    .asw_wen        (asw_wen),
-    .cache_pte      (cache_pte)
+    .clk             (clk),
+    .nrst            (nrst),
+    .ac_vaddr        (mmu_vaddr),
+    .ac_wdata        (mmu_wdata),
+    .ac_size         (mmu_size),
+    .ac_nsign        (mmu_nsign),
+    .ac_access       (mmu_access),
+    .ac_priv         (csrrf_priv),
+    .ac_mstatus      (csrrf_mstatus),
+    .ac_satp         (csrrf_satp),
+    .ac_tlb_flush    (mmu_tlb_flush),
+    .ac_icache_flush (mmu_icache_flush),
+    .ac_rdata        (mmu_rdata),
+    .ac_inst         (mmu_inst),
+    .ac_exc_code     (mmu_exc_code),
+    .ac_exc_pending  (mmu_exc_pending),
+    .ac_stall        (mmu_stall),
+    .asw_rdata       (asw_rdata),
+    .asw_stall       (asw_stall),
+    .asw_addr        (asw_addr),
+    .asw_wdata       (asw_wdata),
+    .asw_size        (asw_size),
+    .asw_nsign       (asw_nsign),
+    .asw_ren         (asw_ren),
+    .asw_wen         (asw_wen),
+    .cache_pte       (cache_pte),
+    .cache_line      (cache_line)
   );
 endmodule

@@ -119,6 +119,7 @@ module top
   logic                          msw_cache_wen;
 
   logic [XLEN - 1:0]             cache_ac_pte;
+  logic [CACHE_LINELEN - 1:0]    cache_ac_line;
   logic [XLEN - 1:0]             cache_msw_rdata;
   logic                          cache_msw_release;
   logic                          cache_msw_done;
@@ -317,6 +318,7 @@ module top
     .asw_ren            (ac_asw_ren),
     .asw_wen            (ac_asw_wen),
     .cache_pte          (cache_ac_pte),
+    .cache_line         (cache_ac_line),
     .vcd_intr_pending   (vcd_ac_intr_pending),
     .vgd_intr_pending   (vgd_ac_intr_pending),
     .vkd_intr_pending   (vkd_ac_intr_pending)
@@ -410,6 +412,7 @@ module top
     .clk         (clk),
     .nrst        (nrst),
     .ac_pte      (cache_ac_pte),
+    .ac_line     (cache_ac_line),
     .msw_addr    (msw_cache_addr),
     .msw_wdata   (msw_cache_wdata),
     .msw_size    (msw_cache_size),

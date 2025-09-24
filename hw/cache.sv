@@ -9,27 +9,28 @@ module cache
   import soc_pkg::*;
   import board_pkg::*;
 (
-  input  logic                      clk,
-  input  logic                      nrst,
+  input  logic                       clk,
+  input  logic                       nrst,
 
-  output logic [XLEN - 1:0]         ac_pte,
+  output logic [XLEN - 1:0]          ac_pte,
+  output logic [CACHE_LINELEN - 1:0] ac_line,
 
-  input  logic [MMEM_ADDRLEN - 1:0] msw_addr,
-  input  logic [XLEN - 1:0]         msw_wdata,
-  input  logic [XLENB_LOG - 1:0]    msw_size,
-  input  logic                      msw_nsign,
-  input  logic                      msw_ren,
-  input  logic                      msw_wen,
-  output logic [XLEN - 1:0]         msw_rdata,
-  output logic                      msw_release,
-  output logic                      msw_done,
+  input  logic [MMEM_ADDRLEN - 1:0]  msw_addr,
+  input  logic [XLEN - 1:0]          msw_wdata,
+  input  logic [XLENB_LOG - 1:0]     msw_size,
+  input  logic                       msw_nsign,
+  input  logic                       msw_ren,
+  input  logic                       msw_wen,
+  output logic [XLEN - 1:0]          msw_rdata,
+  output logic                       msw_release,
+  output logic                       msw_done,
 
-  input  logic [MMEM_DATALEN - 1:0] mmem_rdata,
-  input  logic                      mmem_stall,
-  output logic [MMEM_ADDRLEN - 1:0] mmem_addr,
-  output logic [MMEM_DATALEN - 1:0] mmem_wdata,
-  output logic                      mmem_ren,
-  output logic                      mmem_wen
+  input  logic [MMEM_DATALEN - 1:0]  mmem_rdata,
+  input  logic                       mmem_stall,
+  output logic [MMEM_ADDRLEN - 1:0]  mmem_addr,
+  output logic [MMEM_DATALEN - 1:0]  mmem_wdata,
+  output logic                       mmem_ren,
+  output logic                       mmem_wen
 );
   typedef enum logic [2:0] {
     ST_IDLE,
@@ -379,13 +380,30 @@ module cache
   always_comb
     if (hit_r)
       case (line_idx_r)
-        0: sh_data = sh_data0_r;
-        1: sh_data = sh_data1_r;
-        2: sh_data = sh_data2_r;
-        3: sh_data = sh_data3_r;
+        0: begin
+          sh_data = sh_data0_r;
+          ac_line = data0_r;
+        end
+
+        1: begin
+          sh_data = sh_data1_r;
+          ac_line = data1_r;
+        end
+
+        2: begin
+          sh_data = sh_data2_r;
+          ac_line = data2_r;
+        end
+
+        3: begin
+          sh_data = sh_data3_r;
+          ac_line = data3_r;
+        end
       endcase
-    else
+    else begin
       sh_data = sh_src_data_r;
+      ac_line = src_data_r;
+    end
 
   assign ac_pte = sh_data;
 
