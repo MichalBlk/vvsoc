@@ -7,37 +7,39 @@ module mmu
   import isa_pkg::*;
   import soc_pkg::*;
 (
-  input  logic                   clk,
-  input  logic                   nrst,
+  input  logic                       clk,
+  input  logic                       nrst,
 
-  input  logic [XLEN - 1:0]      ac_vaddr,
-  input  logic [XLEN - 1:0]      ac_wdata,
-  input  logic [XLENB_LOG - 1:0] ac_size,
-  input  logic                   ac_nsign,
-  input  access_t                ac_access,
-  input  priv_t                  ac_priv,
-  input  logic [XLEN - 1:0]      ac_mstatus,
-  input  logic [XLEN - 1:0]      ac_satp,
-  input  logic                   ac_tlb_flush,
-  output logic [XLEN - 1:0]      ac_rdata,
-  output logic [XLEN - 1:0]      ac_inst,
-  output exc_t                   ac_exc_code,
-  output logic                   ac_exc_pending,
-  output logic                   ac_stall,
+  input  logic [XLEN - 1:0]          ac_vaddr,
+  input  logic [XLEN - 1:0]          ac_wdata,
+  input  logic [XLENB_LOG - 1:0]     ac_size,
+  input  logic                       ac_nsign,
+  input  access_t                    ac_access,
+  input  priv_t                      ac_priv,
+  input  logic [XLEN - 1:0]          ac_mstatus,
+  input  logic [XLEN - 1:0]          ac_satp,
+  input  logic                       ac_tlb_flush,
+  input  logic                       ac_icache_flush,
+  output logic [XLEN - 1:0]          ac_rdata,
+  output logic [XLEN - 1:0]          ac_inst,
+  output exc_t                       ac_exc_code,
+  output logic                       ac_exc_pending,
+  output logic                       ac_stall,
 
-  input  logic [XLEN - 1:0]      asw_rdata,
-  input  logic                   asw_stall,
-  output logic [XLEN - 1:0]      asw_addr,
-  output logic [XLEN - 1:0]      asw_wdata,
-  output logic [XLENB_LOG - 1:0] asw_size,
-  output logic                   asw_nsign,
-  output logic                   asw_ren,
-  output logic                   asw_wen,
+  input  logic [XLEN - 1:0]          asw_rdata,
+  input  logic                       asw_stall,
+  output logic [XLEN - 1:0]          asw_addr,
+  output logic [XLEN - 1:0]          asw_wdata,
+  output logic [XLENB_LOG - 1:0]     asw_size,
+  output logic                       asw_nsign,
+  output logic                       asw_ren,
+  output logic                       asw_wen,
 
-  input  logic [XLEN - 1:0]      cache_pte
+  input  logic [XLEN - 1:0]          cache_pte,
+  input  logic [CACHE_LINELEN - 1:0] cache_line
 );
   typedef enum logic [2:0] {
-    ST_TLB,
+    ST_TLB_ICACHE,
     ST_L1,
     ST_L0,
     ST_UPDATE,
@@ -46,6 +48,7 @@ module mmu
   } state_t;
 
   state_t                 state, state_r;
+  logic                   en_icache, en_icache_r;
 
   logic [XLEN - 1:0]      vaddr, vaddr_r;
   logic [XLEN - 1:0]      wdata, wdata_r;
@@ -58,6 +61,7 @@ module mmu
   priv_t                  priv, priv_r;
   logic                   omit_translation, omit_translation_r;
   logic [2:0]             tlb_xwr, tlb_exwr;
+  logic                   use_icache;
   logic [XLEN - 1:0]      l1_pte, l1_pte_r;
   logic [2:0]             l1_xwr, l1_exwr;
   logic [PTELEN - 1:0]    l1_updated_pte;
@@ -81,6 +85,8 @@ module mmu
   logic                   tlb_rsp;
   logic                   tlb_valid;
 
+  logic [XLEN - 1:0]      icache_rdata;
+
   /*
    * Input buffering
    */
@@ -93,7 +99,7 @@ module mmu
     mstatus = mstatus_r;
     satp    = satp_r;
 
-    if (state_r == ST_TLB) begin
+    if (state_r == ST_TLB_ICACHE) begin
       vaddr   = ac_vaddr;
       wdata   = ac_wdata;
       size    = ac_size;
@@ -126,7 +132,7 @@ module mmu
     priv             = priv_r;
     omit_translation = omit_translation_r;
 
-    if (state_r == ST_TLB) begin
+    if (state_r == ST_TLB_ICACHE) begin
       priv             = use_prev_priv ?
         priv_t'(ac_mstatus[MSTATUS_MPPSH+:PRIVLEN]) : ac_priv;
       omit_translation = !ac_satp[SATP_MODESH] || priv == PRIV_M;
@@ -139,10 +145,12 @@ module mmu
   end
 
   /*
-   * TLB stage
+   * TLB and ICACHE stage
    */
   logic [PNLEN - 1:0]   tlb_vpn;
   logic [ASIDLEN - 1:0] tlb_asid;
+  logic                 icache_wen;
+  logic                 icache_hit;
 
   assign tlb_vpn  = ac_vaddr[VADDR_VPN0SH+:PNLEN];
   assign tlb_asid = ac_satp[SATP_ASIDSH+:ASIDLEN];
@@ -172,6 +180,34 @@ module mmu
     if (ac_mstatus[MSTATUS_MXRSH])
       tlb_exwr[0] |= tlb_xwr[2];
   end
+
+  assign use_icache = en_icache_r && ac_access == ACC_FETCH && icache_hit;
+  assign icache_wen = en_icache_r && state_r == ST_ACCESS && access_r == ACC_FETCH;
+
+  icache ICACHE(
+    .clk       (clk),
+    .nrst      (nrst),
+    .mmu_addr  (ac_vaddr),
+    .mmu_wdata (cache_line),
+    .mmu_wen   (icache_wen),
+    .mmu_flush (ac_icache_flush),
+    .mmu_rdata (icache_rdata),
+    .mmu_hit   (icache_hit)
+  );
+
+  always_comb begin
+    en_icache = en_icache_r;
+
+    if (state_r == ST_TLB_ICACHE && ac_access == ACC_FETCH &&
+      dev_t'(ac_vaddr[ADDR_DEVSH+:DEVLEN]) == DEV_MMEM)
+      en_icache = 1;
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst)
+      en_icache_r <= 0;
+    else
+      en_icache_r <= en_icache;
 
   /*
    * L1 stage
@@ -226,9 +262,9 @@ module mmu
     sp = sp_r;
 
     unique0 case (state_r)
-      ST_TLB: sp = tlb_rsp;
-      ST_L1:  sp = l1_sp;
-      ST_L0:  sp = 0;
+      ST_TLB_ICACHE: sp = tlb_rsp;
+      ST_L1:         sp = l1_sp;
+      ST_L0:         sp = 0;
     endcase
   end
 
@@ -264,7 +300,7 @@ module mmu
     paddr = paddr_r;
 
     unique0 case (state_r)
-      ST_TLB:
+      ST_TLB_ICACHE:
         if (omit_translation)
           paddr = ac_vaddr;
         else if (tlb_rsp)
@@ -289,8 +325,10 @@ module mmu
   always_comb begin
     inst = inst_r;
 
-    if (state_r == ST_ACCESS)
-      inst = asw_rdata;
+    case (state_r)
+      ST_TLB_ICACHE: inst = icache_rdata;
+      ST_ACCESS:     inst = asw_rdata;
+    endcase
   end
 
   always_ff @(posedge clk)
@@ -333,13 +371,13 @@ module mmu
     exc_pending = exc_pending_r;
 
     unique0 case (state_r)
-      ST_TLB:    exc_pending = tlb_ill;
-      ST_L1:     exc_pending = l1_exc_pending;
-      ST_L0:     exc_pending = l0_exc_pending;
-      ST_ACCESS: exc_pending = 0;
+      ST_TLB_ICACHE: exc_pending = tlb_ill && !use_icache;
+      ST_L1:         exc_pending = l1_exc_pending;
+      ST_L0:         exc_pending = l0_exc_pending;
+      ST_ACCESS:     exc_pending = 0;
     endcase
 
-    if (state_r == ST_TLB || state_r == ST_L1 || state_r == ST_L0)
+    if (state_r == ST_TLB_ICACHE || state_r == ST_L1 || state_r == ST_L0)
       unique0 case (ac_access)
         ACC_LOAD:  exc_code = CAUSE_LOAD_PAGE_FAULT;
         ACC_STORE: exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
@@ -362,9 +400,11 @@ module mmu
     state = state_r;
 
     unique0 case (state_r)
-      ST_TLB:
+      ST_TLB_ICACHE:
         if (ac_access != ACC_NONE) begin
-          if (omit_translation)
+          if (use_icache)
+            state = ST_FINISH;
+          else if (omit_translation)
             state = ST_ACCESS;
           else if (tlb_valid)
             state = tlb_ill ? ST_FINISH : ST_ACCESS;
@@ -390,16 +430,16 @@ module mmu
 
       ST_ACCESS:
         if (!asw_stall)
-          state = access_r == ACC_FETCH ? ST_FINISH : ST_TLB;
+          state = access_r == ACC_FETCH ? ST_FINISH : ST_TLB_ICACHE;
 
       ST_FINISH:
-        state = ST_TLB;
+        state = ST_TLB_ICACHE;
     endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
     if (!nrst)
-      state_r <= ST_TLB;
+      state_r <= ST_TLB_ICACHE;
     else
       state_r <= state;
 

@@ -28,6 +28,7 @@ module csr_reg_file
   output logic                ac_ill,
   output logic [XLEN - 1:0]   ac_tvec,
   output logic                ac_intr_handling,
+  output logic                ac_chg_priv,
 
   input  logic                clint_intr_pending,
 
@@ -396,4 +397,5 @@ module csr_reg_file
   assign ac_tvec          = priv == PRIV_M ? mtvec_r : stvec_r;
   assign ac_intr_handling = !ac_exc_pending && !ac_mret &&
     !ac_sret && !ac_wcsr && active_intrs;
+  assign ac_chg_priv      = priv != priv_r;
 endmodule
