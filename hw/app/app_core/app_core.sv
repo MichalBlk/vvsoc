@@ -628,7 +628,7 @@ module app_core
 
     unique0 case (state_r)
       ST_IF_DEC:
-        if (mmu_exc_pending) begin
+        if (mmu_exc_pending && !use_nxt_inst_r) begin
           exc_code    = mmu_exc_code;
           exc_pending = 1;
           tval        = pc_r;
