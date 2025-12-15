@@ -45,9 +45,6 @@ module app_core
   logic [XLEN - 1:0]       pc, pc_r;
   logic [XLEN - 1:0]       resv_addr, resv_addr_r;
   logic                    resv_valid, resv_valid_r;
-  logic [XLEN - 1:0]       nxt_inst, nxt_inst_r;
-  logic                    nxt_inst_valid, nxt_inst_valid_r;
-  logic                    use_nxt_inst, use_nxt_inst_r;
 
   logic                    bclint_intr_pending, bclint_intr_pending_r;
   logic                    bvcd_intr_pending, bvcd_intr_pending_r;
@@ -65,7 +62,6 @@ module app_core
   logic [FUNCT7LEN - 1:0]  funct7;
   logic [FUNCT12LEN - 1:0] funct12;
   logic [XLENB_LOG - 1:0]  mem_size;
-  logic                    nop;
   logic [XLEN - 1:0]       imm, imm_r;
   logic [XLEN - 1:0]       rs1_data, rs1_data_r;
   logic [XLEN - 1:0]       rs2_data, rs2_data_r;
@@ -90,7 +86,6 @@ module app_core
   logic                    load_amo_lr, load_amo_lr_r;
   logic                    store_amo_sc_succ;
   logic                    amo_rmw, amo_rmw_r;
-  logic                    mem_access;
   logic [XLEN - 1:0]       mem_data, mem_data_r;
   exc_t                    exc_code, exc_code_r;
   logic                    exc_pending, exc_pending_r;
@@ -100,6 +95,7 @@ module app_core
   logic                    misaligned_jmp;
   logic [XLEN - 1:0]       tval, tval_r;
 
+  logic                    iv_nop;
   logic                    iv_mret;
   logic                    iv_sret;
   logic                    iv_sfence_vma;
@@ -130,8 +126,6 @@ module app_core
   logic                    mmu_icache_flush;
   logic [XLEN - 1:0]       mmu_rdata;
   logic [XLEN - 1:0]       mmu_inst;
-  logic [XLEN - 1:0]       mmu_nxt_inst;
-  logic                    mmu_nxt_inst_valid;
   exc_t                    mmu_exc_code;
   logic                    mmu_exc_pending;
   logic                    mmu_stall;
@@ -175,27 +169,20 @@ module app_core
   logic                    csrrf_mret;
   logic                    csrrf_sret;
   logic [XLEN - 1:0]       csrrf_rdata;
-  logic                    iv_ecall;
-  logic                    iv_ebreak;
   logic                    iv_mul;
   logic                    iv_div;
+  logic                    iv_ecall;
+  logic                    iv_ebreak;
   logic                    fence;
   logic                    wfi;
 
-  assign _inst    = use_nxt_inst_r ? nxt_inst_r : mmu_inst;
-
-  assign _opcode  = _inst[OPCODESH+:OPCODELEN];
-  assign _rs1     = _inst[RS1SH+:REGCNT_LOG];
-  assign _rs2     = _inst[RS2SH+:REGCNT_LOG];
-  assign _funct3  = _inst[FUNCT3SH+:FUNCT3LEN];
-  assign _funct5  = _inst[FUNCT5SH+:FUNCT5LEN];
-  assign _funct7  = _inst[FUNCT7SH+:FUNCT7LEN];
-  assign _funct12 = _inst[FUNCT12SH+:FUNCT12LEN];
-
-  assign fence    = _opcode == OPCODE_MISC_MEM &&
-    (_funct3 == FUNCT3_FENCE || _funct3 == FUNCT3_FENCEI);
-  assign wfi      = _opcode == OPCODE_SYSTEM && _funct3 == FUNCT3_PRIV && _funct12 == FUNCT12_WFI;
-  assign nop      = fence || wfi;
+  assign _opcode  = mmu_inst[OPCODESH+:OPCODELEN];
+  assign _rs1     = mmu_inst[RS1SH+:REGCNT_LOG];
+  assign _rs2     = mmu_inst[RS2SH+:REGCNT_LOG];
+  assign _funct3  = mmu_inst[FUNCT3SH+:FUNCT3LEN];
+  assign _funct5  = mmu_inst[FUNCT5SH+:FUNCT5LEN];
+  assign _funct7  = mmu_inst[FUNCT7SH+:FUNCT7LEN];
+  assign _funct12 = mmu_inst[FUNCT12SH+:FUNCT12LEN];
 
   inst_verifier INST_VERIFIER(
     .ac_opcode     (_opcode),
@@ -203,6 +190,7 @@ module app_core
     .ac_funct5     (_funct5),
     .ac_funct7     (_funct7),
     .ac_funct12    (_funct12),
+    .ac_nop        (iv_nop),
     .ac_mul        (iv_mul),
     .ac_div        (iv_div),
     .ac_ecall      (iv_ecall),
@@ -263,7 +251,7 @@ module app_core
   );
 
   imm_gen IMM_GEN(
-    .inst (_inst),
+    .inst (mmu_inst),
     .imm  (ig_imm)
   );
 
@@ -288,7 +276,7 @@ module app_core
     amo_rmw     = amo_rmw_r;
 
     if (state_r == ST_IF_DEC) begin
-      inst        = nop ? NOP : _inst;
+      inst        = iv_nop ? NOP : mmu_inst;
       imm         = ig_imm;
       rs1_data    = rf_rdata1;
       rs2_data    = rf_rdata2;
@@ -304,9 +292,9 @@ module app_core
       sret        = iv_sret;
       div         = iv_div;
       sfence_vma  = iv_sfence_vma;
-      load_amo_lr = !nop &&
-        (_opcode == OPCODE_LOAD || (_opcode == OPCODE_AMO && _funct5 == FUNCT5_AMO_LR));
-      amo_rmw     = !nop && _opcode == OPCODE_AMO &&
+      load_amo_lr = _opcode == OPCODE_LOAD ||
+        (_opcode == OPCODE_AMO && _funct5 == FUNCT5_AMO_LR);
+      amo_rmw     = _opcode == OPCODE_AMO &&
         _funct5 != FUNCT5_AMO_LR && _funct5 != FUNCT5_AMO_SC;
     end
   end
@@ -353,8 +341,6 @@ module app_core
   assign amo_sc_succ       = rs1_data_r == resv_addr_r && resv_valid_r;
   assign store_amo_sc_succ = opcode == OPCODE_STORE ||
     (opcode == OPCODE_AMO && funct5 == FUNCT5_AMO_SC && amo_sc_succ);
-
-  assign mem_access        = load_amo_lr_r || store_amo_sc_succ || amo_rmw_r;
 
   csr_alu CSR_ALU(
     .ac_csr    (csr_rdata_r),
@@ -450,7 +436,6 @@ module app_core
   logic [XLEN - 1:0]      opalu_src2;
   logic [FUNCT7LEN - 1:0] opalu_funct7;
   logic [XLEN - 1:0]      opalu_res;
-  logic                   chg_sum;
 
   assign opalu_src2   = opcode == OPCODE_OP_IMM ? imm_r : rs2_data_r;
   assign opalu_funct7 = opcode != OPCODE_OP_IMM || funct3 == FUNCT3_SRA ? funct7 : 0;
@@ -541,8 +526,7 @@ module app_core
       end
 
       OPCODE_SYSTEM:
-        if (funct3 == FUNCT3_PRIV &&
-          (funct12 == FUNCT12_SRET || funct12 == FUNCT12_MRET)) begin
+        if (mret_r || sret_r) begin
           jmp_pc = csr_rdata_r;
           tkn    = 1;
         end
@@ -566,45 +550,9 @@ module app_core
     else
       pc_r <= pc;
 
-  assign chg_sum          = csrrf_addr == CSR_SSTATUS &&
-    (csr_wdata_r[MSTATUS_SUMSH] ^ csrrf_mstatus[MSTATUS_SUMSH]);
-
   assign mmu_tlb_flush    = state_r == ST_COM && sfence_vma_r;
   assign mmu_icache_flush = state_r == ST_COM &&
-    (sfence_vma_r || csrrf_chg_priv || mret_r || sret_r ||
-     (csrrf_wcsr && (csrrf_addr == CSR_SATP || chg_sum)));
-
-  /*
-   * Next instruction handling
-   */
-  always_comb begin
-    nxt_inst       = nxt_inst_r;
-    nxt_inst_valid = nxt_inst_valid_r;
-    use_nxt_inst   = use_nxt_inst_r;
-
-    case (state_r)
-      ST_IF_DEC: begin
-        nxt_inst       = mmu_nxt_inst;
-        nxt_inst_valid = mmu_nxt_inst_valid;
-      end
-
-      ST_COM:
-        use_nxt_inst = pc == nxt_pc_r && mmu_icache_flush &&
-          nxt_inst_valid_r;
-
-      ST_MISALIGNED_JMP:
-        use_nxt_inst = pc == nxt_pc_r && nxt_inst_valid_r;
-    endcase
-  end
-
-  always_ff @(posedge clk, negedge nrst)
-    if (!nrst)
-      use_nxt_inst_r   <= 0;
-    else begin
-      nxt_inst_r       <= nxt_inst;
-      nxt_inst_valid_r <= nxt_inst_valid;
-      use_nxt_inst_r   <= use_nxt_inst;
-    end
+    (sfence_vma_r || csrrf_chg_priv || (csrrf_wcsr && csrrf_addr == CSR_SATP));
 
   /*
    * Exception detection
@@ -628,11 +576,11 @@ module app_core
 
     unique0 case (state_r)
       ST_IF_DEC:
-        if (mmu_exc_pending && !use_nxt_inst_r) begin
+        if (mmu_exc_pending) begin
           exc_code    = mmu_exc_code;
           exc_pending = 1;
           tval        = pc_r;
-        end else if (!nop && (ill_inst || csrrf_ill)) begin
+        end else if (ill_inst || csrrf_ill) begin
           exc_code    = CAUSE_ILLEGAL_INSTRUCTION;
           exc_pending = 1;
           tval        = _inst;
@@ -705,7 +653,7 @@ module app_core
   assign if_dec_to_exe1 = iv_mul || iv_div || iv_ecall || iv_ebreak ||
     csrrf_rcsr || (_opcode == OPCODE_AMO && _funct5 == FUNCT5_AMO_SC);
 
-  assign exe_to_com     = exe_exc_pending || !mem_access;
+  assign exe_to_com     = exe_exc_pending || !store_amo_sc_succ;
 
   assign mem1_to_com    = mmu_exc_pending || !amo_rmw_r;
 
@@ -717,8 +665,8 @@ module app_core
 
     case (state_r)
       ST_IF_DEC:
-        if (use_nxt_inst_r || !mmu_stall) begin
-          if (nop || if_dec_exc_pending)
+        if (!mmu_stall) begin
+          if (iv_nop || if_dec_exc_pending)
             state = ST_COM;
           else if (if_dec_to_exe1)
             state = ST_EXE1;
@@ -782,8 +730,7 @@ module app_core
 
     unique0 case (state_r)
       ST_IF_DEC:
-        if (!use_nxt_inst_r)
-          mmu_access = ACC_FETCH;
+        mmu_access = ACC_FETCH;
 
       ST_MEM1:
         if (!misaligned_mem_access) begin
@@ -799,34 +746,32 @@ module app_core
   end
 
   mmu MMU(
-    .clk               (clk),
-    .nrst              (nrst),
-    .ac_vaddr          (mmu_vaddr),
-    .ac_wdata          (mmu_wdata),
-    .ac_size           (mmu_size),
-    .ac_nsign          (mmu_nsign),
-    .ac_access         (mmu_access),
-    .ac_priv           (csrrf_priv),
-    .ac_mstatus        (csrrf_mstatus),
-    .ac_satp           (csrrf_satp),
-    .ac_tlb_flush      (mmu_tlb_flush),
-    .ac_icache_flush   (mmu_icache_flush),
-    .ac_rdata          (mmu_rdata),
-    .ac_inst           (mmu_inst),
-    .ac_nxt_inst       (mmu_nxt_inst),
-    .ac_nxt_inst_valid (mmu_nxt_inst_valid),
-    .ac_exc_code       (mmu_exc_code),
-    .ac_exc_pending    (mmu_exc_pending),
-    .ac_stall          (mmu_stall),
-    .asw_rdata         (asw_rdata),
-    .asw_stall         (asw_stall),
-    .asw_addr          (asw_addr),
-    .asw_wdata         (asw_wdata),
-    .asw_size          (asw_size),
-    .asw_nsign         (asw_nsign),
-    .asw_ren           (asw_ren),
-    .asw_wen           (asw_wen),
-    .cache_pte         (cache_pte),
-    .cache_line        (cache_line)
+    .clk             (clk),
+    .nrst            (nrst),
+    .ac_vaddr        (mmu_vaddr),
+    .ac_wdata        (mmu_wdata),
+    .ac_size         (mmu_size),
+    .ac_nsign        (mmu_nsign),
+    .ac_access       (mmu_access),
+    .ac_priv         (csrrf_priv),
+    .ac_mstatus      (csrrf_mstatus),
+    .ac_satp         (csrrf_satp),
+    .ac_tlb_flush    (mmu_tlb_flush),
+    .ac_icache_flush (mmu_icache_flush),
+    .ac_rdata        (mmu_rdata),
+    .ac_inst         (mmu_inst),
+    .ac_exc_code     (mmu_exc_code),
+    .ac_exc_pending  (mmu_exc_pending),
+    .ac_stall        (mmu_stall),
+    .asw_rdata       (asw_rdata),
+    .asw_stall       (asw_stall),
+    .asw_addr        (asw_addr),
+    .asw_wdata       (asw_wdata),
+    .asw_size        (asw_size),
+    .asw_nsign       (asw_nsign),
+    .asw_ren         (asw_ren),
+    .asw_wen         (asw_wen),
+    .cache_pte       (cache_pte),
+    .cache_line      (cache_line)
   );
 endmodule
