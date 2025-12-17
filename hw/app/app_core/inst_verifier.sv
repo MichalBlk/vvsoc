@@ -11,6 +11,7 @@ module inst_verifier
   input  logic [FUNCT7LEN - 1:0]  ac_funct7,
   input  logic [FUNCT12LEN - 1:0] ac_funct12,
   output logic                    ac_nop,
+  output logic                    ac_fencei,
   output logic                    ac_mul,
   output logic                    ac_div,
   output logic                    ac_ecall,
@@ -64,8 +65,8 @@ module inst_verifier
     (ac_funct3 == FUNCT3_OR && ac_funct7 == FUNCT7_OR) ||
     (ac_funct3 == FUNCT3_AND && ac_funct7 == FUNCT7_AND);
 
-  assign fence = ac_opcode == OPCODE_MISC_MEM &&
-    (ac_funct3 == FUNCT3_FENCE || ac_funct3 == FUNCT3_FENCEI);
+  assign fence     = ac_opcode == OPCODE_MISC_MEM && ac_funct3 == FUNCT3_FENCE;
+  assign ac_fencei = ac_opcode == OPCODE_MISC_MEM && ac_funct3 == FUNCT3_FENCEI;
 
   assign ac_mul = ac_opcode == OPCODE_OP && (ac_funct3 == FUNCT3_MUL || ac_funct3 == FUNCT3_MULH ||
     ac_funct3 == FUNCT3_MULHSU || ac_funct3 == FUNCT3_MULHU) && ac_funct7 == FUNCT7_MULDIV;
@@ -103,6 +104,7 @@ module inst_verifier
   assign ac_nop = fence | wfi;
 
   assign ac_valid = ac_opcode == OPCODE_LUI || ac_opcode == OPCODE_AUIPC || ac_opcode == OPCODE_JAL ||
-    ac_opcode == OPCODE_JALR || branch || load || store || op_imm || op || ac_nop || ac_mul || ac_div ||
-    amo_lr || amo_sc || amo_rmw || csr || ac_ecall || ac_ebreak || ac_mret || ac_sret || ac_sfence_vma;
+    ac_opcode == OPCODE_JALR || branch || load || store || op_imm || op || ac_nop || ac_fencei ||
+    ac_mul || ac_div || amo_lr || amo_sc || amo_rmw || csr || ac_ecall || ac_ebreak || ac_mret ||
+    ac_sret || ac_sfence_vma;
 endmodule

@@ -74,6 +74,7 @@ module app_core
   logic [XLEN - 1:0]       off_pc, off_pc_r;
   logic [XLEN - 1:0]       reg_pc, reg_pc_r;
   logic [XLEN - 1:0]       jmp_pc;
+  logic                    fencei, fencei_r;
   logic                    mul, mul_r;
   logic                    div, div_r;
   logic                    ecall, ecall_r;
@@ -96,6 +97,7 @@ module app_core
   logic [XLEN - 1:0]       tval, tval_r;
 
   logic                    iv_nop;
+  logic                    iv_fencei;
   logic                    iv_mret;
   logic                    iv_sret;
   logic                    iv_sfence_vma;
@@ -191,6 +193,7 @@ module app_core
     .ac_funct7     (_funct7),
     .ac_funct12    (_funct12),
     .ac_nop        (iv_nop),
+    .ac_fencei     (iv_fencei),
     .ac_mul        (iv_mul),
     .ac_div        (iv_div),
     .ac_ecall      (iv_ecall),
@@ -265,6 +268,7 @@ module app_core
     nxt_pc      = nxt_pc_r;
     off_pc      = off_pc_r;
     reg_pc      = reg_pc_r;
+    fencei      = fencei_r;
     mul         = mul_r;
     div         = div_r;
     ecall       = ecall_r;
@@ -285,6 +289,7 @@ module app_core
       nxt_pc      = pc_r + ILENB;
       off_pc      = pc_r + ig_imm;
       reg_pc      = rf_rdata1 + ig_imm;
+      fencei      = iv_fencei;
       mul         = iv_mul;
       ecall       = iv_ecall;
       ebreak      = iv_ebreak;
@@ -552,7 +557,8 @@ module app_core
 
   assign mmu_tlb_flush    = state_r == ST_COM && sfence_vma_r;
   assign mmu_icache_flush = state_r == ST_COM &&
-    (sfence_vma_r || csrrf_chg_priv || (csrrf_wcsr && csrrf_addr == CSR_SATP));
+    (fencei_r || sfence_vma_r || csrrf_chg_priv ||
+    (csrrf_wcsr && csrrf_addr == CSR_SATP));
 
   /*
    * Exception detection
