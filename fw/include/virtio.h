@@ -19,7 +19,7 @@ typedef struct {
   uint16_t idx;
   uint16_t ring[QUEUE_NUM_MAX];
   uint16_t __pad;
-} avail_vring_t;
+} avail_ring_t;
 
 typedef struct {
   uint16_t flags;
@@ -29,14 +29,14 @@ typedef struct {
     uint32_t len;
   } ring [QUEUE_NUM_MAX];
   uint16_t __pad;
-} used_vring_t;
+} used_ring_t;
 
 typedef struct {
   uint32_t ready;
   uint32_t last_aidx;
   desc_t *desc;
-  avail_vring_t *avail;
-  used_vring_t *used;
+  avail_ring_t *avail;
+  used_ring_t *used;
 } virtqueue_t;
 
 /*

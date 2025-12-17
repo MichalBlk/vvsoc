@@ -70,8 +70,8 @@ package soc_pkg;
 
   parameter VMGR_KBD_FIFOSZ         = 64;
 
-  parameter VMGR_REG_UART_RX        = 'h00;
-  parameter VMGR_REG_UART_TX        = 'h04;
+  parameter VMGR_REG_UART_TX        = 'h00;
+  parameter VMGR_REG_UART_RX        = 'h04;
   parameter VMGR_REG_VGA_UPDATE     = 'h08;
   parameter VMGR_REG_FINISH         = 'h0c;
   parameter VMGR_REG_KBD            = 'h10;

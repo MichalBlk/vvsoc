@@ -37,11 +37,11 @@ static inline void vmgr_wr(int reg, int val) {
 }
 
 static void add_used(virtqueue_t *vq, int didx, int len, int (*mod)(int)) {
-  used_vring_t *uvr = vq->used;
-  int uidx = uvr->idx;
-  uvr->ring[mod(uidx)].idx = didx;
-  uvr->ring[mod(uidx)].len = len;
-  uvr->idx++;
+  used_ring_t *ur = vq->used;
+  int uidx = ur->idx;
+  ur->ring[mod(uidx)].idx = didx;
+  ur->ring[mod(uidx)].len = len;
+  ur->idx++;
 }
 
 /*
@@ -59,6 +59,7 @@ static int vcd_handle_single_rx(virtqueue_t *vq, int didx) {
   desc_t *d = vq->desc + didx;
   int len = 0;
   char *c = d->addr;
+  /* TODO: consider descriptor's length. */
   for (;; len++, c++) {
     int x = vmgr_rd(VMGR_REG_UART_RX);
     if (x == -1)
@@ -74,13 +75,13 @@ static int vcd_handle_single_rx(virtqueue_t *vq, int didx) {
 
 static int vcd_handle_rx(void) {
   virtqueue_t *vq = (virtqueue_t *)VCD_START;
-  avail_vring_t *avr = vq->avail;
-  int aidx = vq->last_aidx, end = avr->idx;
+  avail_ring_t *ar = vq->avail;
+  int aidx = vq->last_aidx, end = ar->idx;
   if (aidx == end)
     return VMGR_FINISH_FAILURE;
 
   for (; aidx != end; aidx++) {
-    if (!vcd_handle_single_rx(vq, avr->ring[vcd_mod(aidx)]))
+    if (!vcd_handle_single_rx(vq, ar->ring[vcd_mod(aidx)]))
       break;
   }
 
@@ -102,13 +103,13 @@ static void vcd_handle_single_tx(virtqueue_t *vq, int didx) {
 
 static int vcd_handle_tx(void) {
   virtqueue_t *vq = (virtqueue_t *)VCD_START + 1;
-  avail_vring_t *avr = vq->avail;
-  int aidx = vq->last_aidx, end = avr->idx;
-  if (aidx == avr->idx)
+  avail_ring_t *ar = vq->avail;
+  int aidx = vq->last_aidx, end = ar->idx;
+  if (aidx == ar->idx)
     return VMGR_FINISH_FAILURE;
 
   for (; aidx != end; aidx++)
-    vcd_handle_single_tx(vq, avr->ring[vcd_mod(aidx)]);
+    vcd_handle_single_tx(vq, ar->ring[vcd_mod(aidx)]);
 
   vq->last_aidx = end;
   return VMGR_FINISH_SUCCESS;
@@ -185,13 +186,13 @@ static void vgd_handle_single_ctrl(virtqueue_t *vq, int didx) {
 
 static int vgd_handle_ctrl(void) {
   virtqueue_t *vq = (virtqueue_t *)VGD_START;
-  avail_vring_t *avr = vq->avail;
-  int aidx = vq->last_aidx, end = avr->idx;
+  avail_ring_t *ar = vq->avail;
+  int aidx = vq->last_aidx, end = ar->idx;
   if (aidx == end)
     return VMGR_FINISH_FAILURE;
 
   for (; aidx != end; aidx++)
-    vgd_handle_single_ctrl(vq, avr->ring[vgd_mod(aidx)]);
+    vgd_handle_single_ctrl(vq, ar->ring[vgd_mod(aidx)]);
 
   vq->last_aidx = end;
   return VMGR_FINISH_SUCCESS;
@@ -212,13 +213,13 @@ static void vgd_handle_single_curs(virtqueue_t *vq, int didx) {
 
 static int vgd_handle_curs(void) {
   virtqueue_t *vq = (virtqueue_t *)VGD_START + 1;
-  avail_vring_t *avr = vq->avail;
-  int aidx = vq->last_aidx, end = avr->idx;
+  avail_ring_t *ar = vq->avail;
+  int aidx = vq->last_aidx, end = ar->idx;
   if (aidx == end)
     return VMGR_FINISH_FAILURE;
 
   for (; aidx != end; aidx++)
-    vgd_handle_single_curs(vq, avr->ring[vgd_mod(aidx)]);
+    vgd_handle_single_curs(vq, ar->ring[vgd_mod(aidx)]);
 
   vq->last_aidx = end;
   return VMGR_FINISH_SUCCESS;
@@ -261,15 +262,15 @@ static void vkd_add_syn(virtqueue_t *vq, int didx) {
 
 static int vkd_handle_event(void) {
   virtqueue_t *vq = (virtqueue_t *)VKD_START;
-  avail_vring_t *avr = vq->avail;
-  int aidx = vq->last_aidx, end = avr->idx;
+  avail_ring_t *ar = vq->avail;
+  int aidx = vq->last_aidx, end = ar->idx;
   if (aidx == end)
     return VMGR_FINISH_FAILURE;
 
   for (; aidx != end; aidx += 2) {
-    if (!vkd_handle_single_event(vq, avr->ring[vkd_mod(aidx)]))
+    if (!vkd_handle_single_event(vq, ar->ring[vkd_mod(aidx)]))
       break;
-    vkd_add_syn(vq, avr->ring[vkd_mod(aidx + 1)]);
+    vkd_add_syn(vq, ar->ring[vkd_mod(aidx + 1)]);
   }
 
   vq->last_aidx = aidx;
@@ -277,6 +278,7 @@ static int vkd_handle_event(void) {
 }
 
 static int vkd_handle_status(void) {
+  /* TODO: remove the halting. */
   halt();
 }
 

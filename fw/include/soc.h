@@ -14,8 +14,8 @@
  */
 #define VMGR_START 0x20000000
 
-#define VMGR_REG_UART_RX 0x00
-#define VMGR_REG_UART_TX 0x04
+#define VMGR_REG_UART_TX 0x00
+#define VMGR_REG_UART_RX 0x04
 #define VMGR_REG_VGA_UPDATE 0x08
 #define VMGR_REG_FINISH 0x0c
 #define VMGR_REG_KBD 0x10
@@ -80,7 +80,7 @@
 #define FL_OPENSBI_START 0xf0000000
 #define FL_DTB_START 0xf0020000
 #define FL_KERNEL_START 0xf0021000
-#define FL_INITRD_START 0xf0421000
+#define FL_INITRD_START 0xf0521000
 
 /*
  * Main memory
@@ -97,7 +97,7 @@
  */
 #define OPENSBI_SIZE 0x20000
 #define DTB_SIZE 0x1000
-#define KERNEL_SIZE 0x400000
+#define KERNEL_SIZE 0x500000
 #define INITRD_SIZE 0x700000
 
 #endif /* !__SOC_H__ */

@@ -1,0 +1,69 @@
+/dts-v1/;
+
+/ {
+  #address-cells = <1>;
+  #size-cells = <1>;
+
+  chosen {
+    bootargs = "init=/bin/ksh test=all";
+    linux,initrd-start = <0x82000000>;
+    linux,initrd-end = <0x82300000>;
+  };
+
+  cpus {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    timebase-frequency = <100000000>;
+
+    cpu@0 {
+      device_type = "cpu";
+      compatible = "riscv";
+      riscv,isa = "rv32ima";
+      mmu-type = "riscv,sv32";
+      reg = <0>;
+      clock-frequency = <100000000>;
+      status = "okay";
+
+      hlic: interrupt-controller {
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        compatible = "riscv,cpu-intc";
+      };
+    };
+  };
+
+  memory@80000000 {
+    device_type = "memory";
+    reg = <0x80000000 0x3200000>;
+  };
+
+  reserved-memory {
+    #address-cells = <1>;
+    #size-cells = <1>;
+    ranges;
+
+    opensbi@81000000 {
+      reg = <0x81000000 0x100000>;
+    };
+  };
+
+  soc {
+    #address-cells = <1>;
+    #size-cells = <1>;
+    compatible = "simple-bus";
+    ranges;
+
+    /* Currently, Mimiker only handles the VirtIO console device. */
+    virtio@30000000 {
+      compatible = "virtio,mmio";
+      reg = <0x30000000 0x200>;
+      interrupts-extended = <&hlic 0x10>;
+    };
+
+    clint@70000000 {
+      compatible = "riscv,clint0";
+      interrupts-extended = <&hlic 0x3>, <&hlic 0x7>;
+      reg = <0x70000000 0x10000>;
+    };
+  };
+};

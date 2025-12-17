@@ -10,6 +10,12 @@
 #define RVTEST_RV32U
 #define TESTNUM x28
 
+#ifdef AC
+#define DBGC_ADDR 0x60000000
+#else
+#define DBGC_ADDR 0x20000000
+#endif
+
 #define RVTEST_CODE_BEGIN		\
 	.text;				\
 	.global TEST_FUNC_NAME;		\
@@ -17,7 +23,7 @@
 TEST_FUNC_NAME:				\
 	lui	a0,%hi(.test_name);	\
 	addi	a0,a0,%lo(.test_name);	\
-	lui	a2,0x60000000>>12;	\
+	lui	a2,DBGC_ADDR>>12;	\
 .prname_next:				\
 	lb	a1,0(a0);		\
 	beq	a1,zero,.prname_done;	\
@@ -34,7 +40,7 @@ TEST_FUNC_NAME:				\
 	sw	a1,0(a2);
 
 #define RVTEST_PASS			\
-	lui	a0,0x60000000>>12;	\
+	lui	a0,DBGC_ADDR>>12;	\
 	addi	a1,zero,'O';		\
 	addi	a2,zero,'K';		\
 	addi	a3,zero,'\n';		\
@@ -44,7 +50,7 @@ TEST_FUNC_NAME:				\
 	jal	zero,TEST_FUNC_RET;
 
 #define RVTEST_FAIL			\
-	lui	a0,0x60000000>>12;	\
+	lui	a0,DBGC_ADDR>>12;	\
 	addi	a1,zero,'E';		\
 	addi	a2,zero,'R';		\
 	addi	a3,zero,'O';		\
