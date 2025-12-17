@@ -5,9 +5,9 @@
   #size-cells = <1>;
 
   chosen {
-    bootargs = "init=/bin/ksh";
+    bootargs = "earlycon=sbi console=hvc0 root=/dev/ram";
     linux,initrd-start = <0x82000000>;
-    linux,initrd-end = <0x82341800>;
+    linux,initrd-end = <0x8264f400>;
   };
 
   cpus {
@@ -57,6 +57,18 @@
       compatible = "virtio,mmio";
       reg = <0x30000000 0x200>;
       interrupts-extended = <&hlic 0x10>;
+    };
+
+    virtio@40000000 {
+      compatible = "virtio,mmio";
+      reg = <0x40000000 0x200>;
+      interrupts-extended = <&hlic 0x11>;
+    };
+
+    virtio@e0000000 {
+      compatible = "virtio,mmio";
+      reg = <0xe0000000 0x200>;
+      interrupts-extended = <&hlic 0x12>;
     };
 
     clint@70000000 {

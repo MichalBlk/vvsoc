@@ -8,6 +8,12 @@
 /* Main program
  **********************************/
 
+#ifdef AC
+#define DBGC_ADDR 0x60000000
+#else
+#define DBGC_ADDR 0x20000000
+#endif
+
 .section .text
 .globl _start
 
@@ -109,7 +115,7 @@ _start:
 	TEST(simple)
 
 	/* print "DONE\n" */
-	lui a0,0x60000000>>12
+	lui a0,DBGC_ADDR>>12
 	addi a1,zero,'D'
 	addi a2,zero,'O'
 	addi a3,zero,'N'
