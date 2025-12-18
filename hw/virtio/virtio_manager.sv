@@ -9,6 +9,7 @@ module virtio_manager
   import isa_pkg::*;
   import virtio_pkg::*;
   import evdev_pkg::*;
+  import param_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (

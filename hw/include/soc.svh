@@ -2,16 +2,14 @@
 `define __SOC_SVH__
 
 `include "virtio.svh"
+`include "param.svh"
 `include "board.svh"
 
 package soc_pkg;
-  import isa_pkg::BLEN_LOG;
-  import isa_pkg::XLEN;
-  import isa_pkg::XLENB_LOG;
-  import isa_pkg::PAGESZ;
-  import isa_pkg::PNLEN;
+  import isa_pkg::*;
   import virtio_pkg::VIRTIO_F_VERSION_1SH;
-  import board_pkg::MMEM_DATALEN;
+  import param_pkg::*;
+  import board_pkg::*;
 
   /*
    * Device types
@@ -42,12 +40,6 @@ package soc_pkg;
 `endif
 
   /*
-   * TLB
-   */
-  parameter TLB_SETCNT  = 4;
-  parameter TLB_LINECNT = 4;
-
-  /*
    * VirtIO core
    */
   parameter VC_RESET_PC = XLEN'(DEV_VMEM) << ADDR_DEVSH;
@@ -55,21 +47,12 @@ package soc_pkg;
   /*
    * VirtIO memory
    */
-  parameter VMEMSZ       = 2 * PAGESZ;
   parameter VMEM_ADDRLEN = $clog2(VMEMSZ);
 
   /*
    * VirtIO manager
    */
   parameter VMGR_ADDRLEN            = 8;
-`ifdef SIM
-  parameter VMGR_UART_RX_FIFOSZ     = 64;
-`else
-  parameter VMGR_UART_RX_FIFOSZ     = 256;
-`endif
-
-  parameter VMGR_KBD_FIFOSZ         = 64;
-
   parameter VMGR_REG_UART_TX        = 'h00;
   parameter VMGR_REG_UART_RX        = 'h04;
   parameter VMGR_REG_VGA_UPDATE     = 'h08;
@@ -105,7 +88,7 @@ package soc_pkg;
   parameter         VCD_ADDRLENW     = VCD_ADDRLEN - XLENB_LOG;
   parameter         VCD_QUEUECNT     = 2;
   parameter         VCD_QUEUECNT_LOG = $clog2(VCD_QUEUECNT);
-  parameter         VCD_QUEUENUMMAX  = 2;
+  parameter         VCD_QUEUESIZEMAX = 2;
   parameter longint VCD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
@@ -115,7 +98,7 @@ package soc_pkg;
   parameter         VGD_ADDRLENW     = VGD_ADDRLEN - XLENB_LOG;
   parameter         VGD_QUEUECNT     = 2;
   parameter         VGD_QUEUECNT_LOG = $clog2(VCD_QUEUECNT);
-  parameter         VGD_QUEUENUMMAX  = 32;
+  parameter         VGD_QUEUESIZEMAX = 32;
   parameter longint VGD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
@@ -125,13 +108,12 @@ package soc_pkg;
   parameter         VKD_ADDRLENW     = VKD_ADDRLEN - XLENB_LOG;
   parameter         VKD_QUEUECNT     = 2;
   parameter         VKD_QUEUECNT_LOG = $clog2(VKD_QUEUECNT);
-  parameter         VKD_QUEUENUMMAX  = 32;
+  parameter         VKD_QUEUESIZEMAX = 32;
   parameter longint VKD_FEATURES     = 1 << VIRTIO_F_VERSION_1SH;
 
   /*
    * Boot memory
    */
-  parameter BMEMSZ       = PAGESZ;
   parameter BMEM_ADDRLEN = $clog2(BMEMSZ);
 
   /*
@@ -153,7 +135,6 @@ package soc_pkg;
   parameter MMEMSZ            = 'h3200000;
   parameter MMEMSZW           = MMEMSZ >> MMEM_DATALENB_LOG;
   parameter MMEM_ADDRLEN      = $clog2(MMEMSZ);
-
   parameter MMEM_ADDRWLEN     = MMEM_ADDRLEN - MMEM_DATALENB_LOG;
 
   parameter MMEM_KERNEL_OFF   = 'h0000000;
@@ -169,13 +150,11 @@ package soc_pkg;
   /*
    * Cache
    */
-  parameter CACHE_SETCNT       = 16;
   parameter CACHE_SETCNT_LOG   = $clog2(CACHE_SETCNT);
 
   parameter CACHE_LINECNT      = 4;
   parameter CACHE_LINECNT_LOG  = $clog2(CACHE_LINECNT);
 
-  parameter CACHE_LINELEN      = 512;
   parameter CACHE_LINELENB     = CACHE_LINELEN >> BLEN_LOG;
   parameter CACHE_LINELEN_LOG  = $clog2(CACHE_LINELEN);
   parameter CACHE_LINELENB_LOG = $clog2(CACHE_LINELENB);
@@ -189,13 +168,7 @@ package soc_pkg;
   /*
    * Flash memory
    */
-  parameter FLSZ       = 'h1000000;
   parameter FL_ADDRLEN = $clog2(FLSZ);
-
-  /*
-   * UART
-   */
-  parameter UART_BAUD_RATE = 115200;
 
   /*
    * VGA
@@ -221,11 +194,6 @@ package soc_pkg;
   parameter VGA_FRAMESZ     = VGA_WIDTH * VGA_HEIGHT / 4;
   parameter VGA_FRAMESZ_LOG = $clog2(VGA_FRAMESZ);
   parameter VGA_POSLEN      = $clog2(VGA_H_MAX + 1);
-
-  /*
-   * Clock
-   */
-  parameter CLK_FREQ = 100000000;
 endpackage
 
 `endif /* !__SOC_SVH__ */

@@ -64,7 +64,7 @@ module virtio_kbd_dev
         else
           asw_rdata = VKD_FEATURES[0+:XLEN];
 
-      VIRTIO_REG_QUEUE_NUM_MAX:       asw_rdata = VKD_QUEUENUMMAX;
+      VIRTIO_REG_QUEUE_SIZE_MAX:      asw_rdata = VKD_QUEUESIZEMAX;
 
       VIRTIO_REG_QUEUE_READY:
         if (queue_sel_r)
@@ -145,8 +145,6 @@ module virtio_kbd_dev
             virtqueue[VIRTQUEUESZW + VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
           else
             virtqueue[VIRTQUEUE_DEVICE_OFFW] = asw_wdata;
-
-        /* TODO: implement configuration registers. */
       endcase
   end
 

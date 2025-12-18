@@ -5,6 +5,7 @@
 
 module icache
   import isa_pkg::*;
+  import param_pkg::*;
   import soc_pkg::*;
 (
   input  logic                       clk,

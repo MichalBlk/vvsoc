@@ -1,9 +1,9 @@
 `default_nettype none
 
 `include "soc.svh"
-`include "board.svh"
 
 module cache_agent
+  import param_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (

@@ -12,7 +12,7 @@ package virtio_pkg;
   parameter VIRTIO_REG_DEVICE_FEATURES     = 'h10;
   parameter VIRTIO_REG_DEVICE_FEATURES_SEL = 'h14;
   parameter VIRTIO_REG_QUEUE_SELECT        = 'h30;
-  parameter VIRTIO_REG_QUEUE_NUM_MAX       = 'h34;
+  parameter VIRTIO_REG_QUEUE_SIZE_MAX      = 'h34;
   parameter VIRTIO_REG_QUEUE_READY         = 'h44;
   parameter VIRTIO_REG_QUEUE_NOTIFY        = 'h50;
   parameter VIRTIO_REG_INTERRUPT_STATUS    = 'h60;

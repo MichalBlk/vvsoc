@@ -64,7 +64,7 @@ module virtio_console_dev
         else
           asw_rdata = VCD_FEATURES[0+:XLEN];
 
-      VIRTIO_REG_QUEUE_NUM_MAX:    asw_rdata = VCD_QUEUENUMMAX;
+      VIRTIO_REG_QUEUE_SIZE_MAX:   asw_rdata = VCD_QUEUESIZEMAX;
 
       VIRTIO_REG_QUEUE_READY:
         if (queue_sel_r)

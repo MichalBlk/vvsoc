@@ -2,7 +2,6 @@
 
 `include "isa.svh"
 `include "soc.svh"
-`include "board.svh"
 
 module dram
   import isa_pkg::*;

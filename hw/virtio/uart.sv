@@ -1,12 +1,13 @@
 `default_nettype none
 
 `include "isa.svh"
-`include "soc.svh"
+`include "param.svh"
 
 module uart
   import isa_pkg::BLEN;
   import isa_pkg::BLEN_LOG;
-  import soc_pkg::*;
+  import param_pkg::*;
+  import board_pkg::*;
 (
   input  logic              clk,
   input  logic              nrst,
