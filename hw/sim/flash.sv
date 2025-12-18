@@ -6,6 +6,7 @@
 module flash
   import isa_pkg::*;
   import soc_pkg::*;
+  import board_pkg::*;
 (
   input  logic                    clk,
   input  logic                    nrst,

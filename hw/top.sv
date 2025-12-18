@@ -3,11 +3,11 @@
 `include "isa.svh"
 `include "evdev.svh"
 `include "soc.svh"
-`include "board.svh"
 
 module top
   import isa_pkg::*;
   import evdev_pkg::*;
+  import param_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (

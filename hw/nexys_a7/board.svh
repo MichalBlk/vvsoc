@@ -7,7 +7,23 @@ package board_pkg;
   /*
    * Main memory
    */
+  parameter MMEMSZ       = 'h3200000;
   parameter MMEM_DATALEN = 128;
+
+  /*
+   * Flash memory
+   */
+  parameter FLSZ = 'h1000000;
+
+  /*
+   * VGA
+   */
+  parameter VGA_COLORLEN = 4;
+
+  /*
+   * Clock
+   */
+  parameter CLK_FREQ = 100000000;
 
   /*
    * DRAM
@@ -17,11 +33,6 @@ package board_pkg;
   parameter DDR2_ADDRLEN = 13;
   parameter DDR2_BALEN   = 3;
   parameter DDR2_DMLEN   = 2;
-
-  /*
-   * VGA
-   */
-  parameter VGA_COLORLEN = 4;
 endpackage
 
 `endif /* !__BOARD_SVH__ */

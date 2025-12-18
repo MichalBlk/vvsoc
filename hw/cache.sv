@@ -2,10 +2,10 @@
 
 `include "isa.svh"
 `include "soc.svh"
-`include "board.svh"
 
 module cache
   import isa_pkg::*;
+  import param_pkg::*;
   import soc_pkg::*;
   import board_pkg::*;
 (
