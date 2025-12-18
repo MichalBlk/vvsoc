@@ -155,7 +155,7 @@ module mmu
   logic [PNLEN - 1:0]   tlb_vpn;
   logic [ASIDLEN - 1:0] tlb_asid;
   logic                 icache_wen;
-  logic                 icache_hit;
+  logic                 icache_valid;
 
   assign tlb_vpn  = ac_vaddr[VADDR_VPN0SH+:PNLEN];
   assign tlb_asid = ac_satp[SATP_ASIDSH+:ASIDLEN];
@@ -186,7 +186,7 @@ module mmu
       tlb_exwr[0] |= tlb_xwr[2];
   end
 
-  assign use_icache = en_icache_r && ac_access == ACC_FETCH && icache_hit;
+  assign use_icache = en_icache_r && ac_access == ACC_FETCH && icache_valid;
   assign icache_wen = en_icache_r && state_r == ST_ACCESS && access_r == ACC_FETCH;
 
   icache ICACHE(
@@ -198,7 +198,7 @@ module mmu
     .mmu_flush     (ac_icache_flush),
     .mmu_rdata     (icache_rdata),
     .mmu_nxt_rdata (icache_nxt_rdata),
-    .mmu_hit       (icache_hit),
+    .mmu_valid     (icache_valid),
     .mmu_nxt_valid (icache_nxt_valid)
   );
 
@@ -215,6 +215,49 @@ module mmu
       en_icache_r <= 0;
     else
       en_icache_r <= en_icache;
+
+  /*
+   * TLB and ICACHE statistics.
+   *
+   * NOTE: at present, these values are only used in simulation.
+   */
+  logic [STATS_CNTLEN - 1:0] ic_cnt, ic_cnt_r;
+  logic [STATS_CNTLEN - 1:0] ic_hcnt, ic_hcnt_r;
+  logic [STATS_CNTLEN - 1:0] tlb_cnt, tlb_cnt_r;
+  logic [STATS_CNTLEN - 1:0] tlb_hcnt, tlb_hcnt_r;
+
+  always_comb begin
+    ic_cnt   = ic_cnt_r;
+    ic_hcnt  = ic_hcnt_r;
+    tlb_cnt  = tlb_cnt_r;
+    tlb_hcnt = tlb_hcnt_r;
+
+    if (state_r == ST_TLB_ICACHE) begin
+      if (ac_access == ACC_FETCH && en_icache_r) begin
+        ic_cnt = ic_cnt_r + 1;
+        if (icache_valid)
+          ic_hcnt = ic_hcnt_r + 1;
+      end
+      if (ac_access != ACC_NONE && !use_icache && !omit_translation) begin
+        tlb_cnt = tlb_cnt_r + 1;
+        if (tlb_valid)
+          tlb_hcnt = tlb_hcnt_r + 1;
+      end
+    end
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst) begin
+      ic_cnt_r   <= 0;
+      ic_hcnt_r  <= 0;
+      tlb_cnt_r  <= 0;
+      tlb_hcnt_r <= 0;
+    end else begin
+      ic_cnt_r   <= ic_cnt;
+      ic_hcnt_r  <= ic_hcnt;
+      tlb_cnt_r  <= tlb_cnt;
+      tlb_hcnt_r <= tlb_hcnt;
+    end
 
   /*
    * L1 stage

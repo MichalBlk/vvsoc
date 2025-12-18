@@ -333,6 +333,34 @@ module cache
   end
 
   /*
+   * CACHE statistics.
+   *
+   * NOTE: at present, these values are only used in simulation.
+   */
+  logic [STATS_CNTLEN - 1:0] cnt, cnt_r;
+  logic [STATS_CNTLEN - 1:0] hcnt, hcnt_r;
+
+  always_comb begin
+    cnt  = cnt_r;
+    hcnt = hcnt_r;
+
+    if (state_r == ST_READ) begin
+      cnt = cnt_r + 1;
+      if (hit)
+        hcnt = hcnt_r + 1;
+    end
+  end
+
+  always_ff @(posedge clk, negedge nrst)
+    if (!nrst) begin
+      cnt_r  <= 0;
+      hcnt_r <= 0;
+    end else begin
+      cnt_r  <= cnt;
+      hcnt_r <= hcnt;
+    end
+
+  /*
    * Main memory read stage
    */
   always_comb begin

@@ -44,6 +44,11 @@ package param_pkg;
    * UART
    */
   parameter UART_BAUD_RATE = 115200;
+
+  /*
+   * Statistics
+   */
+  parameter STATS_CNTLEN = 32;
 endpackage
 
 `endif /* !__PARAM_SVH__ */
