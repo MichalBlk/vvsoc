@@ -6,8 +6,21 @@
 #include "uartsim.cpp"
 
 #include "Vtop.h"
+#include "Vtop_top.h"
+#include "Vtop_clint.h"
+#include "Vtop_app_core.h"
+#include "Vtop_mmu.h"
+#include "Vtop_inst_verifier.h"
+#include "Vtop_reg_file.h"
+#include "Vtop_csr_reg_file.h"
+#include "Vtop_cache.h"
+#include "Vtop_virtio_core.h"
+#include "Vtop_virtio_manager.h"
+#include "Vtop_uart.h"
 
 using namespace std;
+
+#define PRINT_PC 1
 
 typedef unsigned long long ull;
 
@@ -68,7 +81,7 @@ int main(int argc, char **argv) {
   }
   dut->nrst = 1;
 
-  ull start_time = SDL_GetPerformanceCounter(), ticks = 0;
+  ull start_time = SDL_GetPerformanceCounter(), ticks = 0, pc = 0;
   bool refresh = false;
   for (ticks = 0; !Verilated::gotFinish(); ticks++) {
     dut->rx = uart->operator()(dut->tx);
@@ -76,6 +89,13 @@ int main(int argc, char **argv) {
     dut->eval();
     dut->clk = dut->vga_clk = 1;
     dut->eval();
+
+#if PRINT_PC
+    if (dut->__PVT__top->__PVT__APP_CORE->pc_r != pc) {
+      fprintf(stderr, "%08x\n", dut->__PVT__top->__PVT__APP_CORE->pc_r);
+      pc = dut->__PVT__top->__PVT__APP_CORE->pc_r;
+    }
+#endif
 
     if (dut->x < WIDTH && dut->y < HEIGHT) {
       Pixel *p = &frame[WIDTH * dut->y + dut->x];
