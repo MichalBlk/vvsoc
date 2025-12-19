@@ -219,24 +219,6 @@ module top
   logic                          kbd_vmgr_value;
   logic                          kbd_vmgr_ready;
 
-`ifdef SIM
-  initial begin
-    $display("[TOP] Loading kernel...");
-    $readmemh("kernel.mif", MAIN_MEMORY.mem, MMEM_KERNEL_OFFW);
-
-    $display("[TOP] Loading OpenSBI...");
-    $readmemh("opensbi.mif", MAIN_MEMORY.mem, MMEM_OPENSBI_OFFW);
-
-    $display("[TOP] Loading dtb...");
-    $readmemh("vrvsoc.mif", MAIN_MEMORY.mem, MMEM_DTB_OFFW);
-
-    $display("[TOP] Loading initrd...");
-    $readmemh("initrd.mif", MAIN_MEMORY.mem, MMEM_INITRD_OFFW);
-
-    $display("[TOP] Images loaded successfully");
-  end
-`endif
-
   dbg_console DBG_CONSOLE(
     .clk        (clk),
     .asw_wdata  (asw_dbgc_wdata),
@@ -247,7 +229,6 @@ module top
     .vmgr_stall (vmgr_dbgc_stall)
   );
 
-`ifndef SIM
   memory #(
     .SZ    (BMEMSZ),
     .MIF   ("bootloader.mif")
@@ -264,7 +245,6 @@ module top
     .rdata    (bmem_asw_rdata),
     .stall    (bmem_asw_stall)
   );
-`endif
 
   clint CLINT(
     .clk             (clk),
