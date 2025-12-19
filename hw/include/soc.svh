@@ -128,7 +128,6 @@ package soc_pkg;
   parameter MMEM_DATALENB     = MMEM_DATALEN >> BLEN_LOG;
   parameter MMEM_DATALENB_LOG = $clog2(MMEM_DATALENB);
 
-  parameter MMEMSZ            = 'h3200000;
   parameter MMEMSZW           = MMEMSZ >> MMEM_DATALENB_LOG;
   parameter MMEM_ADDRLEN      = $clog2(MMEMSZ);
   parameter MMEM_ADDRWLEN     = MMEM_ADDRLEN - MMEM_DATALENB_LOG;
@@ -156,9 +155,9 @@ package soc_pkg;
    */
   parameter FL_ADDRLEN     = $clog2(FLSZ);
 
-  parameter FL_KERNEL_OFF  = 'h000000;
-  parameter FL_OPENSBI_OFF = 'h020000;
-  parameter FL_DTB_OFF     = 'h021000;
+  parameter FL_OPENSBI_OFF = 'h000000;
+  parameter FL_DTB_OFF     = 'h020000;
+  parameter FL_KERNEL_OFF  = 'h021000;
   parameter FL_INITRD_OFF  = 'h521000;
 
   /*
