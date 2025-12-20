@@ -231,7 +231,7 @@ module top
 
   memory #(
     .SZ    (BMEMSZ),
-    .MIF   ("bootloader.mif")
+    .MEM   ("bootloader.mem")
   ) BOOT_MEMORY(
     .clk      (clk),
     .nrst     (nrst),
@@ -611,7 +611,7 @@ module top
 
   memory #(
     .SZ    (VMEMSZ),
-    .MIF   ("virtio.mif")
+    .MEM   ("virtio.mem")
   ) VIRTIO_MEMORY(
     .clk      (clk),
     .nrst     (nrst),

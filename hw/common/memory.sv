@@ -6,7 +6,7 @@ module memory
   import isa_pkg::*;
 #(
   parameter        SZ      = 4096,
-  parameter string MIF     = "file.mif",
+  parameter string MEM     = "file.mem",
 
   localparam       ADDRLEN = $clog2(SZ)
 )(
@@ -49,7 +49,7 @@ module memory
   logic [XLEN - 1:0]      mask;
 
   initial
-    $readmemh(MIF, mem);
+    $readmemh(MEM, mem);
 
   /*
    * Input buffering

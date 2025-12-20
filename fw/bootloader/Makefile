@@ -1,5 +1,5 @@
 TOOLS   = ../../tools
-BIN2MIF = $(TOOLS)/bin2mif.sh
+BIN2MEM = $(TOOLS)/bin2mem.py
 
 PREFIX  = riscv32-unknown-linux-gnu-
 CC      = $(PREFIX)gcc
@@ -11,8 +11,8 @@ LDFLAGS = -T ./linker.ld
 HEADERS = $(wildcard ../include/*.h)
 SRCS    = start.o main.o
 
-bootloader.mif: bootloader.bin
-	$(BIN2MIF) 4 $^
+bootloader.mem: bootloader.bin
+	$(BIN2MEM) 4 $^
 
 bootloader.bin: bootloader.elf
 	$(OBJCOPY) -O binary $^ $@
@@ -27,6 +27,6 @@ main.o: main.c $(HEADERS)
 	$(CC) $(WFLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf bootloader.mif bootloader.bin bootloader.elf start.o main.o
+	rm -rf bootloader.mem bootloader.bin bootloader.elf start.o main.o
 
 .PHONY: clean
