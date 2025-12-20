@@ -21,16 +21,16 @@ module flash
 
   initial begin
     $display("[FL] Loading OpenSBI...");
-    $readmemh("opensbi.mif", mem, FL_OPENSBI_OFF);
+    $readmemh("opensbi.mem", mem, FL_OPENSBI_OFF);
 
     $display("[FL] Loading dtb...");
-    $readmemh("vrvsoc.mif", mem, FL_DTB_OFF);
+    $readmemh("vrvsoc.mem", mem, FL_DTB_OFF);
 
     $display("[FL] Loading kernel...");
-    $readmemh("kernel.mif", mem, FL_KERNEL_OFF);
+    $readmemh("kernel.mem", mem, FL_KERNEL_OFF);
 
     $display("[FL] Loading initrd...");
-    $readmemh("initrd.mif", mem, FL_INITRD_OFF);
+    $readmemh("initrd.mem", mem, FL_INITRD_OFF);
 
     $display("[FL] Images loaded successfully");
   end
