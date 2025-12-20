@@ -23,7 +23,6 @@ def main():
                 break
             value = int.from_bytes(chunk, byteorder="little")
             hexstr = f"{value:0{width * 2}x}"
-
             outfile.write(hexstr + "\n")
 
 if __name__ == "__main__":
