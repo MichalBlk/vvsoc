@@ -484,7 +484,8 @@ module app_core
       rf_wdata = csr_rdata_r;
   end
 
-  assign rf_wen = !exc_pending_r && state_r == ST_COM &&
+  assign rf_wen = ((state_r == ST_COM && !exc_pending_r && !misaligned_jmp) ||
+    state_r == ST_MISALIGNED_JMP) &&
     (opcode == OPCODE_LUI || opcode == OPCODE_AUIPC || opcode == OPCODE_JAL ||
      opcode == OPCODE_JALR || opcode == OPCODE_LOAD || opcode == OPCODE_OP_IMM ||
      opcode == OPCODE_OP || opcode == OPCODE_AMO ||
@@ -545,15 +546,24 @@ module app_core
     endcase
   end
 
+  assign mmu_tlb_flush    = state_r == ST_COM && sfence_vma_r;
+  assign mmu_icache_flush = (state_r == ST_COM &&
+    (fencei_r || sfence_vma_r || csrrf_chg_priv ||
+    (csrrf_wcsr && csrrf_addr == CSR_SATP))) || state_r == ST_MISALIGNED_JMP;
+
+  /*
+   * Program counter handling
+   */
   always_comb begin
     pc = pc_r;
 
-    if (csrrf_com) begin
-      if (exc_pending_r || csrrf_intr_handling)
+    case (state_r)
+      ST_COM:
+        pc = exc_pending_r || csrrf_intr_handling ? csrrf_tvec : csrrf_target_pc;
+
+      ST_MISALIGNED_JMP:
         pc = csrrf_tvec;
-      else
-        pc = csrrf_target_pc;
-    end
+    endcase
   end
 
   always_ff @(posedge clk, negedge nrst)
@@ -561,11 +571,6 @@ module app_core
       pc_r <= AC_RESET_PC;
     else
       pc_r <= pc;
-
-  assign mmu_tlb_flush    = state_r == ST_COM && sfence_vma_r;
-  assign mmu_icache_flush = state_r == ST_COM &&
-    (fencei_r || sfence_vma_r || csrrf_chg_priv ||
-    (csrrf_wcsr && csrrf_addr == CSR_SATP));
 
   /*
    * Next instruction handling
@@ -585,7 +590,7 @@ module app_core
         use_nxt_inst = pc == nxt_pc_r && !mmu_icache_flush && nxt_inst_valid_r;
 
       ST_MISALIGNED_JMP:
-        use_nxt_inst = pc == nxt_pc_r && nxt_inst_valid_r;
+        use_nxt_inst = 0;
     endcase
   end
 
