@@ -7,7 +7,7 @@ package board_pkg;
   /*
    * Main memory
    */
-  parameter MMEMSZ       = 'h3200000;
+  parameter MMEMSZ       = 'h8000000;
   parameter MMEM_DATALEN = 128;
 
   /*

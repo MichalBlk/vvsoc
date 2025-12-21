@@ -7,8 +7,8 @@ package board_pkg;
   /*
    * Main memory
    */
-  parameter MMEMSZ       = 'h3200000;
-  parameter MMEM_DATALEN = 64;
+  parameter MMEMSZ       = 'h10000000;
+  parameter MMEM_DATALEN = 256;
 
   /*
    * Flash memory
