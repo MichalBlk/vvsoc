@@ -16,6 +16,7 @@ module app_core
 
   input  logic [XLEN - 1:0]          asw_rdata,
   input  logic                       asw_stall,
+  input  logic                       asw_fault,
   output logic [XLEN - 1:0]          asw_addr,
   output logic [XLEN - 1:0]          asw_wdata,
   output logic [XLENB_LOG - 1:0]     asw_size,
@@ -817,6 +818,7 @@ module app_core
     .ac_stall          (mmu_stall),
     .asw_rdata         (asw_rdata),
     .asw_stall         (asw_stall),
+    .asw_fault         (asw_fault),
     .asw_addr          (asw_addr),
     .asw_wdata         (asw_wdata),
     .asw_size          (asw_size),
