@@ -37,7 +37,6 @@ module dram
 );
   localparam DRAM_DATALEN = 64;
   localparam DRAM_CNTLEN  = $clog2(MMEM_DATALEN / DRAM_DATALEN);
-  localparam WDATALEN     = MMEM_DATALEN + DRAM_DATALEN;
   localparam MIG_ADDRLEN  = 27;
 
   typedef enum logic [2:0] {
@@ -59,9 +58,9 @@ module dram
   logic                      en, en_r;
   logic                      finished, finished_r;
   logic [MMEM_DATALEN - 1:0] rdata, rdata_r;
-  logic [WDATALEN - 1:0]     wdata, wdata_r;
-  logic                      wren, wren_r;
-  logic                      wend, wend_r;
+  logic [MMEM_DATALEN - 1:0] wdata, wdata_r;
+  logic                      wren;
+  logic                      wend;
   logic [DRAM_CNTLEN - 1:0]  cnt, cnt_r;
   logic                      last;
 
@@ -138,9 +137,9 @@ module dram
     .app_cmd             (cmd_r),
     .app_en              (en_r),
     .app_wdf_data        (mig_wdata),
-    .app_wdf_end         (wend_r),
+    .app_wdf_end         (wend),
     .app_wdf_mask        (8'h00),
-    .app_wdf_wren        (wren_r),
+    .app_wdf_wren        (wren),
     .app_rd_data         (mig_rdata),
     .app_rd_data_end     (),
     .app_rd_data_valid   (mig_rvalid),
@@ -208,36 +207,24 @@ module dram
    */
   always_comb begin
     wdata = wdata_r;
-    wren  = wren_r;
-    wend  = wend_r;
+    wren  = 0;
+    wend  = 0;
 
     unique0 case (state_r)
-      ST_IDLE: begin
-        wdata = {mmem_wdata, {DRAM_DATALEN{1'b0}}};
-        wren  = 0;
-        wend  = 0;
-      end
+      ST_IDLE:
+        wdata = mmem_wdata;
 
       ST_WRITE:
         if (mig_wrdy) begin
           wdata = wdata_r >> DRAM_DATALEN;
           wren  = 1;
           wend  = last;
-        end else begin
-          wren = 0;
-          wend = 0;
         end
     endcase
   end
 
   always_ff @(posedge mig_ui_clk)
-    if (mig_ui_srst)
-      wren_r <= 0;
-    else begin
-      wdata_r <= wdata;
-      wren_r  <= wren;
-      wend_r  <= wend;
-    end
+    wdata_r <= wdata;
 
   assign mig_wdata = wdata_r[0+:DRAM_DATALEN];
 
