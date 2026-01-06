@@ -15,6 +15,7 @@ module app_switch
   input  logic                       ac_wen,
   output logic [XLEN - 1:0]          ac_rdata,
   output logic                       ac_stall,
+  output logic                       ac_fault,
 
   input  logic [XLEN - 1:0]          vcd_rdata,
   input  logic                       vcd_stall,
@@ -101,6 +102,7 @@ module app_switch
   always_comb begin
     ac_rdata  = 'bx;
     ac_stall  = 0;
+    ac_fault  = 0;
 
     vcd_wen   = 0;
 
@@ -120,7 +122,7 @@ module app_switch
     msw_ren   = 0;
     msw_wen   = 0;
 
-    unique0 case (dev)
+    case (dev)
       DEV_VCD: begin
         ac_rdata = vcd_rdata;
         ac_stall = vcd_stall;
@@ -176,6 +178,9 @@ module app_switch
         msw_ren  = ac_ren;
         msw_wen  = ac_wen;
       end
+
+      default:
+        ac_fault = 1;
     endcase
   end
 endmodule

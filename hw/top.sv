@@ -77,6 +77,7 @@ module top
 
   logic [XLEN - 1:0]             asw_ac_rdata;
   logic                          asw_ac_stall;
+  logic                          asw_ac_fault;
   logic [VCD_ADDRLEN - 1:0]      asw_vcd_addr;
   logic [XLEN - 1:0]             asw_vcd_wdata;
   logic                          asw_vcd_wen;
@@ -291,6 +292,7 @@ module top
     .clint_intr_pending (clint_ac_intr_pending),
     .asw_rdata          (asw_ac_rdata),
     .asw_stall          (asw_ac_stall),
+    .asw_fault          (asw_ac_fault),
     .asw_addr           (ac_asw_addr),
     .asw_wdata          (ac_asw_wdata),
     .asw_size           (ac_asw_size),
@@ -313,6 +315,7 @@ module top
     .ac_wen      (ac_asw_wen),
     .ac_rdata    (asw_ac_rdata),
     .ac_stall    (asw_ac_stall),
+    .ac_fault    (asw_ac_fault),
     .vcd_rdata   (vcd_asw_rdata),
     .vcd_stall   (vcd_asw_stall),
     .vcd_addr    (asw_vcd_addr),
