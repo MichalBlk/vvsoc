@@ -35,7 +35,9 @@ module dram
   output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
   output logic                      ddr2_odt
 );
-  localparam DRAM_DATALEN = MMEM_DATALEN / 2;
+  localparam DRAM_DATALEN = 64;
+  localparam DRAM_CNTLEN  = $clog2(MMEM_DATALEN / DRAM_DATALEN);
+  localparam WDATALEN     = MMEM_DATALEN + DRAM_DATALEN;
   localparam MIG_ADDRLEN  = 27;
 
   typedef enum logic [2:0] {
@@ -43,11 +45,10 @@ module dram
     ST_PREREAD,
     ST_READ,
     ST_PREWRITE,
-    ST_WRITE_L,
-    ST_WRITE_H
+    ST_WRITE
   } state_t;
 
-  typedef enum logic [2:0] {
+  typedef enum logic [1:0] {
     CMD_WRITE,
     CMD_READ
   } cmd_t;
@@ -58,9 +59,11 @@ module dram
   logic                      en, en_r;
   logic                      finished, finished_r;
   logic [MMEM_DATALEN - 1:0] rdata, rdata_r;
-  logic [DRAM_DATALEN - 1:0] wdata, wdata_r;
-  logic                      wend, wend_r;
+  logic [WDATALEN - 1:0]     wdata, wdata_r;
   logic                      wren, wren_r;
+  logic                      wend, wend_r;
+  logic [DRAM_CNTLEN - 1:0]  cnt, cnt_r;
+  logic                      last;
 
   logic                      fs_ren;
   logic                      fs_wen;
@@ -68,11 +71,10 @@ module dram
 
   logic                      ffs_on;
 
-  logic [MIG_ADDRLEN - 1:0]  mig_addr;
   logic [DRAM_DATALEN - 1:0] mig_rdata;
-  logic                      mig_rend;
   logic                      mig_rvalid;
   logic                      mig_rdy;
+  logic [DRAM_DATALEN - 1:0] mig_wdata;
   logic                      mig_wrdy;
   logic                      mig_ui_clk;
   logic                      mig_ui_srst;
@@ -135,12 +137,12 @@ module dram
     .app_addr            (mmem_addr),
     .app_cmd             (cmd_r),
     .app_en              (en_r),
-    .app_wdf_data        (wdata_r),
+    .app_wdf_data        (mig_wdata),
     .app_wdf_end         (wend_r),
     .app_wdf_mask        (8'h00),
     .app_wdf_wren        (wren_r),
     .app_rd_data         (mig_rdata),
-    .app_rd_data_end     (mig_rend),
+    .app_rd_data_end     (),
     .app_rd_data_valid   (mig_rvalid),
     .app_rdy             (mig_rdy),
     .app_wdf_rdy         (mig_wrdy),
@@ -156,23 +158,6 @@ module dram
     .sys_clk_i           (dram_clk),
     .sys_rst             (nrst)
   );
-
-  /*
-   * Reading
-   */
-  always_comb begin
-    rdata = rdata_r;
-
-    if (mig_rvalid && ((state_r == ST_PREREAD && mig_rdy) || state_r == ST_READ)) begin
-      if (!mig_rend)
-        rdata[0+:DRAM_DATALEN] = mig_rdata;
-      else
-        rdata[DRAM_DATALEN+:DRAM_DATALEN] = mig_rdata;
-    end
-  end
-
-  always_ff @(posedge mig_ui_clk)
-    rdata_r <= rdata;
 
   /*
    * Command handling
@@ -206,29 +191,41 @@ module dram
     end
 
   /*
+   * Reading
+   */
+  always_comb begin
+    rdata = rdata_r;
+
+    if (state_r == ST_READ && mig_rvalid)
+      rdata = {mig_rdata, rdata_r[MMEM_DATALEN - 1:DRAM_DATALEN]};
+  end
+
+  always_ff @(posedge mig_ui_clk)
+    rdata_r <= rdata;
+
+  /*
    * Writing
    */
   always_comb begin
     wdata = wdata_r;
-    wend  = wend_r;
     wren  = wren_r;
+    wend  = wend_r;
 
     unique0 case (state_r)
-      ST_IDLE:
-        wren = 0;
+      ST_IDLE: begin
+        wdata = {mmem_wdata, {DRAM_DATALEN{1'b0}}};
+        wren  = 0;
+        wend  = 0;
+      end
 
-      ST_WRITE_L:
+      ST_WRITE:
         if (mig_wrdy) begin
-          wdata = mmem_wdata[0+:DRAM_DATALEN];
-          wend  = 0;
+          wdata = wdata_r >> DRAM_DATALEN;
           wren  = 1;
-        end 
-
-      ST_WRITE_H:
-        if (mig_wrdy) begin
-          wdata = mmem_wdata[DRAM_DATALEN+:DRAM_DATALEN];
-          wend  = 1;
-          wren  = 1;
+          wend  = last;
+        end else begin
+          wren = 0;
+          wend = 0;
         end
     endcase
   end
@@ -238,9 +235,36 @@ module dram
       wren_r <= 0;
     else begin
       wdata_r <= wdata;
-      wend_r  <= wend;
       wren_r  <= wren;
+      wend_r  <= wend;
     end
+
+  assign mig_wdata = wdata_r[0+:DRAM_DATALEN];
+
+  /*
+   * Counter handling
+   */
+  assign last = cnt_r == DRAM_CNTLEN - 1;
+
+  always_comb begin
+    cnt = cnt_r;
+
+    unique0 case (state_r)
+      ST_READ:
+        if (mig_rvalid)
+          cnt = cnt_r + 1;
+
+      ST_WRITE:
+        if (mig_wrdy)
+          cnt = cnt_r + 1;
+    endcase
+  end
+
+  always_ff @(posedge mig_ui_clk)
+    if (mig_ui_srst)
+      cnt_r <= 0;
+    else
+      cnt_r <= cnt;
 
   /*
    * State transitions
@@ -264,21 +288,17 @@ module dram
           state = ST_READ;
 
       ST_READ:
-        if (mig_rvalid && mig_rend) begin
+        if (mig_rvalid && last) begin
           state    = ST_IDLE;
           finished = 1;
         end
 
       ST_PREWRITE:
         if (mig_rdy)
-          state = ST_WRITE_L;
+          state = ST_WRITE;
 
-      ST_WRITE_L:
-        if (mig_wrdy)
-          state = ST_WRITE_H;
-
-      ST_WRITE_H:
-        if (mig_wrdy) begin
+      ST_WRITE:
+        if (mig_wrdy && last) begin
           state    = ST_IDLE;
           finished = 1;
         end
