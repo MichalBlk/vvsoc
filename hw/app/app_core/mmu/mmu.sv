@@ -324,14 +324,14 @@ module mmu
   /*
    * Update stage
    */
-  assign tlb_wpte        = sp_r ? l1_pte_r : l0_pte_r;
-  assign tlb_wen         = state_r == ST_UPDATE;
-
   assign l1_updated_pte  = l1_pte_r | (1 << PTE_ASH) | ((access_r == ACC_STORE) << PTE_DSH);
   assign l1_needs_update = !l1_pte_r[PTE_ASH] || (access_r == ACC_STORE && !l1_pte_r[PTE_DSH]);
 
   assign l0_updated_pte  = l0_pte_r | (1 << PTE_ASH) | ((access_r == ACC_STORE) << PTE_DSH);
   assign l0_needs_update = !l0_pte_r[PTE_ASH] || (access_r == ACC_STORE && !l0_pte_r[PTE_DSH]);
+
+  assign tlb_wpte        = sp_r ? l1_updated_pte : l0_updated_pte;
+  assign tlb_wen         = state_r == ST_UPDATE;
 
   /*
    * PA computation
