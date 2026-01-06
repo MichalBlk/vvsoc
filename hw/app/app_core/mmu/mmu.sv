@@ -23,8 +23,6 @@ module mmu
   input  logic                       ac_icache_flush,
   output logic [XLEN - 1:0]          ac_rdata,
   output logic [XLEN - 1:0]          ac_inst,
-  output logic [XLEN - 1:0]          ac_nxt_inst,
-  output logic                       ac_nxt_inst_valid,
   output exc_t                       ac_exc_code,
   output logic                       ac_exc_pending,
   output logic                       ac_stall,
@@ -90,8 +88,6 @@ module mmu
   logic                   tlb_valid;
 
   logic [XLEN - 1:0]      icache_rdata;
-  logic [XLEN - 1:0]      icache_nxt_rdata;
-  logic                   icache_nxt_valid;
 
   /*
    * Input buffering
@@ -198,9 +194,7 @@ module mmu
     .mmu_wen       (icache_wen),
     .mmu_flush     (ac_icache_flush),
     .mmu_rdata     (icache_rdata),
-    .mmu_nxt_rdata (icache_nxt_rdata),
-    .mmu_valid     (icache_valid),
-    .mmu_nxt_valid (icache_nxt_valid)
+    .mmu_valid     (icache_valid)
   );
 
   always_comb begin
@@ -505,13 +499,11 @@ module mmu
   /*
    * Application core signals
    */
-  assign ac_rdata          = asw_rdata;
-  assign ac_inst           = inst_r;
-  assign ac_nxt_inst       = icache_nxt_rdata;
-  assign ac_nxt_inst_valid = icache_nxt_valid;
-  assign ac_exc_code       = exc_code_r;
-  assign ac_exc_pending    = exc_pending_r && !omit_translation_r;
-  assign ac_stall          = state_r != ST_FINISH &&
+  assign ac_rdata       = asw_rdata;
+  assign ac_inst        = inst_r;
+  assign ac_exc_code    = exc_code_r;
+  assign ac_exc_pending = exc_pending_r && !omit_translation_r;
+  assign ac_stall       = state_r != ST_FINISH &&
     !(state_r == ST_ACCESS && access_r != ACC_FETCH && !asw_stall);
 
   /*
