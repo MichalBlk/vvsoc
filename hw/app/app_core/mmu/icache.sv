@@ -16,9 +16,7 @@ module icache
   input  logic                       mmu_wen,
   input  logic                       mmu_flush,
   output logic [XLEN - 1:0]          mmu_rdata,
-  output logic [XLEN - 1:0]          mmu_nxt_rdata,
-  output logic                       mmu_valid,
-  output logic                       mmu_nxt_valid
+  output logic                       mmu_valid
 );
   parameter TAGLEN = XLEN - CACHE_OFFSETLEN + 1;
 
@@ -36,20 +34,14 @@ module icache
   assign offsetbit = mmu_addr[0+:CACHE_OFFSETLEN] << BLEN_LOG;
 
   always_comb begin
-    mmu_rdata     = 'bx;
-    mmu_nxt_rdata = 'bx;
+    mmu_rdata = 'bx;
 
     for (int i = 0; i < CACHE_LINELEN; i += XLEN)
       if (offsetbit == i)
         mmu_rdata = line_data_r[i+:XLEN];
-
-    for (int i = 0; i < CACHE_LINELEN - XLEN; i += XLEN)
-      if (offsetbit == i)
-        mmu_nxt_rdata = line_data_r[i + XLEN+:XLEN];
   end
 
-  assign mmu_valid     = line_tag_r == tag;
-  assign mmu_nxt_valid = mmu_valid && offsetbit != CACHE_LINELEN - XLEN;
+  assign mmu_valid = line_tag_r == tag;
 
   /*
    * Writing
