@@ -499,11 +499,11 @@ module mmu
   /*
    * Application core signals
    */
-  assign ac_rdata          = asw_rdata;
-  assign ac_inst           = inst_r;
-  assign ac_exc_code       = exc_code_r;
-  assign ac_exc_pending    = exc_pending_r && !omit_translation_r;
-  assign ac_stall          = state_r != ST_FINISH &&
+  assign ac_rdata       = asw_rdata;
+  assign ac_inst        = inst_r;
+  assign ac_exc_code    = exc_code_r;
+  assign ac_exc_pending = exc_pending_r && !omit_translation_r;
+  assign ac_stall       = state_r != ST_FINISH &&
     !(state_r == ST_ACCESS && access_r != ACC_FETCH && !asw_stall);
 
   /*
