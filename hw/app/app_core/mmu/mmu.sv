@@ -31,6 +31,7 @@ module mmu
 
   input  logic [XLEN - 1:0]          asw_rdata,
   input  logic                       asw_stall,
+  input  logic                       asw_fault,
   output logic [XLEN - 1:0]          asw_addr,
   output logic [XLEN - 1:0]          asw_wdata,
   output logic [XLENB_LOG - 1:0]     asw_size,
@@ -424,10 +425,16 @@ module mmu
       ST_TLB_ICACHE: exc_pending = tlb_ill && !use_icache;
       ST_L1:         exc_pending = l1_exc_pending;
       ST_L0:         exc_pending = l0_exc_pending;
-      ST_ACCESS:     exc_pending = 0;
+      ST_ACCESS:     exc_pending = asw_fault;
     endcase
 
-    if (state_r == ST_TLB_ICACHE || state_r == ST_L1 || state_r == ST_L0)
+    if (state_r == ST_ACCESS)
+      unique0 case (access)
+        ACC_LOAD:  exc_code = CAUSE_LOAD_FAULT;
+        ACC_STORE: exc_code = CAUSE_STORE_AMO_FAULT;
+        ACC_FETCH: exc_code = CAUSE_FETCH_FAULT;
+      endcase
+    else
       unique0 case (ac_access)
         ACC_LOAD:  exc_code = CAUSE_LOAD_PAGE_FAULT;
         ACC_STORE: exc_code = CAUSE_STORE_AMO_PAGE_FAULT;
@@ -479,7 +486,9 @@ module mmu
           state = ST_ACCESS;
 
       ST_ACCESS:
-        if (!asw_stall)
+        if (asw_fault)
+          state = ST_FINISH;
+        else if (!asw_stall)
           state = access_r == ACC_FETCH ? ST_FINISH : ST_TLB_ICACHE;
 
       ST_FINISH:
