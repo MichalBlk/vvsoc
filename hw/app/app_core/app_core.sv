@@ -315,6 +315,7 @@ module app_core
     nxt_pc_r      <= nxt_pc;
     off_pc_r      <= off_pc;
     reg_pc_r      <= reg_pc;
+    fencei_r      <= fencei;
     mul_r         <= mul;
     div_r         <= div;
     ecall_r       <= ecall;
