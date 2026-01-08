@@ -1,0 +1,16 @@
+*.xpr
+*.dpc
+*.jou
+*.log
+*.str
+*.mem
+*.cache/
+*.runs/
+*.hw/
+*.sim/
+*.ip_user_files/
+*.gen/
+**/utils_*/
+**/sim_*/
+*/vvsoc
+*.Xil
