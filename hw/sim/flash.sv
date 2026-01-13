@@ -23,8 +23,8 @@ module flash
     $display("[FL] Loading OpenSBI...");
     $readmemh("opensbi.mem", mem, FL_OPENSBI_OFF);
 
-    $display("[FL] Loading dtb...");
-    $readmemh("vrvsoc.mem", mem, FL_DTB_OFF);
+    $display("[FL] Loading DTB...");
+    $readmemh("dt.mem", mem, FL_DTB_OFF);
 
     $display("[FL] Loading kernel...");
     $readmemh("kernel.mem", mem, FL_KERNEL_OFF);
