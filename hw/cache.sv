@@ -22,8 +22,7 @@ module cache
   input  logic                       msw_ren,
   input  logic                       msw_wen,
   output logic [XLEN - 1:0]          msw_rdata,
-  output logic                       msw_release,
-  output logic                       msw_done,
+  output logic                       msw_stall,
 
   input  logic [MMEM_DATALEN - 1:0]  mmem_rdata,
   input  logic                       mmem_stall,
@@ -619,6 +618,5 @@ module cache
   /*
    * Other main switch signals
    */
-  assign msw_release = (state_r == ST_READ && wen_r) || (state_r == ST_FINISH && !wen_r);
-  assign msw_done    = state_r == ST_FINISH;
+  assign msw_stall = state_r != ST_FINISH;
 endmodule

@@ -29,8 +29,7 @@ module main_switch
   output logic                      vsw_stall,
 
   input  logic [XLEN - 1:0]         cache_rdata,
-  input  logic                      cache_release,
-  input  logic                      cache_done,
+  input  logic                      cache_stall,
   output logic [MMEM_ADDRLEN - 1:0] cache_addr,
   output logic [XLEN - 1:0]         cache_wdata,
   output logic [XLENB_LOG - 1:0]    cache_size,
@@ -63,7 +62,7 @@ module main_switch
         state = ST_APP;
       else if (vsw_pending)
         state = ST_VIRTIO;
-    end else if (cache_done)
+    end else if (!cache_stall)
       state = ST_IDLE;
   end
 
@@ -77,13 +76,13 @@ module main_switch
    * Application switch signals
    */
   assign asw_rdata = cache_rdata;
-  assign asw_stall = state_r != ST_APP || !cache_release;
+  assign asw_stall = state_r != ST_APP || cache_stall;
 
   /*
    * VirtIO switch signals
    */
   assign vsw_rdata = cache_rdata;
-  assign vsw_stall = state_r != ST_VIRTIO || !cache_release;
+  assign vsw_stall = state_r != ST_VIRTIO || cache_stall;
 
   /*
    * Cache signals
