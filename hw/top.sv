@@ -122,8 +122,7 @@ module top
   logic [XLEN - 1:0]             cache_ac_pte;
   logic [CACHE_LINELEN - 1:0]    cache_ac_line;
   logic [XLEN - 1:0]             cache_msw_rdata;
-  logic                          cache_msw_release;
-  logic                          cache_msw_done;
+  logic                          cache_msw_stall;
   logic [MMEM_ADDRLEN - 1:0]     cache_mmem_addr;
   logic [MMEM_DATALEN - 1:0]     cache_mmem_wdata;
   logic                          cache_mmem_ren;
@@ -381,8 +380,7 @@ module top
     .vsw_rdata     (msw_vsw_rdata),
     .vsw_stall     (msw_vsw_stall),
     .cache_rdata   (cache_msw_rdata),
-    .cache_release (cache_msw_release),
-    .cache_done    (cache_msw_done),
+    .cache_stall   (cache_msw_stall),
     .cache_addr    (msw_cache_addr),
     .cache_wdata   (msw_cache_wdata),
     .cache_size    (msw_cache_size),
@@ -403,8 +401,7 @@ module top
     .msw_ren     (msw_cache_ren),
     .msw_wen     (msw_cache_wen),
     .msw_rdata   (cache_msw_rdata),
-    .msw_release (cache_msw_release),
-    .msw_done    (cache_msw_done),
+    .msw_stall   (cache_msw_stall),
     .mmem_rdata  (mmem_cache_rdata),
     .mmem_stall  (mmem_cache_stall),
     .mmem_addr   (cache_mmem_addr),
