@@ -102,6 +102,7 @@ _start:
 	TEST(or)
 	TEST(and)
 
+#ifdef AC
 	TEST(mulh)
 	TEST(mulhsu)
 	TEST(mulhu)
@@ -111,6 +112,7 @@ _start:
 	TEST(divu)
 	TEST(rem)
 	TEST(remu)
+#endif
 
 	TEST(simple)
 
