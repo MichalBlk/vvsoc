@@ -43,10 +43,12 @@ TEST_FUNC_NAME:				\
 	lui	a0,DBGC_ADDR>>12;	\
 	addi	a1,zero,'O';		\
 	addi	a2,zero,'K';		\
-	addi	a3,zero,'\n';		\
+	addi	a3,zero,'\r';		\
+	addi	a4,zero,'\n';		\
 	sw	a1,0(a0);		\
 	sw	a2,0(a0);		\
 	sw	a3,0(a0);		\
+	sw	a4,0(a0);		\
 	jal	zero,TEST_FUNC_RET;
 
 #define RVTEST_FAIL			\
@@ -54,13 +56,15 @@ TEST_FUNC_NAME:				\
 	addi	a1,zero,'E';		\
 	addi	a2,zero,'R';		\
 	addi	a3,zero,'O';		\
-	addi	a4,zero,'\n';		\
+	addi	a4,zero,'\r';		\
+	addi	a5,zero,'\n';		\
 	sw	a1,0(a0);		\
 	sw	a2,0(a0);		\
 	sw	a2,0(a0);		\
 	sw	a3,0(a0);		\
 	sw	a2,0(a0);		\
 	sw	a4,0(a0);		\
+	sw	a5,0(a0);		\
 	j .;
 
 #define RVTEST_CODE_END

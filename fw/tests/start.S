@@ -120,11 +120,13 @@ _start:
 	addi a2,zero,'O'
 	addi a3,zero,'N'
 	addi a4,zero,'E'
-	addi a5,zero,'\n'
+	addi a5,zero,'\r'
+	addi a6,zero,'\n'
 	sw a1,0(a0)
 	sw a2,0(a0)
 	sw a3,0(a0)
 	sw a4,0(a0)
 	sw a5,0(a0)
+	sw a6,0(a0)
 
   j .
