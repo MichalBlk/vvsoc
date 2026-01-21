@@ -158,7 +158,7 @@ package soc_pkg;
   parameter FL_OPENSBI_OFF = 'h000000;
   parameter FL_DTB_OFF     = 'h020000;
   parameter FL_KERNEL_OFF  = 'h021000;
-  parameter FL_INITRD_OFF  = 'h521000;
+  parameter FL_INITRD_OFF  = 'h421000;
 
   /*
    * VGA

@@ -1,1 +1,2 @@
-*.mcs -diff
+*.mem binary linguist-generated
+*.mcs binary linguist-generated

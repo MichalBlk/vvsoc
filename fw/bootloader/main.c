@@ -21,16 +21,21 @@ static void copy(int src, int dst, int n) {
     mmem[i] = fl[i];
 }
 
-void main(void) {
+__attribute__((__noreturn__)) void main(void) {
+#ifdef AC_TEST
+  PUTS("Loading APP core tests...");
+  copy(FL_OPENSBI_START, MMEM_OPENSBI_START, OPENSBI_SIZE);
+#else
   PUTS("Loading OpenSBI...");
   copy(FL_OPENSBI_START, MMEM_OPENSBI_START, OPENSBI_SIZE);
-  PUTS("Loading dtb...");
+  PUTS("Loading DTB...");
   copy(FL_DTB_START, MMEM_DTB_START, DTB_SIZE);
   PUTS("Loading kernel...");
   copy(FL_KERNEL_START, MMEM_KERNEL_START, KERNEL_SIZE);
   PUTS("Loading initrd...");
   copy(FL_INITRD_START, MMEM_INITRD_START, INITRD_SIZE);
   PUTS("Images loaded successfully");
+#endif
 
   void (*mmem_start)(int hartid, int dtb) = (void *)MMEM_OPENSBI_START;
   mmem_start(0, MMEM_DTB_START);

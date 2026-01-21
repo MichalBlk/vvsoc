@@ -16,7 +16,7 @@ package param_pkg;
   /*
    * VirtIO memory
    */
-  parameter VMEMSZ = 2 * PAGESZ;
+  parameter VMEMSZ = 32 * PAGESZ;
 
   /*
    * VirtIO manager
