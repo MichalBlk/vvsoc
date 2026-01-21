@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
 
   dut = new Vtop;
   uart = new UARTSIM(0);
-  uart->setup(0x080001b2);
+  uart->setup(0x08000364);
   dut->nrst = 1;
   dut->eval();
   dut->nrst = 0;

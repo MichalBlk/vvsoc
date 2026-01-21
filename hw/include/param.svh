@@ -43,7 +43,7 @@ package param_pkg;
   /*
    * UART
    */
-  parameter UART_BAUD_RATE = 230400;
+  parameter UART_BAUD_RATE = 115200;
 
   /*
    * Statistics
