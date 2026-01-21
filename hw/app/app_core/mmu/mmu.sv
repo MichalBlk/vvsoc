@@ -368,7 +368,7 @@ module mmu
    * Instruction handling
    */
   always_comb begin
-    inst = inst_r;
+    inst = NOP;
 
     case (state_r)
       ST_TLB_ICACHE: inst = icache_rdata;
