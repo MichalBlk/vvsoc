@@ -6,7 +6,7 @@
 /*
  * VirtIO memory
  */
-#define VMEMSZ (2 * PAGESZ)
+#define VMEMSZ (32 * PAGESZ)
 #define VMEM_START 0x10000000
 
 /*
@@ -80,7 +80,7 @@
 #define FL_OPENSBI_START 0xf0000000
 #define FL_DTB_START 0xf0020000
 #define FL_KERNEL_START 0xf0021000
-#define FL_INITRD_START 0xf0521000
+#define FL_INITRD_START 0xf0421000
 
 /*
  * Main memory
@@ -97,7 +97,7 @@
  */
 #define OPENSBI_SIZE 0x20000
 #define DTB_SIZE 0x1000
-#define KERNEL_SIZE 0x500000
-#define INITRD_SIZE 0x700000
+#define KERNEL_SIZE 0x400000
+#define INITRD_SIZE 0x600000
 
 #endif /* !__SOC_H__ */

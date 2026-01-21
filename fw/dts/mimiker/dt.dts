@@ -5,9 +5,9 @@
   #size-cells = <1>;
 
   chosen {
-    bootargs = "init=/bin/ksh";
+    bootargs = "init=/sbin/init";
     linux,initrd-start = <0x82000000>;
-    linux,initrd-end = <0x82300000>;
+    linux,initrd-end = <0x823ae400>;
   };
 
   cpus {

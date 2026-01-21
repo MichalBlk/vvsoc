@@ -708,7 +708,7 @@ module app_core
           state = ST_COM;
 
       ST_COM:
-        state = !exc_pending_r && misaligned_jmp ? ST_MISALIGNED_JMP : ST_IF_DEC;
+        state = misaligned_jmp ? ST_MISALIGNED_JMP : ST_IF_DEC;
 
       ST_MISALIGNED_JMP:
         state = ST_IF_DEC;

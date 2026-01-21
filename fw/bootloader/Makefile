@@ -1,32 +1,45 @@
-TOOLS   = ../../tools
-BIN2MEM = $(TOOLS)/bin2mem.py
+TOOLS        = ../../tools
+BIN2MEM      = $(TOOLS)/bin2mem.py
 
-PREFIX  = riscv32-unknown-linux-gnu-
-CC      = $(PREFIX)gcc
-OBJCOPY = $(PREFIX)objcopy
-WFLAGS  = -Wall -Wextra
-CFLAGS  = -std=gnu11 -O3 -ffreestanding -nostdlib -I../include -fomit-frame-pointer
-LDFLAGS = -T ./linker.ld
+PREFIX       = riscv32-unknown-linux-gnu-
+CC           = $(PREFIX)gcc
+OBJCOPY      = $(PREFIX)objcopy
+WFLAGS       = -Wall -Wextra
+CFLAGS       = -std=gnu11 -O3 -ffreestanding -nostdlib -I../include -fomit-frame-pointer
+LDFLAGS      = -T ./linker.ld
 
-HEADERS = $(wildcard ../include/*.h)
-SRCS    = start.o main.o
+HEADERS      = $(wildcard ../include/*.h)
+SRCS         = start.o main.o
+SRCS_AC_TEST = $(addsuffix _ac_test.o, $(basename $(SRCS)))
 
-bootloader.mem: bootloader.bin
+all: bootloader.mem bootloader_ac_test.mem
+
+%.mem: %.bin
 	$(BIN2MEM) 4 $^
 
-bootloader.bin: bootloader.elf
+%.bin: %.elf
 	$(OBJCOPY) -O binary $^ $@
 
 bootloader.elf: $(SRCS) linker.ld
 	$(CC) $(WFLAGS) $(CFLAGS) $(LDFLAGS) $(SRCS) -o $@
 
+bootloader_ac_test.elf: $(SRCS_AC_TEST) linker.ld
+	$(CC) $(WFLAGS) $(CFLAGS) $(LDFLAGS) $(SRCS_AC_TEST) -o $@
+
 start.o: start.S $(HEADERS)
 	$(CC) $(WFLAGS) $(CFLAGS) -c $< -o $@
+
+start_ac_test.o: start.S $(HEADERS)
+	$(CC) $(WFLAGS) $(CFLAGS) -DAC_TEST -c $< -o $@
 
 main.o: main.c $(HEADERS)
 	$(CC) $(WFLAGS) $(CFLAGS) -c $< -o $@
 
-clean:
-	rm -rf bootloader.mem bootloader.bin bootloader.elf start.o main.o
+main_ac_test.o: main.c $(HEADERS)
+	$(CC) $(WFLAGS) $(CFLAGS) -DAC_TEST -c $< -o $@
 
-.PHONY: clean
+clean:
+	rm -rf *mem *.bin *.elf *.o
+
+.PHONY: all clean
+.PRECIOUS: %.bin
