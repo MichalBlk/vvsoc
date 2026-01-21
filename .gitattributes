@@ -1,2 +1,2 @@
-*.mem binary
-*.mcs binary
+*.mem binary linguist-generated
+*.mcs binary linguist-generated
