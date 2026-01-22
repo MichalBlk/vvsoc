@@ -98,6 +98,5 @@
 #define OPENSBI_SIZE 0x20000
 #define DTB_SIZE 0x1000
 #define KERNEL_SIZE 0x400000
-#define INITRD_SIZE 0x600000
 
 #endif /* !__SOC_H__ */
