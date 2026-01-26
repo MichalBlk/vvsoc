@@ -5,16 +5,20 @@ import os
 
 def main():
     if len(sys.argv) == 2:
-        width = 4
         inpath = sys.argv[1]
+        width = 4
+        outpath = os.path.splitext(inpath)[0] + ".mem"
     elif len(sys.argv) == 3:
-        width = int(sys.argv[1])
-        inpath = sys.argv[2]
+        inpath = sys.argv[1]
+        width = int(sys.argv[2])
+        outpath = os.path.splitext(inpath)[0] + ".mem"
+    elif len(sys.argv) == 4:
+        inpath = sys.argv[1]
+        width = int(sys.argv[2])
+        outpath = sys.argv[3]
     else:
-        print(f"Usage: {sys.argv[0]} [width] file", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} file [width] [output_file]", file=sys.stderr)
         sys.exit(1)
-
-    outpath = os.path.splitext(inpath)[0] + ".mem"
 
     with open(inpath, "rb") as infile, open(outpath, "w") as outfile:
         while True:

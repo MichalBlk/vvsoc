@@ -1,5 +1,4 @@
 *.o
 *.elf
 *.bin
-*.mem
 *.dtb

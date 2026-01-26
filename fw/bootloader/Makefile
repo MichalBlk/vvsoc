@@ -1,12 +1,9 @@
-TOOLS                 = ../../tools
-BIN2MEM               = $(TOOLS)/bin2mem.py
-
-PREFIX                = riscv32-unknown-linux-gnu-
-CC                    = $(PREFIX)gcc
-OBJCOPY               = $(PREFIX)objcopy
-WFLAGS                = -Wall -Wextra
-CFLAGS                = -std=gnu11 -O3 -ffreestanding -nostdlib -I../include -fomit-frame-pointer
-LDFLAGS               = -T ./linker.ld
+PREFIX             = riscv32-unknown-linux-gnu-
+CC                 = $(PREFIX)gcc
+OBJCOPY            = $(PREFIX)objcopy
+WFLAGS             = -Wall -Wextra
+CFLAGS             = -std=gnu11 -O3 -ffreestanding -nostdlib -I../include -fomit-frame-pointer
+LDFLAGS            = -T ./linker.ld
 
 HEADERS            = $(wildcard ../include/*.h)
 SRCS               = start.o main.o
@@ -18,10 +15,7 @@ INITRD_SIZE        = 0x600000
 INITRD_MEDIUM_SIZE = 0x1000000
 INITRD_LARGE_SIZE  = 0x3000000
 
-all: bootloader.mem bootloader_medium.mem bootloader_large.mem bootloader_ac_test.mem
-
-%.mem: %.bin
-	$(BIN2MEM) 4 $^
+all: bootloader.bin bootloader_medium.bin bootloader_large.bin bootloader_ac_test.bin
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $^ $@
@@ -63,7 +57,6 @@ main_ac_test.o: main.c $(HEADERS)
 	$(CC) $(WFLAGS) $(CFLAGS) -DAC_TEST -c $< -o $@
 
 clean:
-	rm -rf *mem *.bin *.elf *.o
+	rm -rf *.bin *.elf *.o
 
 .PHONY: all clean
-.PRECIOUS: %.bin
