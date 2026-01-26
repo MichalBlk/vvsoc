@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <SDL.h>
 #include <verilated.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "uartsim.h"
 #include "uartsim.cpp"
@@ -57,6 +59,7 @@ typedef enum {
 static constexpr int RESET_CYCLES = 8, WIDTH = 640, HEIGHT = 480, INSTRUCTIONS = 1e9;
 
 Pixel frame[WIDTH * HEIGHT];
+termios oldt, newt;
 SDL_Window *sdl_window;
 SDL_Renderer *sdl_renderer;
 SDL_Texture *sdl_texture;
@@ -64,6 +67,15 @@ Vtop *dut;
 UARTSIM *uart;
 int op_cnt[OP_CNT], cycle_cnt[OP_CNT];
 bool refresh;
+
+static void restore_terminal(void) {
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+}
+
+static void signal_handler(int signo) {
+  restore_terminal();
+  exit(EXIT_FAILURE);
+}
 
 static inline bool done(void) {
   return Verilated::gotFinish() ||
@@ -165,6 +177,14 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+  signal(SIGSEGV, signal_handler);
+
   for (int i = 0; i < WIDTH * HEIGHT; i++)
     frame[i].a = 0xff;
 
@@ -250,5 +270,6 @@ end:
   printf("CACHE: total=%d, hit=%d\n",
     dut->__PVT__top->__PVT__CACHE->cnt_r, dut->__PVT__top->__PVT__CACHE->hcnt_r);
 
+  restore_terminal();
   return 0;
 }
