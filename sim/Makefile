@@ -50,6 +50,9 @@ virtio.mem: $(VIRTIO)
 	$(BIN2MEM) $(VIRTIO) 4 $@
 
 clean:
-	rm -rf obj_dir *.mem
+	rm -rf obj_dir
+
+distclean: clean
+	rm *.mem
 
 .PHONY: standard dbg measure clean

@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <SDL.h>
 #include <verilated.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "uartsim.h"
 #include "uartsim.cpp"
@@ -34,8 +36,18 @@ typedef struct Pixel {
 static constexpr int RESET_CYCLES = 8, WIDTH = 640, HEIGHT = 480;
 
 Pixel frame[WIDTH * HEIGHT];
+termios oldt, newt;
 Vtop *dut;
 UARTSIM *uart;
+
+static void restore_terminal(void) {
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+}
+
+static void signal_handler(int signo) {
+  restore_terminal();
+  exit(EXIT_FAILURE);
+}
 
 int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv);
@@ -62,6 +74,14 @@ int main(int argc, char **argv) {
     printf("SDL texture creation failed: %s\n", SDL_GetError());
     exit(EXIT_FAILURE);
   }
+
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+  signal(SIGSEGV, signal_handler);
 
   for (int i = 0; i < WIDTH * HEIGHT; i++)
     frame[i].a = 0xff;
@@ -123,5 +143,7 @@ int main(int argc, char **argv) {
   double time = ((double)end_time - start_time) / SDL_GetPerformanceFrequency();
   double hz = ticks / time;
   printf("hz=%.1f\n", hz);
+
+  restore_terminal();
   return 0;
 }
