@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "evdev.svh"
 
 module kbd
@@ -15,6 +13,8 @@ module kbd
   output logic                    vmgr_value,
   output logic                    vmgr_ready
 );
+`default_nettype none
+
   typedef enum logic [2:0] {
     ST_READ,
     ST_PROCESS,

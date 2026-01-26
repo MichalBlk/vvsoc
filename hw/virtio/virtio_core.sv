@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -21,6 +19,8 @@ module virtio_core
 
   input  logic [XLEN - 1:0]      vmem_raw_data
 );
+`default_nettype none
+
   typedef enum logic [1:0] {
     ST_IF_DEC,
     ST_MEM,

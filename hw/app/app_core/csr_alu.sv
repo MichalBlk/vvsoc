@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module csr_alu
@@ -11,6 +9,8 @@ module csr_alu
   input  logic [FUNCT3LEN - 1:0] ac_funct3,
   output logic [XLEN - 1:0]      ac_res
 );
+`default_nettype none
+
   always_comb begin
     ac_res = 'bx;
 

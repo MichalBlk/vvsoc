@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "virtio.svh"
 `include "evdev.svh"
@@ -60,6 +58,8 @@ module virtio_manager
   input  logic                          vkd_drvok,
   output logic                          vkd_used
 );
+`default_nettype none
+
   localparam VMGR_UART_RX_FIFO_ADDRLEN = $clog2(VMGR_UART_RX_FIFOSZ);
   localparam VMGR_UART_RX_FIFO_CNTLEN  = $clog2(VMGR_UART_RX_FIFOSZ + 1);
 

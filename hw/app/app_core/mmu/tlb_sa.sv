@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module tlb_sa
@@ -25,6 +23,8 @@ module tlb_sa
   output logic                 mmu_rsp,
   output logic                 mmu_valid
 );
+`default_nettype none
+
   logic [PTELEN - 1:0]      line_pte [SETCNT - 1:0][LINECNT - 1:0],
     line_pte_r [SETCNT - 1:0][LINECNT - 1:0];
   logic [ASIDLEN - 1:0]     line_asid [SETCNT - 1:0][LINECNT - 1:0],

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module amo_alu
@@ -10,6 +8,8 @@ module amo_alu
   input  logic [FUNCT5LEN - 1:0] ac_funct5,
   output logic [XLEN - 1:0]      ac_res
 );
+`default_nettype none
+
   logic signed [XLEN - 1:0] src1_s;
   logic signed [XLEN - 1:0] src2_s;
 

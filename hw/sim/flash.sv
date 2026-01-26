@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -17,6 +15,8 @@ module flash
   output logic [XLEN - 1:0]       asw_rdata,
   output logic                    asw_stall
 );
+`default_nettype none
+
   logic [BLEN - 1:0] mem [FLSZ - 1:0];
 
   initial begin

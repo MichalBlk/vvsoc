@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -18,6 +16,8 @@ module icache
   output logic [XLEN - 1:0]          mmu_rdata,
   output logic                       mmu_valid
 );
+`default_nettype none
+
   parameter TAGLEN = XLEN - CACHE_OFFSETLEN + 1;
 
   logic [CACHE_LINELEN - 1:0]     line_data, line_data_r;

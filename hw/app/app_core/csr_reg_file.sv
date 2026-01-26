@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module csr_reg_file
@@ -38,6 +36,8 @@ module csr_reg_file
 
   input  logic                vkd_intr_pending
 );
+`default_nettype none
+
   priv_t               priv, priv_r;
 
   logic [XLEN - 1:0]   mstatus, mstatus_r;

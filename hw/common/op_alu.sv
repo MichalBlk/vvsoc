@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module op_alu
@@ -11,6 +9,8 @@ module op_alu
   input  logic [FUNCT7LEN - 1:0] funct7,
   output logic [XLEN - 1:0]      res
 );
+`default_nettype none
+
   logic signed [XLEN - 1:0]     src1_s;
   logic signed [XLEN - 1:0]     src2_s;
   logic        [XLEN_LOG - 1:0] shamt;

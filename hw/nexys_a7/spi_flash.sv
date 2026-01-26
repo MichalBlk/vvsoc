@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -22,6 +20,8 @@ module spi_flash
   output logic                    sclk,
   output logic                    ncs
 );
+`default_nettype none
+
   localparam TICK         = 2;
   localparam MS           = 100000;
   localparam SPIFL_CNTLEN = 30;

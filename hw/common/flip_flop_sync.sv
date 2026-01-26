@@ -1,5 +1,3 @@
-`default_nettype none
-
 module flip_flop_sync #(
   parameter WIDTH = 32,
   parameter CNT   = 2
@@ -10,6 +8,8 @@ module flip_flop_sync #(
   input  logic [WIDTH - 1:0] src,
   output logic [WIDTH - 1:0] res
 );
+`default_nettype none
+
   (* ASYNC_REG = "TRUE" *)
   logic [WIDTH - 1:0] data [CNT - 1:0], data_r [CNT - 1:0];
 

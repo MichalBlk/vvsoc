@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -33,6 +31,8 @@ module app_core
 
   input  logic                       vkd_intr_pending
 );
+`default_nettype none
+
   typedef enum logic [2:0] {
     ST_IF_DEC,
     ST_EXE1,

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "soc.svh"
 
 module cache_agent
@@ -25,6 +23,8 @@ module cache_agent
   output logic                       mmem_ren,
   output logic                       mmem_wen
 );
+`default_nettype none
+
   typedef enum logic {
     ST_IDLE,
     ST_BUSY

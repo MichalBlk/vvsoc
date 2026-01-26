@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "evdev.svh"
 `include "soc.svh"
@@ -54,6 +52,8 @@ module top
   output logic                      hsync,
   output logic                      vsync
 );
+`default_nettype none
+
   logic [XLEN - 1:0]             bmem_asw_rdata;
   logic                          bmem_asw_stall;
 

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module divisor
@@ -14,6 +12,8 @@ module divisor
   output logic [XLEN - 1:0]      ac_res,
   output logic                   ac_stall
 );
+`default_nettype none
+
   typedef enum logic [1:0] {
     ST_IDLE,
     ST_BUSY,

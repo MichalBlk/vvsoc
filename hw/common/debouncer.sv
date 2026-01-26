@@ -1,5 +1,3 @@
-`default_nettype none
-
 module debouncer #(
   parameter CNT = 4
 )(
@@ -9,6 +7,8 @@ module debouncer #(
   input  logic src,
   output logic dst
 );
+`default_nettype none
+
   localparam CNTLEN = $clog2(CNT);
 
   logic [CNTLEN - 1:0] cnt, cnt_r;

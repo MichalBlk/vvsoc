@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module branch_alu
@@ -10,6 +8,8 @@ module branch_alu
   input  logic [FUNCT3LEN - 1:0] funct3,
   output logic                   res
 );
+`default_nettype none
+
   logic signed [XLEN - 1:0] src1_s;
   logic signed [XLEN - 1:0] src2_s;
 

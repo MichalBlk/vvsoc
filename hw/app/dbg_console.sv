@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module dbg_console
@@ -15,6 +13,8 @@ module dbg_console
   output logic [BLEN - 1:0] vmgr_byte,
   output logic              vmgr_wen
 );
+`default_nettype none
+
   /*
    * Application switch signals
    */

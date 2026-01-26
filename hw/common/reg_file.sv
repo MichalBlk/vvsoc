@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module reg_file
@@ -18,6 +16,8 @@ module reg_file
   output logic [XLEN - 1:0]       rdata1,
   output logic [XLEN - 1:0]       rdata2
 );
+`default_nettype none
+
   logic [XLEN - 1:0] x [REGCNT - 1:0], x_r [REGCNT - 1:0];
 
   /*

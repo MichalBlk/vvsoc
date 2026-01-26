@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "param.svh"
 
@@ -21,6 +19,8 @@ module uart
   output logic              vmgr_rx_ready,
   output logic              vmgr_tx_busy
 );
+`default_nettype none
+
   localparam BIT_PERIOD  = 16;
   localparam CLK_DIV     = CLK_FREQ / (UART_BAUD_RATE * BIT_PERIOD);
   localparam CLK_DIV_LOG = $clog2(CLK_DIV);

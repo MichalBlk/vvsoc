@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -18,6 +16,8 @@ module main_memory
   output logic [MMEM_DATALEN - 1:0] cache_rdata,
   output logic                      cache_stall
 );
+`default_nettype none
+
   logic [MMEM_DATALEN - 1:0]  mem [MMEMSZW - 1:0];
 
   logic [MMEM_ADDRWLEN - 1:0] addrw;

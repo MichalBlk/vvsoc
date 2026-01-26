@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -40,6 +38,8 @@ module mmu
   input  logic [XLEN - 1:0]          cache_pte,
   input  logic [CACHE_LINELEN - 1:0] cache_line
 );
+`default_nettype none
+
   typedef enum logic [2:0] {
     ST_TLB_ICACHE,
     ST_L1,

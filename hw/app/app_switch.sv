@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -68,6 +66,8 @@ module app_switch
   output logic                       msw_ren,
   output logic                       msw_wen
 );
+`default_nettype none
+
   dev_t dev;
 
   assign dev         = dev_t'(ac_addr[ADDR_DEVSH+:DEVLEN]);
