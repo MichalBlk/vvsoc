@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -38,6 +36,8 @@ module main_switch
   output logic                      cache_ren,
   output logic                      cache_wen
 );
+`default_nettype none
+
   typedef enum logic [1:0] {
     ST_IDLE,
     ST_APP,

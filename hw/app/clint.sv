@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -18,6 +16,8 @@ module clint
   output logic [CNTLEN - 1:0]        ac_mtime,
   output logic                       ac_intr_pending
 );
+`default_nettype none
+
   logic [CNTLEN - 1:0] mtime, mtime_r;
   logic [CNTLEN - 1:0] mtimecmp, mtimecmp_r;
 

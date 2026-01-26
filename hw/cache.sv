@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -32,6 +30,8 @@ module cache
   output logic                       mmem_ren,
   output logic                       mmem_wen
 );
+`default_nettype none
+
   typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ,

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "soc.svh"
 
 module vga
@@ -22,6 +20,8 @@ module vga
   input  logic [VGA_COLORLEN - 1:0]    vmgr_b,
   output logic [VGA_FRAMESZ_LOG - 1:0] vmgr_pos
 );
+`default_nettype none
+
   logic [VGA_POSLEN - 1:0]      cx, cx_r;
   logic [VGA_POSLEN - 1:0]      cy, cy_r;
   logic [VGA_POSLEN - 1:0]      bx, bx_r;

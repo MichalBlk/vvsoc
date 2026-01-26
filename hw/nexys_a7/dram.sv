@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -35,6 +33,8 @@ module dram
   output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
   output logic                      ddr2_odt
 );
+`default_nettype none
+
   localparam DRAM_DATALEN = 64;
   localparam DRAM_CNTLEN  = $clog2(MMEM_DATALEN / DRAM_DATALEN);
   localparam MIG_ADDRLEN  = 27;

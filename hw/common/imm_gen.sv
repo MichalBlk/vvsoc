@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module imm_gen
@@ -8,6 +6,8 @@ module imm_gen
   input  logic [ILEN - 1:0] inst,
   output logic [XLEN - 1:0] imm
 );
+`default_nettype none
+
   logic [XLEN - 1:0] imm_I;
   logic [XLEN - 1:0] imm_S;
   logic [XLEN - 1:0] imm_B;

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "evdev.svh"
 `include "ps2.svh"
 
@@ -10,6 +8,8 @@ module kbd_evdev_converter
   input  logic [15:0] scancode,
   output logic [7:0]  evcode
 );
+`default_nettype none
+
   always_comb begin
     evcode = 'bx;
 

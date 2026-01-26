@@ -1,5 +1,3 @@
-`default_nettype none
-
 module flag_sync(
   input  logic src_clk,
   input  logic src_nrst,
@@ -9,6 +7,8 @@ module flag_sync(
   input  logic dst_nrst,
   output logic dst_flag
 );
+`default_nettype none
+
   logic src_diff, src_diff_r;
 
   assign src_diff = src_diff_r ^ src_flag;

@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -22,6 +20,8 @@ module flash
   output logic                    sclk,
   output logic                    ncs
 );
+`default_nettype none
+
   typedef enum logic [1:0] {
     ST_IDLE,
     ST_READ,

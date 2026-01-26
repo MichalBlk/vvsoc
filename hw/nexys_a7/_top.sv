@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "board.svh"
 
 module _top
@@ -41,6 +39,8 @@ module _top
   input  logic                      PS2_CLK,
   input  logic                      PS2_DATA
 );
+`default_nettype none
+
   logic       cpu_clk;
   logic       dram_clk;
   logic       fl_clk;

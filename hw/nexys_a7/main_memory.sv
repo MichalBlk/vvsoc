@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -34,6 +32,8 @@ module main_memory
   output logic [DDR2_DMLEN - 1:0]   ddr2_dm,
   output logic                      ddr2_odt
 );
+`default_nettype none
+
   typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ,

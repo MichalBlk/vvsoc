@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module inst_verifier
@@ -21,6 +19,8 @@ module inst_verifier
   output logic                    ac_sfence_vma,
   output logic                    ac_valid
 );
+`default_nettype none
+
   logic branch;
   logic load;
   logic store;

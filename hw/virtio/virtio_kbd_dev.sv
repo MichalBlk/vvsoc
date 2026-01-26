@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "virtio.svh"
 `include "soc.svh"
@@ -31,6 +29,8 @@ module virtio_kbd_dev
   output logic                          vmgr_notify,
   output logic                          vmgr_drvok
 );
+`default_nettype none
+
   localparam VIRTQUEUE_TOTALSZW = VKD_QUEUECNT * VIRTQUEUESZW;
 
   logic [XLEN - 1:0]         virtqueue [VIRTQUEUE_TOTALSZW - 1:0],

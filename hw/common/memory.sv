@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 
 module memory
@@ -23,6 +21,8 @@ module memory
   output logic [XLEN - 1:0]      rdata,
   output logic                   stall
 );
+`default_nettype none
+
   localparam SZW      = SZ / XLENB;
   localparam ADDRWLEN = $clog2(SZW);
 

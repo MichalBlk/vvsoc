@@ -1,5 +1,3 @@
-`default_nettype none
-
 `include "isa.svh"
 `include "soc.svh"
 
@@ -56,6 +54,8 @@ module virtio_switch
   output logic                      msw_ren,
   output logic                      msw_wen
 );
+`default_nettype none
+
   dev_t dev;
 
   assign dev        = dev_t'(vc_addr[ADDR_DEVSH+:DEVLEN]);
