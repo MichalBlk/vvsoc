@@ -49,10 +49,70 @@ initrd.mem: $(INITRD)
 virtio.mem: $(VIRTIO)
 	$(BIN2MEM) $(VIRTIO) 4 $@
 
+ac_test_imgs:
+	$(BIN2MEM) $(IMAGES)/bootloader/bootloader_ac_test.bin 4 bootloader.mem
+	$(BIN2MEM) $(IMAGES)/ac_test.bin 1 opensbi.mem
+	$(BIN2MEM) $(IMAGES)/virtio.bin 4 virtio.mem
+
+vc_test_imgs:
+	$(BIN2MEM) $(IMAGES)/bootloader/idle.bin 4 bootloader.mem
+	$(BIN2MEM) $(IMAGES)/vc_test.bin 4 virtio.mem
+
+linux_imgs:
+	$(BIN2MEM) $(BOOTLOADER) 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(DT) 1 dt.mem
+	$(BIN2MEM) $(KERNEL) 1 kernel.mem
+	$(BIN2MEM) $(INITRD) 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+linux_ktest_imgs:
+	$(BIN2MEM) $(BOOTLOADER) 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(DT) 1 dt.mem
+	$(BIN2MEM) $(IMAGES)/linux/kernel_test.bin 1 kernel.mem
+	$(BIN2MEM) $(INITRD) 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+linux_utest_imgs:
+	$(BIN2MEM) $(IMAGES)/bootloader/bootloader_medium.bin 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(IMAGES)/linux/dt_hvc_medium.dtb 1 dt.mem
+	$(BIN2MEM) $(KERNEL) 1 kernel.mem
+	$(BIN2MEM) $(IMAGES)/linux/initrd_test.cpio 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+linux_utest_full_imgs:
+	$(BIN2MEM) $(IMAGES)/bootloader/bootloader_large.bin 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(IMAGES)/linux/dt_hvc_large.dtb 1 dt.mem
+	$(BIN2MEM) $(KERNEL) 1 kernel.mem
+	$(BIN2MEM) $(IMAGES)/linux/initrd_test_full.cpio 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+mimiker_imgs:
+	$(BIN2MEM) $(BOOTLOADER) 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/dt.dtb 1 dt.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/kernel.bin 1 kernel.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/initrd.cpio 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+mimiker_test_imgs:
+	$(BIN2MEM) $(BOOTLOADER) 4 bootloader.mem
+	$(BIN2MEM) $(OPENSBI) 1 opensbi.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/dt_test.dtb 1 dt.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/kernel.bin 1 kernel.mem
+	$(BIN2MEM) $(IMAGES)/mimiker/initrd.cpio 1 initrd.mem
+	$(BIN2MEM) $(VIRTIO) 4 virtio.mem
+
+
 clean:
 	rm -rf obj_dir
 
 distclean: clean
 	rm *.mem
 
-.PHONY: standard dbg measure clean
+.PHONY: standard dbg measure ac_test_imgs vc_test_imgs linux_imgs \
+	linux_ktest_imgs linux_utest_imgs linux_utest_full_imgs mimiker_imgs \
+	mimiker_test_imgs clean distclean
