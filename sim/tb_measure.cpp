@@ -56,7 +56,7 @@ typedef enum {
   OP_CNT
 } op_t;
 
-static constexpr int RESET_CYCLES = 8, WIDTH = 640, HEIGHT = 480, INSTRUCTIONS = 1e9;
+static constexpr int RESET_CYCLES = 8, WIDTH = 640, HEIGHT = 480, INSTRUCTIONS = 3e8;
 
 Pixel frame[WIDTH * HEIGHT];
 termios oldt, newt;
@@ -99,14 +99,14 @@ static inline int opcode2op(int opcode) {
     return OP_STORE;
   if (opcode == 0x13)
     return OP_IMM;
-  if (opcode == 0x33)
-    return OP_OP;
-  if (dut->__PVT__top->__PVT__APP_CORE->iv_fencei)
-    return OP_FENCEI;
   if (dut->__PVT__top->__PVT__APP_CORE->iv_mul)
     return OP_MUL;
   if (dut->__PVT__top->__PVT__APP_CORE->iv_div)
     return OP_DIV;
+  if (opcode == 0x33)
+    return OP_OP;
+  if (dut->__PVT__top->__PVT__APP_CORE->iv_fencei)
+    return OP_FENCEI;
   if (dut->__PVT__top->__PVT__APP_CORE->__PVT__INST_VERIFIER->amo_lr)
     return OP_LR;
   if (dut->__PVT__top->__PVT__APP_CORE->__PVT__INST_VERIFIER->amo_sc)
