@@ -1,3 +1,7 @@
+/*
+ * Heavily based on the UART controller by Timothy Goddard:
+ * https://github.com/freecores/osdvu/blob/master/uart.v
+ */
 `include "isa.svh"
 `include "param.svh"
 
